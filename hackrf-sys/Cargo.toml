@@ -1,0 +1,9 @@
+[package]
+name = "hackrf-sys"
+version = "0.1.0"
+authors = ["rfdoell <rfdoell@users.noreply.github.com>"]
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.40.0"
