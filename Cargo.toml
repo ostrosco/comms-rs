@@ -1,0 +1,12 @@
+[package]
+name = "comms-rs"
+version = "0.1.0"
+authors = ["ostrosco <ostrosco@fastmail.fm>", "rfdoell", "garbagetrash"]
+description = "Library for building high-performance DSP transmit and receive pipelines."
+homepage = "https://github.com/ostrosco/comms-rs"
+repository = "https://github.com/ostrosco/comms-rs"
+readme = "README.md"
+keywords = ["dsp", "rf"]
+license = "MIT"
+
+[dependencies]
