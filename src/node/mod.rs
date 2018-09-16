@@ -1,3 +1,7 @@
+pub trait Node {
+    fn run_node(&mut self);
+}
+
 /// Creates a base node with a variable number of receivers, a variable
 /// number of senders, and a transformation function that maps the inputs
 /// into the outputs. Channels are assumed to use the crossbeam crate.
@@ -6,6 +10,7 @@
 ///
 /// ```
 /// #[macro_use] extern crate comms_rs;
+/// use comms_rs::node::Node;
 /// # fn main() {
 /// use std::sync::mpsc::{channel, Receiver, Sender};
 ///
@@ -23,8 +28,6 @@
 #[macro_export]
 macro_rules! create_node {
     ($name:ident, FnMut() -> $out:ty) => {
-        use crossbeam::{Receiver, Sender};
-
         struct $name<F>
         where
             F: FnMut() -> $out,
@@ -43,7 +46,11 @@ macro_rules! create_node {
                     func
                 }
             }
+        }
 
+        impl<F> Node for $name<F> 
+        where
+            F: FnMut() -> $out {
             fn run_node(&mut self) {
                 let res = (self.func)();
                 for send in &self.sender {
@@ -71,8 +78,13 @@ macro_rules! create_node {
                     func
                 }
             }
+        }
 
-            fn run_node(&self) {
+        impl<F> Node for $name<F> 
+        where
+            F: Fn() -> $out
+        {
+            fn run_node(&mut self) {
                 let res = (self.func)();
                 for send in &self.sender {
                     send.send(res);
@@ -83,7 +95,7 @@ macro_rules! create_node {
     ($name:ident, FnMut($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
         struct $name<F>
         where
-            F: FnMut($($in),*) -> $out,
+            F: FnMut($($in),+) -> $out,
         {
             $(
                 $recv: Option<Receiver<$in>>,
@@ -105,7 +117,12 @@ macro_rules! create_node {
                     func
                 }
             }
+        }
 
+        impl<F> Node for $name<F>
+        where
+            F: FnMut($($in),+) -> $out,
+        {
             fn run_node(&mut self) {
                 $(
                     let $recv = match self.$recv {
@@ -113,7 +130,7 @@ macro_rules! create_node {
                         None => return,
                     };
                 )*
-                let res = (self.func)($($recv,)*);
+                let res = (self.func)($($recv,)+);
                 for send in &self.sender {
                     send.send(res);
                 }
@@ -145,15 +162,20 @@ macro_rules! create_node {
                     func
                 }
             }
+        }
 
-            fn run_node(&self) {
+        impl<F> Node for $name<F>
+        where
+            F: Fn($($in),+) -> $out,
+        {
+            fn run_node(&mut self) {
                 $(
                     let $recv = match self.$recv {
                         Some(ref r) => r.recv().unwrap(),
                         None => return,
                     };
                 )*
-                let res = (self.func)($($recv,)*);
+                let res = (self.func)($($recv,)+);
                 for send in &self.sender {
                     send.send(res);
                 }
@@ -169,6 +191,7 @@ mod tests {
         use crossbeam::{Receiver, Sender};
         use crossbeam_channel;
         use std::thread;
+        use node::Node;
 
         // Creates a node that takes no inputs and returns a value.
         create_node!(NoInputNode, Fn() -> u32);
@@ -191,15 +214,21 @@ mod tests {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        let (send_u, recv_u) = crossbeam_channel::unbounded();
-        let (send_f, recv_f) = crossbeam_channel::unbounded();
-        let (send_c, recv_c) = crossbeam_channel::unbounded();
-        node1.sender.push(send_u);
-        node2.sender.push(send_f);
-        node3.recv_u = Some(recv_u);
-        node3.recv_f = Some(recv_f);
-        node3.sender.push(send_c);
-        node4.recv_c = Some(recv_c);
+        {
+            let (send, recv) = crossbeam_channel::unbounded();
+            node1.sender.push(send);
+            node3.recv_u = Some(recv);
+        }
+        {
+            let (send, recv) = crossbeam_channel::unbounded();
+            node2.sender.push(send);
+            node3.recv_f = Some(recv);
+        }
+        {
+            let (send, recv) = crossbeam_channel::unbounded();
+            node3.sender.push(send);
+            node4.recv_c = Some(recv);
+        }
 
         // Lastly, start up your nodes.
         let node1_handle = thread::spawn(move || {
