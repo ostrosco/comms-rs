@@ -1,3 +1,35 @@
+//! Provides an infrastructure to create processing nodes, connect nodes
+//! together via crossbeam channels, and start nodes running in their own
+//! independent threads.
+//!
+//! # Example
+//!
+//! ```
+//! #[macro_use] extern crate comms_rs;
+//! use comms_rs::node::Node;
+//! use comms_rs::{channel, Receiver, Sender};
+//! use std::thread;
+//!
+//! # fn main() {
+//! // Creates two nodes: a source and a sink node. For nodes that receive
+//! // inputs, the inputs must explicitly be named.
+//! create_node!(Node1, Fn() -> u32);
+//! create_node!(Node2, Fn(u32) -> (), recv);
+//!
+//! // Now that the structures are created, the user can now instantiate their
+//! // nodes and pass in closures for the nodes to execute.
+//! let mut node1 = Node1::new(|| { 1 });
+//! let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+//!
+//! // Create a connection between two nodes: node1 sending messages and node2
+//! // receiving on the `recv` receiver in the Node2 structure.
+//! connect_nodes!(node1, node2, recv);
+//!
+//! // Spawn threads for node1 and node2 and have them executing indefinitely.
+//! start_nodes!(node1, node2);
+//! # }
+//! ```
+
 pub trait Node {
     fn run_node(&mut self);
 }
@@ -9,11 +41,10 @@ pub trait Node {
 /// # Examples
 ///
 /// ```
-/// #[macro_use] extern crate comms_rs;
-/// use comms_rs::node::Node;
-/// use comms_rs::{channel, Receiver, Sender};
+/// # #[macro_use] extern crate comms_rs;
+/// # use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-///
 /// // Creates a node that takes no inputs and returns a value.
 /// create_node!(NoInputNode, Fn() -> u32);
 ///
@@ -187,18 +218,18 @@ macro_rules! create_node {
 
 /// Connects two nodes together with crossbeam channels.
 ///
-/// # Exapmles
-///
 /// ```
-/// #[macro_use] extern crate comms_rs;
-/// use comms_rs::node::Node;
-/// use comms_rs::{channel, Receiver, Sender};
+/// # #[macro_use] extern crate comms_rs;
+/// # use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-/// create_node!(Node1, Fn() -> u32);
-/// create_node!(Node2, Fn(u32) -> (), recv);
-///
+/// # create_node!(Node1, Fn() -> u32);
+/// # create_node!(Node2, Fn(u32) -> (), recv);
 /// let mut node1 = Node1::new(|| { 1 });
 /// let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+///
+/// // node1 will now send its messages to node2. node2 will receive the
+/// // message on its receiver named `recv`.
 /// connect_nodes!(node1, node2, recv);
 /// # }
 /// ```
@@ -216,6 +247,26 @@ macro_rules! connect_nodes {
 
 /// Spawns a thread for each node in order and starts nodes to run
 /// indefinitely.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use] extern crate comms_rs;
+/// # use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
+/// # use std::thread;
+/// # fn main() {
+/// # create_node!(Node1, Fn() -> u32);
+/// # create_node!(Node2, Fn(u32) -> (), recv);
+/// # let mut node1 = Node1::new(|| { 1 });
+/// # let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// # connect_nodes!(node1, node2, recv);
+/// // Connect two nodes named node1 and node2. node1 will now send its
+/// // messages to node2. node2 will receive the
+/// // message on its receiver named `recv`.
+/// start_nodes!(node1, node2);
+/// # }
+/// ```
 #[macro_export]
 macro_rules! start_nodes {
     ($($node:ident),+) => {
