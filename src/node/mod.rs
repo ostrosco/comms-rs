@@ -214,6 +214,8 @@ macro_rules! connect_nodes {
     }
 }
 
+/// Spawns a thread for each node in order and starts nodes to run
+/// indefinitely.
 #[macro_export]
 macro_rules! start_nodes {
     ($($node:ident),+) => {
