@@ -50,7 +50,8 @@ macro_rules! create_node {
 
         impl<F> Node for $name<F> 
         where
-            F: FnMut() -> $out {
+            F: FnMut() -> $out,
+        {
             fn run_node(&mut self) {
                 let res = (self.func)();
                 for send in &self.sender {
@@ -82,7 +83,7 @@ macro_rules! create_node {
 
         impl<F> Node for $name<F> 
         where
-            F: Fn() -> $out
+            F: Fn() -> $out,
         {
             fn run_node(&mut self) {
                 let res = (self.func)();
@@ -184,8 +185,45 @@ macro_rules! create_node {
     };
 }
 
+#[macro_export]
+macro_rules! connect_nodes {
+    ($n1:ident, $n2:ident, $recv:ident) => {
+        {
+            let (send, recv) = crossbeam_channel::unbounded();
+            $n1.sender.push(send);
+            $n2.$recv = Some(recv);
+        }
+    }
+}
+
 #[cfg(test)]
-mod tests {
+mod test {
+    #[test]
+    fn test_connect_nodes() {
+        use node::Node;
+        use crossbeam_channel;
+        use std::thread;
+        use crossbeam::{Sender, Receiver};
+
+        create_node!(Node1, Fn() -> u32);
+        create_node!(Node2, Fn(u32) -> (), recv1);
+
+        let mut node1 = Node1::new(|| { 1 });
+        let mut node2 = Node2::new(|x| { assert_eq!(x, 1); });
+
+        connect_nodes!(node1, node2, recv1);
+        let n1_handle = thread::spawn(move || {
+            node1.run_node();
+        });
+
+        let n2_handle = thread::spawn(move || {
+            node2.run_node();
+        });
+
+        n1_handle.join().unwrap();
+        n2_handle.join().unwrap();
+    }
+
     #[test]
     fn test_multi_node() {
         use crossbeam::{Receiver, Sender};
@@ -214,21 +252,9 @@ mod tests {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        {
-            let (send, recv) = crossbeam_channel::unbounded();
-            node1.sender.push(send);
-            node3.recv_u = Some(recv);
-        }
-        {
-            let (send, recv) = crossbeam_channel::unbounded();
-            node2.sender.push(send);
-            node3.recv_f = Some(recv);
-        }
-        {
-            let (send, recv) = crossbeam_channel::unbounded();
-            node3.sender.push(send);
-            node4.recv_c = Some(recv);
-        }
+        connect_nodes!(node1, node3, recv_u);
+        connect_nodes!(node2, node3, recv_f);
+        connect_nodes!(node3, node4, recv_c);
 
         // Lastly, start up your nodes.
         let node1_handle = thread::spawn(move || {
