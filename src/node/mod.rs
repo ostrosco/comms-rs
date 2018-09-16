@@ -11,8 +11,8 @@ pub trait Node {
 /// ```
 /// #[macro_use] extern crate comms_rs;
 /// use comms_rs::node::Node;
+/// use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-/// use std::sync::mpsc::{channel, Receiver, Sender};
 ///
 /// // Creates a node that takes no inputs and returns a value.
 /// create_node!(NoInputNode, Fn() -> u32);
@@ -185,23 +185,54 @@ macro_rules! create_node {
     };
 }
 
+/// Connects two nodes together with crossbeam channels.
+///
+/// # Exapmles
+///
+/// ```
+/// #[macro_use] extern crate comms_rs;
+/// use comms_rs::node::Node;
+/// use comms_rs::{channel, Receiver, Sender};
+/// # fn main() {
+/// create_node!(Node1, Fn() -> u32);
+/// create_node!(Node2, Fn(u32) -> (), recv);
+///
+/// let mut node1 = Node1::new(|| { 1 });
+/// let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// connect_nodes!(node1, node2, recv);
+/// # }
+/// ```
+///
 #[macro_export]
 macro_rules! connect_nodes {
     ($n1:ident, $n2:ident, $recv:ident) => {
         {
-            let (send, recv) = crossbeam_channel::unbounded();
+            let (send, recv) = channel::unbounded();
             $n1.sender.push(send);
             $n2.$recv = Some(recv);
         }
     }
 }
 
+#[macro_export]
+macro_rules! start_nodes {
+    ($($node:ident),+) => {
+        $(
+            thread::spawn(move || {
+                loop {
+                    $node.run_node();
+                }
+            });
+        )*
+    }
+}
+
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_connect_nodes() {
+    fn test_simple_nodes() {
         use node::Node;
-        use crossbeam_channel;
+        use crossbeam_channel as channel;
         use std::thread;
         use crossbeam::{Sender, Receiver};
 
@@ -212,22 +243,13 @@ mod test {
         let mut node2 = Node2::new(|x| { assert_eq!(x, 1); });
 
         connect_nodes!(node1, node2, recv1);
-        let n1_handle = thread::spawn(move || {
-            node1.run_node();
-        });
-
-        let n2_handle = thread::spawn(move || {
-            node2.run_node();
-        });
-
-        n1_handle.join().unwrap();
-        n2_handle.join().unwrap();
+        start_nodes!(node1, node2);
     }
 
     #[test]
-    fn test_multi_node() {
+    fn test_fan_in() {
         use crossbeam::{Receiver, Sender};
-        use crossbeam_channel;
+        use crossbeam_channel as channel;
         use std::thread;
         use node::Node;
 
@@ -237,10 +259,10 @@ mod test {
 
         // Creates a node that takes a u32 and a f64, returns a f32, and names
         // the receivers recv_u and recv_f.
-        create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv_u, recv_f);
+        create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv1, recv2);
 
         // Create a node to check the value.
-        create_node!(CheckNode, Fn(f32) -> (), recv_c);
+        create_node!(CheckNode, Fn(f32) -> (), recv);
 
         // Now, you can instantiate your nodes as usual.
         let mut node1 = NoInputNode::new(|| 1);
@@ -252,30 +274,11 @@ mod test {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        connect_nodes!(node1, node3, recv_u);
-        connect_nodes!(node2, node3, recv_f);
-        connect_nodes!(node3, node4, recv_c);
+        connect_nodes!(node1, node3, recv1);
+        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node3, node4, recv);
 
         // Lastly, start up your nodes.
-        let node1_handle = thread::spawn(move || {
-            node1.run_node();
-        });
-
-        let node2_handle = thread::spawn(move || {
-            node2.run_node();
-        });
-
-        let node3_handle = thread::spawn(move || {
-            node3.run_node();
-        });
-
-        let node4_handle = thread::spawn(move || {
-            node4.run_node();
-        });
-
-        node1_handle.join().unwrap();
-        node2_handle.join().unwrap();
-        node3_handle.join().unwrap();
-        node4_handle.join().unwrap();
+        start_nodes!(node1, node2, node3, node4);
     }
 }
