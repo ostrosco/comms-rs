@@ -10,5 +10,6 @@ keywords = ["dsp", "rf"]
 license = "MIT"
 
 [dependencies]
+num-complex = "0.2.0"
 crossbeam = "0.4"
 crossbeam-channel = "0.2"
