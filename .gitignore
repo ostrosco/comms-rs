@@ -12,3 +12,6 @@ Cargo.lock
 /target
 **/*.rs.bk
 Cargo.lock
+
+# Ignore vim .swp files
+*.swp
