@@ -59,11 +59,11 @@ pub trait Node {
 #[macro_export]
 macro_rules! create_node {
     ($name:ident, FnMut() -> $out:ty) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: FnMut() -> $out,
         {
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -71,7 +71,7 @@ macro_rules! create_node {
         where
             F: FnMut() -> $out,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     sender: vec![],
                     func
@@ -92,11 +92,11 @@ macro_rules! create_node {
         }
     };
     ($name:ident, Fn() -> $out:ty) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: Fn() -> $out,
         {
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -104,7 +104,7 @@ macro_rules! create_node {
         where
             F: Fn() -> $out,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     sender: vec![],
                     func
@@ -125,14 +125,14 @@ macro_rules! create_node {
         }
     };
     ($name:ident, FnMut($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: FnMut($($in),+) -> $out,
         {
             $(
-                $recv: Option<Receiver<$in>>,
+                pub $recv: Option<Receiver<$in>>,
             )*
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -140,7 +140,7 @@ macro_rules! create_node {
         where
             F: FnMut($($in),+) -> $out,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     $(
                         $recv: None,
@@ -170,14 +170,14 @@ macro_rules! create_node {
         }
     };
     ($name:ident, Fn($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: Fn($($in),+) -> $out,
         {
             $(
-                $recv: Option<Receiver<$in>>,
+                pub $recv: Option<Receiver<$in>>,
             )*
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -185,7 +185,7 @@ macro_rules! create_node {
         where
             F: Fn($($in),+) -> $out,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     $(
                         $recv: None,
@@ -223,11 +223,11 @@ macro_rules! create_node {
 #[macro_export]
 macro_rules! create_aggregate_node {
     ($name:ident, FnMut() -> Option<$out:ty>) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: FnMut() -> Option<$out>,
         {
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -235,7 +235,7 @@ macro_rules! create_aggregate_node {
         where
             F: FnMut() -> Option<$out>,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     sender: vec![],
                     func
@@ -257,14 +257,14 @@ macro_rules! create_aggregate_node {
         }
     };
     ($name:ident, FnMut($($in:ty),+) -> Option<$out:ty>, $($recv:ident),+) => {
-        struct $name<F>
+        pub struct $name<F>
         where
             F: FnMut($($in),+) -> Option<$out>,
         {
             $(
-                $recv: Option<Receiver<$in>>,
+                pub $recv: Option<Receiver<$in>>,
             )*
-            sender: Vec<Sender<$out>>,
+            pub sender: Vec<Sender<$out>>,
             func: F,
         }
 
@@ -272,7 +272,7 @@ macro_rules! create_aggregate_node {
         where
             F: FnMut($($in),+) -> Option<$out>,
         {
-            fn new(func: F) -> $name<F> {
+            pub fn new(func: F) -> $name<F> {
                 $name {
                     $(
                         $recv: None,
