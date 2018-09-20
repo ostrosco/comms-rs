@@ -79,14 +79,14 @@ macro_rules! create_node {
             }
         }
 
-        impl<F> Node for $name<F> 
+        impl<F> Node for $name<F>
         where
             F: FnMut() -> $out,
         {
             fn run_node(&mut self) {
                 let res = (self.func)();
                 for send in &self.sender {
-                    send.send(res);
+                    send.send(res.clone());
                 }
             }
         }
@@ -112,14 +112,14 @@ macro_rules! create_node {
             }
         }
 
-        impl<F> Node for $name<F> 
+        impl<F> Node for $name<F>
         where
             F: Fn() -> $out,
         {
             fn run_node(&mut self) {
                 let res = (self.func)();
                 for send in &self.sender {
-                    send.send(res);
+                    send.send(res.clone());
                 }
             }
         }
@@ -164,7 +164,7 @@ macro_rules! create_node {
                 )*
                 let res = (self.func)($($recv,)+);
                 for send in &self.sender {
-                    send.send(res);
+                    send.send(res.clone());
                 }
             }
         }
@@ -209,7 +209,95 @@ macro_rules! create_node {
                 )*
                 let res = (self.func)($($recv,)+);
                 for send in &self.sender {
-                    send.send(res);
+                    send.send(res.clone());
+                }
+            }
+        }
+    };
+}
+
+/// An aggregate node is a node that does not generate output each time it
+/// receives an input. Instead, an aggregate node will generate output after
+/// receiving multiple inputs. Output is only sent along a channel when
+/// the output of the function is not None.
+#[macro_export]
+macro_rules! create_aggregate_node {
+    ($name:ident, FnMut() -> Option<$out:ty>) => {
+        struct $name<F>
+        where
+            F: FnMut() -> Option<$out>,
+        {
+            sender: Vec<Sender<$out>>,
+            func: F,
+        }
+
+        impl<F> $name<F>
+        where
+            F: FnMut() -> Option<$out>,
+        {
+            fn new(func: F) -> $name<F> {
+                $name {
+                    sender: vec![],
+                    func
+                }
+            }
+        }
+
+        impl<F> Node for $name<F>
+        where
+            F: FnMut() -> Option<$out>,
+        {
+            fn run_node(&mut self) {
+                if let Some(res) = (self.func)() {
+                    for send in &self.sender {
+                        send.send(res.clone());
+                    }
+                }
+            }
+        }
+    };
+    ($name:ident, FnMut($($in:ty),+) -> Option<$out:ty>, $($recv:ident),+) => {
+        struct $name<F>
+        where
+            F: FnMut($($in),+) -> Option<$out>,
+        {
+            $(
+                $recv: Option<Receiver<$in>>,
+            )*
+            sender: Vec<Sender<$out>>,
+            func: F,
+        }
+
+        impl<F> $name<F>
+        where
+            F: FnMut($($in),+) -> Option<$out>,
+        {
+            fn new(func: F) -> $name<F> {
+                $name {
+                    $(
+                        $recv: None,
+                    )*
+                    sender: vec![],
+                    func
+                }
+            }
+        }
+
+        impl<F> Node for $name<F>
+        where
+            F: FnMut($($in),+) -> Option<$out>,
+        {
+            fn run_node(&mut self) {
+                $(
+                    let $recv = match self.$recv {
+                        Some(ref r) => r.recv().unwrap(),
+                        None => return,
+                    };
+                )*
+                if let Some(res) = (self.func)($($recv,)+) {
+                    for send in &self.sender {
+                        send.send(res.clone());
+                    }
                 }
             }
         }
@@ -236,13 +324,11 @@ macro_rules! create_node {
 ///
 #[macro_export]
 macro_rules! connect_nodes {
-    ($n1:ident, $n2:ident, $recv:ident) => {
-        {
-            let (send, recv) = channel::unbounded();
-            $n1.sender.push(send);
-            $n2.$recv = Some(recv);
-        }
-    }
+    ($n1:ident, $n2:ident, $recv:ident) => {{
+        let (send, recv) = channel::bounded(0);
+        $n1.sender.push(send);
+        $n2.$recv = Some(recv);
+    }};
 }
 
 /// Spawns a thread for each node in order and starts nodes to run
@@ -283,28 +369,144 @@ macro_rules! start_nodes {
 #[cfg(test)]
 mod test {
     #[test]
+    /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        use node::Node;
+        use crossbeam::{Receiver, Sender};
         use crossbeam_channel as channel;
+        use node::Node;
         use std::thread;
-        use crossbeam::{Sender, Receiver};
+        use std::time::Duration;
 
         create_node!(Node1, Fn() -> u32);
         create_node!(Node2, Fn(u32) -> (), recv1);
 
-        let mut node1 = Node1::new(|| { 1 });
-        let mut node2 = Node2::new(|x| { assert_eq!(x, 1); });
+        let mut node1 = Node1::new(|| 1);
+        let mut node2 = Node2::new(|x| {
+            assert_eq!(x, 1);
+        });
 
         connect_nodes!(node1, node2, recv1);
-        start_nodes!(node1, node2);
+        start_nodes!(node1);
+        let check = thread::spawn(move || {
+            node2.run_node();
+        });
+        thread::sleep(Duration::from_secs(1));
+        assert!(check.join().is_ok());
     }
 
     #[test]
+    /// Constructs a network with three nodes: two aggregating data and one
+    /// simple node. Node1 is actually doing aggregation whereas Node2
+    /// operates as a simple node but exists to ensure that there are no
+    /// errors in the macro. This test also demonstrates how Arc can be
+    /// used to pass around references through the channels much easier,
+    /// saving on potential expensive copies.
+    fn test_aggregate_nodes() {
+        use crossbeam::{Receiver, Sender};
+        use crossbeam_channel as channel;
+        use node::Node;
+        use std::sync::Arc;
+        use std::thread;
+        use std::time::Duration;
+
+        create_aggregate_node!(Node1, FnMut() -> Option<Arc<Vec<u32>>>);
+        create_aggregate_node!(
+            Node2,
+            FnMut(Arc<Vec<u32>>) -> Option<Arc<Vec<u32>>>,
+            recv1
+        );
+        create_node!(Node3, Fn(Arc<Vec<u32>>) -> (), recv2);
+
+        let mut agg = Vec::new();
+        let mut node1 = Node1::new(move || {
+            if agg.len() < 2 {
+                agg.push(1);
+                None
+            } else {
+                let val = agg.clone();
+                agg = vec![];
+                Some(Arc::new(val))
+            }
+        });
+        let mut node2 = Node2::new(|x| {
+            let mut y = Arc::clone(&x);
+            for z in Arc::make_mut(&mut y).iter_mut() {
+                *z = *z + 1;
+            }
+            Some(y)
+        });
+        let mut node3 = Node3::new(|x| {
+            assert_eq!(*x, vec![2, 2]);
+        });
+
+        connect_nodes!(node1, node2, recv1);
+        connect_nodes!(node2, node3, recv2);
+        start_nodes!(node1, node2);
+        let check = thread::spawn(move || {
+            node3.run_node();
+        });
+        thread::sleep(Duration::from_secs(1));
+        assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// Performs a _very_ simplistic throughput analysis. We generate
+    /// 10000 random i16 values at a time and pass it through the pipeline
+    /// to see if channels will handle the throughput we hope it will.
+    /// Make sure to run this test with --release.
+    fn test_throughput() {
+        use crossbeam::{Receiver, Sender};
+        use crossbeam_channel as channel;
+        use node::Node;
+        use rand::{thread_rng, Rng};
+        use std::sync::Arc;
+        use std::thread;
+        use std::time::Duration;
+
+        create_aggregate_node!(Node1, FnMut() -> Option<Arc<Vec<i16>>>);
+        create_aggregate_node!(
+            Node2,
+            FnMut(Arc<Vec<i16>>) -> Option<Arc<Vec<i16>>>,
+            recv1
+        );
+        create_node!(Node3, FnMut(Arc<Vec<i16>>) -> (), recv2);
+
+        let mut node1 = Node1::new(move || {
+            let mut random = vec![0i16; 10000];
+            thread_rng().fill(random.as_mut_slice());
+            Some(Arc::new(random))
+        });
+        let mut node2 = Node2::new(|x| {
+            let mut y = Arc::clone(&x);
+            for z in Arc::make_mut(&mut y).iter_mut() {
+                *z = z.saturating_add(1);
+            }
+            Some(y)
+        });
+        let mut count = 0;
+        let mut node3 = Node3::new(move |_x| {
+            count = count + 1;
+            if count == 20000 {
+                println!("Hit goal of 200 million i16 sent.");
+            }
+        });
+
+        connect_nodes!(node1, node2, recv1);
+        connect_nodes!(node2, node3, recv2);
+        start_nodes!(node1, node2, node3);
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    #[test]
+    /// Constructs a network where a node receives from two different nodes.
+    /// This serves to make sure that fan-in operation works as we expect
+    /// it to.
     fn test_fan_in() {
         use crossbeam::{Receiver, Sender};
         use crossbeam_channel as channel;
-        use std::thread;
         use node::Node;
+        use std::thread;
+        use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
         create_node!(NoInputNode, Fn() -> u32);
@@ -332,6 +534,11 @@ mod test {
         connect_nodes!(node3, node4, recv);
 
         // Lastly, start up your nodes.
-        start_nodes!(node1, node2, node3, node4);
+        start_nodes!(node1, node2, node3);
+        let check = thread::spawn(move || {
+            node4.run_node();
+        });
+        thread::sleep(Duration::from_secs(1));
+        assert!(check.join().is_ok());
     }
 }

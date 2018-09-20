@@ -12,3 +12,4 @@ license = "MIT"
 [dependencies]
 crossbeam = "0.4"
 crossbeam-channel = "0.2"
+rand = "0.5"
