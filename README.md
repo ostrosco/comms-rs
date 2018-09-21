@@ -18,8 +18,8 @@ in the project for immediate use.  Additionally hardware interfaces will be
 provided to work with a few common SDR platforms.
 
 Initial Goals:
-- [ ] Construct node functions necessary to develop a BPSK modulated PRN sequence.
-- [ ] Functions for basic FIR filter, decimation, upsampling, FFT, IFFT.
-- [ ] Construct several sink and source node functions to allow initial testing
+- Construct node functions necessary to develop a BPSK modulated PRN sequence.
+- Functions for basic FIR filter, decimation, upsampling, FFT, IFFT.
+- Construct several sink and source node functions to allow initial testing
   (write to file, read from file, plot array, etc...)
-- [ ] Hardware support for BladeRF, HackRF, rtl-sdr.
+- Hardware support for BladeRF, HackRF, rtl-sdr.
