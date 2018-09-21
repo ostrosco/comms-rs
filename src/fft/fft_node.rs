@@ -5,7 +5,6 @@ use crossbeam::{Receiver, Sender};
 create_node!(FFTNode, Fn(Vec<i16>) -> Vec<i16>, recv);
 
 pub fn init() -> impl Node
-where
 {
     FFTNode::new(|x| x)
 }
