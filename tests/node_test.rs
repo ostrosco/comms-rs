@@ -2,10 +2,9 @@
 extern crate comms_rs;
 
 use comms_rs::node::Node;
-use comms_rs::{channel, Sender, Receiver};
+use comms_rs::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
-
 
 #[test]
 fn simple_nodes() {
@@ -17,8 +16,8 @@ fn simple_nodes() {
         assert_eq!(x, 1);
     }
 
-    create_node!(SourceNode, |_| gen_stuff(), [u32]);
-    create_node!(SinkNode, |_, x| do_thingies(x), [u32], [()], recv1);
+    create_node!(SourceNode: u32, [], [], { |_| gen_stuff() });
+    create_node!(SinkNode: (), [], [recv1: u32], { |_, x| do_thingies(x) });
 
     let mut node = SourceNode::new();
     let mut node2 = SinkNode::new();
