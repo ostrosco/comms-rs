@@ -13,13 +13,13 @@
 //! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
 //! // inputs, the inputs must explicitly be named.
-//! create_node!(Node1, Fn() -> u32);
-//! create_node!(Node2, Fn(u32) -> (), recv);
+//! create_node!(Node1, |_| 1, [u32]);
+//! create_node!(Node2, |_, x| assert_eq!(x, 1), [u32], [()], recv);
 //!
 //! // Now that the structures are created, the user can now instantiate their
 //! // nodes and pass in closures for the nodes to execute.
-//! let mut node1 = Node1::new(|| { 1 });
-//! let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+//! let mut node1 = Node1::new();
+//! let mut node2 = Node2::new();
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
 //! // receiving on the `recv` receiver in the Node2 structure.
@@ -46,114 +46,44 @@ pub trait Node {
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
 /// // Creates a node that takes no inputs and returns a value.
-/// create_node!(NoInputNode, Fn() -> u32);
+/// create_node!(NoInputNode, |_| 1, [u32]);
 ///
 /// // Creates a node that takes a u32 and a f64, returns a f32, and names
 /// // the receivers recv_u and recv_f.
-/// create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv_u, recv_f);
+/// create_node!(DoubleInputNode, |_, x, y| (x as f64 + y) as f32, [u32, f64], [f32], recv_u, recv_f);
 ///
 /// // Creates a node that takes one input and returns nothing.
-/// create_node!(NoOutputNode, Fn(u32) -> (), recv_u);
+/// create_node!(NoOutputNode, |_, x| println!("{}", x), [u32], [()], recv_u);
 /// # }
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($name:ident, FnMut() -> $out:ty) => {
-        pub struct $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            fn run_node(&mut self) {
-                let res = (self.func)();
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
-    };
-    ($name:ident, Fn() -> $out:ty) => {
-        pub struct $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            fn run_node(&mut self) {
-                let res = (self.func)();
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
-    };
-    ($name:ident, FnMut($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        pub struct $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
-        {
+    ($name:ident, $func:expr, $($state:ident: $type:ty,),* [$($in:ty),*], [$out:ty], $($recv:ident),*) => {
+        pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
             pub sender: Vec<Sender<$out>>,
-            func: F,
+            $(
+                pub $state: $type,
+            )*
         }
 
-        impl<F> $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
+        impl $name {
+            pub fn new($($state: $type,)*) -> $name {
                 $name {
                     $(
                         $recv: None,
                     )*
+                    $(
+                        $state,
+                    )*
                     sender: vec![],
-                    func
                 }
             }
         }
 
-        impl<F> Node for $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
+        impl Node for $name
         {
             fn run_node(&mut self) {
                 $(
@@ -162,52 +92,36 @@ macro_rules! create_node {
                         None => return,
                     };
                 )*
-                let res = (self.func)($($recv,)+);
+                let res = ($func)(&mut *self, $($recv,)+);
                 for send in &self.sender {
                     send.send(res.clone());
                 }
             }
         }
     };
-    ($name:ident, Fn($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        pub struct $name<F>
-        where
-            F: Fn($($in),+) -> $out,
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
+    ($name:ident, $func:expr, $($state:ident, $type:ty),* [$out:ty]) => {
+        pub struct $name {
             pub sender: Vec<Sender<$out>>,
-            func: F,
+            $(
+                pub $state: $type,
+            )*
         }
 
-        impl<F> $name<F>
-        where
-            F: Fn($($in),+) -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
+        impl $name {
+            pub fn new($($state: $type,)*) -> $name {
                 $name {
                     $(
-                        $recv: None,
+                        $state,
                     )*
                     sender: vec![],
-                    func
                 }
             }
         }
 
-        impl<F> Node for $name<F>
-        where
-            F: Fn($($in),+) -> $out,
+        impl Node for $name
         {
             fn run_node(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                let res = (self.func)($($recv,)+);
+                let res = ($func)(&mut *self);
                 for send in &self.sender {
                     send.send(res.clone());
                 }
@@ -311,10 +225,10 @@ macro_rules! create_aggregate_node {
 /// # use comms_rs::node::Node;
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-/// # create_node!(Node1, Fn() -> u32);
-/// # create_node!(Node2, Fn(u32) -> (), recv);
-/// let mut node1 = Node1::new(|| { 1 });
-/// let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// # create_node!(Node1, |_| 1, [u32]);
+/// # create_node!(Node2, |_, x| assert_eq!(x, 1), [u32], [()], recv);
+/// let mut node1 = Node1::new();
+/// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -342,10 +256,10 @@ macro_rules! connect_nodes {
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # use std::thread;
 /// # fn main() {
-/// # create_node!(Node1, Fn() -> u32);
-/// # create_node!(Node2, Fn(u32) -> (), recv);
-/// # let mut node1 = Node1::new(|| { 1 });
-/// # let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// # create_node!(Node1, |_| 1, [u32]);
+/// # create_node!(Node2, |_, x| assert_eq!(x, 1), [u32], [()], recv);
+/// # let mut node1 = Node1::new();
+/// # let mut node2 = Node2::new();
 /// # connect_nodes!(node1, node2, recv);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
@@ -377,13 +291,11 @@ mod test {
         use std::thread;
         use std::time::Duration;
 
-        create_node!(Node1, Fn() -> u32);
-        create_node!(Node2, Fn(u32) -> (), recv1);
+        create_node!(Node1, |_| 1, [u32]);
+        create_node!(Node2, |_, x| assert_eq!(x, 1), [u32], [()], recv1);
 
-        let mut node1 = Node1::new(|| 1);
-        let mut node2 = Node2::new(|x| {
-            assert_eq!(x, 1);
-        });
+        let mut node1 = Node1::new();
+        let mut node2 = Node2::new();
 
         connect_nodes!(node1, node2, recv1);
         start_nodes!(node1);
@@ -415,7 +327,15 @@ mod test {
             FnMut(Arc<Vec<u32>>) -> Option<Arc<Vec<u32>>>,
             recv1
         );
-        create_node!(Node3, Fn(Arc<Vec<u32>>) -> (), recv2);
+        create_node!(
+            Node3,
+            |_, x: Arc<Vec<u32>>| {
+                assert_eq!(*x, vec![2, 2]);
+            },
+            [Arc<Vec<u32>>],
+            [()],
+            recv2
+        );
 
         let mut agg = Vec::new();
         let mut node1 = Node1::new(move || {
@@ -435,9 +355,7 @@ mod test {
             }
             Some(y)
         });
-        let mut node3 = Node3::new(|x| {
-            assert_eq!(*x, vec![2, 2]);
-        });
+        let mut node3 = Node3::new();
 
         connect_nodes!(node1, node2, recv1);
         connect_nodes!(node2, node3, recv2);
@@ -469,7 +387,19 @@ mod test {
             FnMut(Arc<Vec<i16>>) -> Option<Arc<Vec<i16>>>,
             recv1
         );
-        create_node!(Node3, FnMut(Arc<Vec<i16>>) -> (), recv2);
+        create_node!(
+            Node3,
+            |node: &mut Node3, _val: Arc<Vec<i16>>| {
+                node.count = node.count + 1;
+                if node.count == 20000 {
+                    println!("Hit goal of 200 million i16 sent.");
+                }
+            },
+            count: u32,
+            [Arc<Vec<i16>>],
+            [()],
+            recv2
+        );
 
         let mut node1 = Node1::new(move || {
             let mut random = vec![0i16; 10000];
@@ -483,13 +413,7 @@ mod test {
             }
             Some(y)
         });
-        let mut count = 0;
-        let mut node3 = Node3::new(move |_x| {
-            count = count + 1;
-            if count == 20000 {
-                println!("Hit goal of 200 million i16 sent.");
-            }
-        });
+        let mut node3 = Node3::new(0);
 
         connect_nodes!(node1, node2, recv1);
         connect_nodes!(node2, node3, recv2);
@@ -509,23 +433,36 @@ mod test {
         use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
-        create_node!(NoInputNode, Fn() -> u32);
-        create_node!(AnotherNode, Fn() -> f64);
+        create_node!(NoInputNode, |_| 1, [u32]);
+        create_node!(AnotherNode, |_| 2.0, [f64]);
 
         // Creates a node that takes a u32 and a f64, returns a f32, and names
         // the receivers recv_u and recv_f.
-        create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv1, recv2);
+        create_node!(
+            DoubleInputNode,
+            |_, x, y| (x as f64 + y) as f32,
+            [u32, f64],
+            [f32],
+            recv1,
+            recv2
+        );
 
         // Create a node to check the value.
-        create_node!(CheckNode, Fn(f32) -> (), recv);
+        create_node!(
+            CheckNode,
+            |_, x| {
+                assert_eq!(x, 3.0, "Node didn't work!");
+            },
+            [f32],
+            [()],
+            recv
+        );
 
         // Now, you can instantiate your nodes as usual.
-        let mut node1 = NoInputNode::new(|| 1);
-        let mut node2 = AnotherNode::new(|| 2.0);
-        let mut node3 = DoubleInputNode::new(|x, y| (x as f64 + y) as f32);
-        let mut node4 = CheckNode::new(|x| {
-            assert_eq!(x, 3.0, "Node didn't work!");
-        });
+        let mut node1 = NoInputNode::new();
+        let mut node2 = AnotherNode::new();
+        let mut node3 = DoubleInputNode::new();
+        let mut node4 = CheckNode::new();
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
