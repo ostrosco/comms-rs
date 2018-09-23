@@ -42,7 +42,7 @@ pub trait Node {
 /// # Arguments
 ///
 /// create_node!(name: out_type, [fields: field_type], [recv: recv_type], func);
-/// 
+///
 /// - name: The name of the node to construct.
 /// - out_type: The type the node outputs, can be () if the node doesn't send
 ///   anything to another node.
