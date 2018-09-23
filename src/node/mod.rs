@@ -86,13 +86,14 @@ pub trait Node {
 ///     |_, x| println!("{}", x)
 /// );
 ///
-/// // Creates a node with a field named count of type i32 that receives
-/// // nothing and outputs an i32.
-/// create_node!(NewFieldNode: i32,
+/// // Create a node named CounterNode that receives an i32 input on the
+/// // receiver named `recv`, and adds it to a `count` field in the structure.
+/// // The current count is outputted from the node.
+/// create_node!(CounterNode: i32,
 ///     [count: i32],
-///     [],
-///     |node: &mut NewFieldNode| {
-///         node.count += 1;
+///     [recv: i32],
+///     |node: &mut CounterNode, val: i32| {
+///         node.count += val;
 ///         node.count
 ///     }
 /// );
