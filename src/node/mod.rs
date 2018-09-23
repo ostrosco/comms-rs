@@ -263,15 +263,17 @@ macro_rules! start_nodes {
 
 #[cfg(test)]
 mod test {
+    use crossbeam::{Receiver, Sender};
+    use crossbeam_channel as channel;
+    use node::Node;
+    use rand::{thread_rng, Rng};
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use std::thread;
-        use std::time::Duration;
-
         create_node!(Node1: u32, [], [], { |_| 1 });
         create_node!(Node2: (), [], [recv1: u32], { |_, x| assert_eq!(x, 1) });
 
@@ -281,9 +283,14 @@ mod test {
         connect_nodes!(node1, node2, recv1);
         start_nodes!(node1);
         let check = thread::spawn(move || {
-            node2.call();
+            let now = Instant::now();
+            loop {
+                node2.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
-        thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
     }
 
@@ -295,13 +302,6 @@ mod test {
     /// used to pass around references through the channels much easier,
     /// saving on potential expensive copies.
     fn test_aggregate_nodes() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use std::sync::Arc;
-        use std::thread;
-        use std::time::Duration;
-
         create_aggregate_node!(
             Node1: Option<Arc<Vec<u32>>>,
             [agg: Vec<u32>],
@@ -344,9 +344,14 @@ mod test {
         connect_nodes!(node2, node3, recv2);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
-            node3.call();
+            let now = Instant::now();
+            loop {
+                node3.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
-        thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
     }
 
@@ -356,14 +361,6 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_throughput() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use rand::{thread_rng, Rng};
-        use std::sync::Arc;
-        use std::thread;
-        use std::time::Duration;
-
         create_node!(Node1: Arc<Vec<i16>>, [], [], |_| {
             let mut random = vec![0i16; 10000];
             thread_rng().fill(random.as_mut_slice());
@@ -447,9 +444,55 @@ mod test {
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3);
         let check = thread::spawn(move || {
-            node4.call();
+            let now = Instant::now();
+            loop {
+                node4.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
         thread::sleep(Duration::from_secs(1));
+        assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// A test to ensure that persistent state works within the nodes. Makes
+    /// two nodes: one to send 1 to 10 and the other to add the number to a
+    /// counter within the node.
+    fn test_counter() {
+        create_node!(OneNode: i32, [count: i32], [], |node: &mut OneNode| {
+            node.count += 1;
+            node.count
+        });
+
+        create_node!(
+            CounterNode: i32,
+            [count: i32],
+            [recv: i32],
+            |node: &mut CounterNode, val: i32| {
+                node.count = node.count + val;
+                node.count
+            }
+        );
+
+        let mut one_node = OneNode::new(0);
+        let mut count_node = CounterNode::new(0);
+        connect_nodes!(one_node, count_node, recv);
+
+        thread::spawn(move || {
+            for _ in 0..10 {
+                one_node.call();
+            }
+        });
+
+        let check = thread::spawn(move || {
+            for _ in 0..10 {
+                count_node.call();
+            }
+            assert_eq!(count_node.count, 55);
+        });
+
         assert!(check.join().is_ok());
     }
 }
