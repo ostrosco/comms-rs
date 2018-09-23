@@ -12,7 +12,7 @@
 //!
 //! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
-//! // inputs, the inputs must explicitly be named.
+//! // inputs, the receivers must explicitly be named.
 //! create_node!(Node1: u32, [], [], { |_| 1 });
 //! create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
 //!
@@ -30,21 +30,30 @@
 //! # }
 //! ```
 
+/// The trait that all nodes in the library implement. Only contains a single
+/// function: `call(&mut self)` which executes the function in the node once.
 pub trait Node {
-    fn run_node(&mut self);
+    fn call(&mut self);
 }
 
 /// Creates a structure with crossbeam senders and receivers automatically and
 /// auto-implements the Node trait.
 ///
-/// This macro takes in the following:
-/// - the name of the structure to create along with the return type of the node
-/// - a list of identifiers with types to add ad fields to the structure
-/// - the names of the crossbeam receivers along with receive types
-/// - the function to run when `run_node` is called
+/// # Arguments
 ///
-/// Note that the input function defined for this node must take n+1 parameters
-/// as &mut self is passed into each function to handle potential state.
+/// create_node!(name: out_type, [fields: field_type], [recv: recv_type], func);
+/// 
+/// - name: The name of the node to construct.
+/// - out_type: The type the node outputs, can be () if the node doesn't send
+///   anything to another node.
+/// - [fields: field_type]: A list of fields with their types to add to the
+///   structure. This is useful for maintaining state within the structure.
+/// - [recv: recv_type]: A list of receiver field names to add to the structure
+///   along with the type.
+/// - func: The function this node executes upon executing `call()`. The
+///   function must accept a mutable reference to the node being constructed as
+///   its first parameter, but if the function doesn't need to access state the
+///   parameter can be safely be ignored.
 ///
 /// # Examples
 ///
@@ -119,7 +128,7 @@ macro_rules! create_node {
 
         impl Node for $name
         {
-            fn run_node(&mut self) {
+            fn call(&mut self) {
                 $(
                     let $recv = match self.$recv {
                         Some(ref r) => r.recv().unwrap(),
@@ -139,6 +148,10 @@ macro_rules! create_node {
 /// receives an input. Instead, an aggregate node will generate output after
 /// receiving multiple inputs. Output is only sent along a channel when
 /// the output of the function is not None.
+///
+/// See `create_node!` for an explanation of the format of the macro. The key
+/// difference is that the function must output an Option type.
+///
 #[macro_export]
 macro_rules! create_aggregate_node {
     ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
@@ -168,7 +181,7 @@ macro_rules! create_aggregate_node {
         }
 
         impl Node for $name {
-            fn run_node(&mut self) {
+            fn call(&mut self) {
                 $(
                     let $recv = match self.$recv {
                         Some(ref r) => r.recv().unwrap(),
@@ -240,7 +253,7 @@ macro_rules! start_nodes {
         $(
             thread::spawn(move || {
                 loop {
-                    $node.run_node();
+                    $node.call();
                 }
             });
         )*
@@ -267,7 +280,7 @@ mod test {
         connect_nodes!(node1, node2, recv1);
         start_nodes!(node1);
         let check = thread::spawn(move || {
-            node2.run_node();
+            node2.call();
         });
         thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
@@ -330,7 +343,7 @@ mod test {
         connect_nodes!(node2, node3, recv2);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
-            node3.run_node();
+            node3.call();
         });
         thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
@@ -433,7 +446,7 @@ mod test {
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3);
         let check = thread::spawn(move || {
-            node4.run_node();
+            node4.call();
         });
         thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
