@@ -67,6 +67,8 @@ mod test {
     }
 
     #[test]
+    // A basic test to ensure that the uniform node can be configured
+    // correctly and generates numbers within the correct range.
     fn test_uniform() {
         let mut uniform_node = rand_node::uniform(1.0, 2.0);
         create_node!(CheckNode: (), [], [recv: f64], |_, x| assert!(
@@ -88,6 +90,8 @@ mod test {
     }
 
     #[test]
+    // A basic test to ensure that the random_bit node can be configured
+    // correctly and generates only 0s and 1s.
     fn test_random_bit() {
         let mut bit_node = rand_node::random_bit();
         create_node!(CheckNode: (), [], [recv: u8], |_, x| assert!(
