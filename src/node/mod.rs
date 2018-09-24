@@ -145,6 +145,102 @@ macro_rules! create_node {
     };
 }
 
+#[macro_export]
+macro_rules! create_generic_node {
+    ($name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name<$($gen,)*> {
+            $(
+                pub $recv: Option<Receiver<$in>>,
+            )*
+            pub sender: Vec<Sender<$out>>,
+            $(
+                pub $state: $type,
+            )*
+        }
+
+        impl<$($gen,)*> $name<$($gen,)*> {
+            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
+                $name {
+                    $(
+                        $recv: None,
+                    )*
+                    $(
+                        $state,
+                    )*
+                    sender: vec![],
+                }
+            }
+        }
+
+        impl<$($gen,)*> Node for $name<$($gen,)*>
+        {
+            fn call(&mut self) {
+                $(
+                    let $recv = match self.$recv {
+                        Some(ref r) => r.recv().unwrap(),
+                        None => return,
+                    };
+                )*
+                let res = ($func)(&mut *self, $($recv,)*);
+                for send in &self.sender {
+                    send.send(res.clone());
+                }
+            }
+        }
+    };
+
+    ($name:ident<$($gen:ident),+>: $out:ty where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
+     [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*],
+     $func:expr) => {
+        pub struct $name<$($gen,)*>
+        where $( $gen_t: $where $(+ ($where_rep))*, )*
+        {
+            $(
+                pub $recv: Option<Receiver<$in>>,
+            )*
+            pub sender: Vec<Sender<$out>>,
+            $(
+                pub $state: $type,
+            )*
+        }
+
+        impl<$($gen,)*> $name<$($gen,)*>
+        where $( $gen_t: $where $(+ ($where_rep))*, )*
+        {
+            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
+                $name {
+                    $(
+                        $recv: None,
+                    )*
+                    $(
+                        $state,
+                    )*
+                    sender: vec![],
+                }
+            }
+        }
+
+        impl<$($gen,)*> Node for $name<$($gen,)*>
+        where $( $gen_t: $where $(+ ($where_rep))*, )*
+        {
+            fn call(&mut self) {
+                $(
+                    let $recv = match self.$recv {
+                        Some(ref r) => r.recv().unwrap(),
+                        None => return,
+                    };
+                )*
+                let res = ($func)(&mut *self, $($recv,)*);
+                for send in &self.sender {
+                    send.send(res.clone());
+                }
+            }
+        }
+    };
+}
+
 /// An aggregate node is a node that does not generate output each time it
 /// receives an input. Instead, an aggregate node will generate output after
 /// receiving multiple inputs. Output is only sent along a channel when
