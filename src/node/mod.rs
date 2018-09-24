@@ -12,14 +12,14 @@
 //!
 //! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
-//! // inputs, the inputs must explicitly be named.
-//! create_node!(Node1, Fn() -> u32);
-//! create_node!(Node2, Fn(u32) -> (), recv);
+//! // inputs, the receivers must explicitly be named.
+//! create_node!(Node1: u32, [], [], { |_| 1 });
+//! create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
 //!
 //! // Now that the structures are created, the user can now instantiate their
 //! // nodes and pass in closures for the nodes to execute.
-//! let mut node1 = Node1::new(|| { 1 });
-//! let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+//! let mut node1 = Node1::new();
+//! let mut node2 = Node2::new();
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
 //! // receiving on the `recv` receiver in the Node2 structure.
@@ -30,13 +30,30 @@
 //! # }
 //! ```
 
+/// The trait that all nodes in the library implement. Only contains a single
+/// function: `call(&mut self)` which executes the function in the node once.
 pub trait Node {
-    fn run_node(&mut self);
+    fn call(&mut self);
 }
 
-/// Creates a base node with a variable number of receivers, a variable
-/// number of senders, and a transformation function that maps the inputs
-/// into the outputs. Channels are assumed to use the crossbeam crate.
+/// Creates a structure with crossbeam senders and receivers automatically and
+/// auto-implements the Node trait.
+///
+/// # Arguments
+///
+/// create_node!(name: out_type, [fields: field_type], [recv: recv_type], func);
+///
+/// - name: The name of the node to construct.
+/// - out_type: The type the node outputs, can be () if the node doesn't send
+///   anything to another node.
+/// - [fields: field_type]: A list of fields with their types to add to the
+///   structure. This is useful for maintaining state within the structure.
+/// - [recv: recv_type]: A list of receiver field names to add to the structure
+///   along with the type.
+/// - func: The function this node executes upon executing `call()`. The
+///   function must accept a mutable reference to the node being constructed as
+///   its first parameter, but if the function doesn't need to access state the
+///   parameter can be safely be ignored.
 ///
 /// # Examples
 ///
@@ -45,169 +62,81 @@ pub trait Node {
 /// # use comms_rs::node::Node;
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-/// // Creates a node that takes no inputs and returns a value.
-/// create_node!(NoInputNode, Fn() -> u32);
+/// // Creates a node that takes no inputs and outputs a u32.
+/// create_node!(
+///     NoInputNode: u32,
+///     [],
+///     [],
+///     |_| 1
+/// );
 ///
-/// // Creates a node that takes a u32 and a f64, returns a f32, and names
-/// // the receivers recv_u and recv_f.
-/// create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv_u, recv_f);
+/// // Creates a node that outputs a f32 and receives a u32 and an f64.
+/// create_node!(
+///     DoubleInputNode: f32,
+///     [],
+///     [recv_u: u32, recv_v: f64],
+///     |_, x, y| (x as f64 + y) as f32
+/// );
 ///
-/// // Creates a node that takes one input and returns nothing.
-/// create_node!(NoOutputNode, Fn(u32) -> (), recv_u);
+/// // Creates a node that takes one u32 input and outputs nothing.
+/// create_node!(
+///     NoOutputNode: (),
+///     [],
+///     [recv_u: u32],
+///     |_, x| println!("{}", x)
+/// );
+///
+/// // Create a node named CounterNode that receives an i32 input on the
+/// // receiver named `recv`, and adds it to a `count` field in the structure.
+/// // The current count is outputted from the node.
+/// create_node!(CounterNode: i32,
+///     [count: i32],
+///     [recv: i32],
+///     |node: &mut CounterNode, val: i32| {
+///         node.count += val;
+///         node.count
+///     }
+/// );
 /// # }
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($name:ident, FnMut() -> $out:ty) => {
-        pub struct $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: FnMut() -> $out,
-        {
-            fn run_node(&mut self) {
-                let res = (self.func)();
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
-    };
-    ($name:ident, Fn() -> $out:ty) => {
-        pub struct $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: Fn() -> $out,
-        {
-            fn run_node(&mut self) {
-                let res = (self.func)();
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
-    };
-    ($name:ident, FnMut($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        pub struct $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
-        {
+    ($name:ident: $out:ty, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
             pub sender: Vec<Sender<$out>>,
-            func: F,
+            $(
+                pub $state: $type,
+            )*
         }
 
-        impl<F> $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
+        impl $name {
+            pub fn new($($state: $type,)*) -> $name {
                 $name {
                     $(
                         $recv: None,
                     )*
+                    $(
+                        $state,
+                    )*
                     sender: vec![],
-                    func
                 }
             }
         }
 
-        impl<F> Node for $name<F>
-        where
-            F: FnMut($($in),+) -> $out,
+        impl Node for $name
         {
-            fn run_node(&mut self) {
+            fn call(&mut self) {
                 $(
                     let $recv = match self.$recv {
                         Some(ref r) => r.recv().unwrap(),
                         None => return,
                     };
                 )*
-                let res = (self.func)($($recv,)+);
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
-    };
-    ($name:ident, Fn($($in:ty),+) -> $out:ty, $($recv:ident),+) => {
-        pub struct $name<F>
-        where
-            F: Fn($($in),+) -> $out,
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: Fn($($in),+) -> $out,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: Fn($($in),+) -> $out,
-        {
-            fn run_node(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                let res = (self.func)($($recv,)+);
+                let res = ($func)(&mut *self, $($recv,)*);
                 for send in &self.sender {
                     send.send(res.clone());
                 }
@@ -220,81 +149,47 @@ macro_rules! create_node {
 /// receives an input. Instead, an aggregate node will generate output after
 /// receiving multiple inputs. Output is only sent along a channel when
 /// the output of the function is not None.
+///
+/// See `create_node!` for an explanation of the format of the macro. The key
+/// difference is that the function must output an Option type.
+///
 #[macro_export]
 macro_rules! create_aggregate_node {
-    ($name:ident, FnMut() -> Option<$out:ty>) => {
-        pub struct $name<F>
-        where
-            F: FnMut() -> Option<$out>,
-        {
-            pub sender: Vec<Sender<$out>>,
-            func: F,
-        }
-
-        impl<F> $name<F>
-        where
-            F: FnMut() -> Option<$out>,
-        {
-            pub fn new(func: F) -> $name<F> {
-                $name {
-                    sender: vec![],
-                    func
-                }
-            }
-        }
-
-        impl<F> Node for $name<F>
-        where
-            F: FnMut() -> Option<$out>,
-        {
-            fn run_node(&mut self) {
-                if let Some(res) = (self.func)() {
-                    for send in &self.sender {
-                        send.send(res.clone());
-                    }
-                }
-            }
-        }
-    };
-    ($name:ident, FnMut($($in:ty),+) -> Option<$out:ty>, $($recv:ident),+) => {
-        pub struct $name<F>
-        where
-            F: FnMut($($in),+) -> Option<$out>,
-        {
+    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
             pub sender: Vec<Sender<$out>>,
-            func: F,
+            $(
+                pub $state: $type,
+            )*
         }
 
-        impl<F> $name<F>
-        where
-            F: FnMut($($in),+) -> Option<$out>,
-        {
-            pub fn new(func: F) -> $name<F> {
+        impl $name {
+            pub fn new($($state: $type,)*) -> $name {
                 $name {
                     $(
                         $recv: None,
                     )*
                     sender: vec![],
-                    func
+                    $(
+                        $state,
+                    )*
                 }
             }
         }
 
-        impl<F> Node for $name<F>
-        where
-            F: FnMut($($in),+) -> Option<$out>,
-        {
-            fn run_node(&mut self) {
+        impl Node for $name {
+            fn call(&mut self) {
                 $(
                     let $recv = match self.$recv {
                         Some(ref r) => r.recv().unwrap(),
                         None => return,
                     };
                 )*
-                if let Some(res) = (self.func)($($recv,)+) {
+                if let Some(res) = ($func)(&mut *self, $($recv,)*) {
                     for send in &self.sender {
                         send.send(res.clone());
                     }
@@ -311,10 +206,10 @@ macro_rules! create_aggregate_node {
 /// # use comms_rs::node::Node;
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # fn main() {
-/// # create_node!(Node1, Fn() -> u32);
-/// # create_node!(Node2, Fn(u32) -> (), recv);
-/// let mut node1 = Node1::new(|| { 1 });
-/// let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// # create_node!(Node1: u32, [], [], |_| 1);
+/// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
+/// let mut node1 = Node1::new();
+/// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -342,10 +237,10 @@ macro_rules! connect_nodes {
 /// # use comms_rs::{channel, Receiver, Sender};
 /// # use std::thread;
 /// # fn main() {
-/// # create_node!(Node1, Fn() -> u32);
-/// # create_node!(Node2, Fn(u32) -> (), recv);
-/// # let mut node1 = Node1::new(|| { 1 });
-/// # let mut node2 = Node2::new(|x| { assert_eq!(x, 1) });
+/// # create_node!(Node1: u32, [], [], |_| 1);
+/// # create_node!(Node2: (), [], [recv: u32], |_, x| assert_eq!(x, 1));
+/// # let mut node1 = Node1::new();
+/// # let mut node2 = Node2::new();
 /// # connect_nodes!(node1, node2, recv);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
@@ -359,7 +254,7 @@ macro_rules! start_nodes {
         $(
             thread::spawn(move || {
                 loop {
-                    $node.run_node();
+                    $node.call();
                 }
             });
         )*
@@ -368,29 +263,34 @@ macro_rules! start_nodes {
 
 #[cfg(test)]
 mod test {
+    use crossbeam::{Receiver, Sender};
+    use crossbeam_channel as channel;
+    use node::Node;
+    use rand::{thread_rng, Rng};
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use std::thread;
-        use std::time::Duration;
+        create_node!(Node1: u32, [], [], { |_| 1 });
+        create_node!(Node2: (), [], [recv1: u32], { |_, x| assert_eq!(x, 1) });
 
-        create_node!(Node1, Fn() -> u32);
-        create_node!(Node2, Fn(u32) -> (), recv1);
-
-        let mut node1 = Node1::new(|| 1);
-        let mut node2 = Node2::new(|x| {
-            assert_eq!(x, 1);
-        });
+        let mut node1 = Node1::new();
+        let mut node2 = Node2::new();
 
         connect_nodes!(node1, node2, recv1);
         start_nodes!(node1);
         let check = thread::spawn(move || {
-            node2.run_node();
+            let now = Instant::now();
+            loop {
+                node2.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
-        thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
     }
 
@@ -402,50 +302,56 @@ mod test {
     /// used to pass around references through the channels much easier,
     /// saving on potential expensive copies.
     fn test_aggregate_nodes() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use std::sync::Arc;
-        use std::thread;
-        use std::time::Duration;
-
-        create_aggregate_node!(Node1, FnMut() -> Option<Arc<Vec<u32>>>);
         create_aggregate_node!(
-            Node2,
-            FnMut(Arc<Vec<u32>>) -> Option<Arc<Vec<u32>>>,
-            recv1
-        );
-        create_node!(Node3, Fn(Arc<Vec<u32>>) -> (), recv2);
-
-        let mut agg = Vec::new();
-        let mut node1 = Node1::new(move || {
-            if agg.len() < 2 {
-                agg.push(1);
+            Node1: Option<Arc<Vec<u32>>>,
+            [agg: Vec<u32>],
+            [],
+            |node: &mut Node1| if node.agg.len() < 2 {
+                node.agg.push(1);
                 None
             } else {
-                let val = agg.clone();
-                agg = vec![];
+                let val = node.agg.clone();
+                node.agg = vec![];
                 Some(Arc::new(val))
             }
-        });
-        let mut node2 = Node2::new(|x| {
-            let mut y = Arc::clone(&x);
-            for z in Arc::make_mut(&mut y).iter_mut() {
-                *z = *z + 1;
+        );
+        create_aggregate_node!(
+            Node2: Option<Arc<Vec<u32>>>,
+            [],
+            [recv1: Arc<Vec<u32>>],
+            |_, x: Arc<Vec<u32>>| {
+                let mut y = Arc::clone(&x);
+                for z in Arc::make_mut(&mut y).iter_mut() {
+                    *z = *z + 1;
+                }
+                Some(y)
             }
-            Some(y)
-        });
-        let mut node3 = Node3::new(|x| {
-            assert_eq!(*x, vec![2, 2]);
-        });
+        );
+        create_node!(
+            Node3: (),
+            [],
+            [recv2: Arc<Vec<u32>>],
+            |_, x: Arc<Vec<u32>>| {
+                assert_eq!(*x, vec![2, 2]);
+            }
+        );
+
+        let mut node1 = Node1::new(Vec::new());
+        let mut node2 = Node2::new();
+        let mut node3 = Node3::new();
 
         connect_nodes!(node1, node2, recv1);
         connect_nodes!(node2, node3, recv2);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
-            node3.run_node();
+            let now = Instant::now();
+            loop {
+                node3.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
-        thread::sleep(Duration::from_secs(1));
         assert!(check.join().is_ok());
     }
 
@@ -455,41 +361,38 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_throughput() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
-        use rand::{thread_rng, Rng};
-        use std::sync::Arc;
-        use std::thread;
-        use std::time::Duration;
-
-        create_aggregate_node!(Node1, FnMut() -> Option<Arc<Vec<i16>>>);
-        create_aggregate_node!(
-            Node2,
-            FnMut(Arc<Vec<i16>>) -> Option<Arc<Vec<i16>>>,
-            recv1
-        );
-        create_node!(Node3, FnMut(Arc<Vec<i16>>) -> (), recv2);
-
-        let mut node1 = Node1::new(move || {
+        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| {
             let mut random = vec![0i16; 10000];
             thread_rng().fill(random.as_mut_slice());
-            Some(Arc::new(random))
+            Arc::new(random)
         });
-        let mut node2 = Node2::new(|x| {
-            let mut y = Arc::clone(&x);
-            for z in Arc::make_mut(&mut y).iter_mut() {
-                *z = z.saturating_add(1);
+        create_node!(
+            Node2: Arc<Vec<i16>>,
+            [],
+            [recv1: Arc<Vec<i16>>],
+            |_, x: Arc<Vec<i16>>| {
+                let mut y = Arc::clone(&x);
+                for z in Arc::make_mut(&mut y).iter_mut() {
+                    *z = z.saturating_add(1);
+                }
+                y
             }
-            Some(y)
-        });
-        let mut count = 0;
-        let mut node3 = Node3::new(move |_x| {
-            count = count + 1;
-            if count == 20000 {
-                println!("Hit goal of 200 million i16 sent.");
+        );
+        create_node!(
+            Node3: (),
+            [count: u32],
+            [recv2: Arc<Vec<i16>>],
+            |node: &mut Node3, _val: Arc<Vec<i16>>| {
+                node.count = node.count + 1;
+                if node.count == 40000 {
+                    println!("Hit goal of 400 million i16 sent.");
+                }
             }
-        });
+        );
+
+        let mut node1 = Node1::new();
+        let mut node2 = Node2::new();
+        let mut node3 = Node3::new(0);
 
         connect_nodes!(node1, node2, recv1);
         connect_nodes!(node2, node3, recv2);
@@ -509,23 +412,28 @@ mod test {
         use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
-        create_node!(NoInputNode, Fn() -> u32);
-        create_node!(AnotherNode, Fn() -> f64);
+        create_node!(NoInputNode: u32, [], [], { |_| 1 });
+        create_node!(AnotherNode: f64, [], [], { |_| 2.0 });
 
         // Creates a node that takes a u32 and a f64, returns a f32, and names
         // the receivers recv_u and recv_f.
-        create_node!(DoubleInputNode, FnMut(u32, f64) -> f32, recv1, recv2);
+        create_node!(
+            DoubleInputNode: f32,
+            [],
+            [recv1: u32, recv2: f64],
+            |_, x: u32, y: f64| (x as f64 + y) as f32
+        );
 
         // Create a node to check the value.
-        create_node!(CheckNode, Fn(f32) -> (), recv);
-
-        // Now, you can instantiate your nodes as usual.
-        let mut node1 = NoInputNode::new(|| 1);
-        let mut node2 = AnotherNode::new(|| 2.0);
-        let mut node3 = DoubleInputNode::new(|x, y| (x as f64 + y) as f32);
-        let mut node4 = CheckNode::new(|x| {
+        create_node!(CheckNode: (), [], [recv: f32], |_, x: f32| {
             assert_eq!(x, 3.0, "Node didn't work!");
         });
+
+        // Now, you can instantiate your nodes as usual.
+        let mut node1 = NoInputNode::new();
+        let mut node2 = AnotherNode::new();
+        let mut node3 = DoubleInputNode::new();
+        let mut node4 = CheckNode::new();
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
@@ -536,9 +444,55 @@ mod test {
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3);
         let check = thread::spawn(move || {
-            node4.run_node();
+            let now = Instant::now();
+            loop {
+                node4.call();
+                if now.elapsed().as_secs() >= 1 {
+                    break;
+                }
+            }
         });
         thread::sleep(Duration::from_secs(1));
+        assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// A test to ensure that persistent state works within the nodes. Makes
+    /// two nodes: one to send 1 to 10 and the other to add the number to a
+    /// counter within the node.
+    fn test_counter() {
+        create_node!(OneNode: i32, [count: i32], [], |node: &mut OneNode| {
+            node.count += 1;
+            node.count
+        });
+
+        create_node!(
+            CounterNode: i32,
+            [count: i32],
+            [recv: i32],
+            |node: &mut CounterNode, val: i32| {
+                node.count = node.count + val;
+                node.count
+            }
+        );
+
+        let mut one_node = OneNode::new(0);
+        let mut count_node = CounterNode::new(0);
+        connect_nodes!(one_node, count_node, recv);
+
+        thread::spawn(move || {
+            for _ in 0..10 {
+                one_node.call();
+            }
+        });
+
+        let check = thread::spawn(move || {
+            for _ in 0..10 {
+                count_node.call();
+            }
+            assert_eq!(count_node.count, 55);
+        });
+
         assert!(check.join().is_ok());
     }
 }
