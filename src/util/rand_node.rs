@@ -4,8 +4,7 @@ use rand::distributions::uniform::SampleUniform;
 use rand::distributions::{Normal, Uniform};
 use rand::{FromEntropy, Rng, StdRng};
 
-// A subset of common nodes for random data types. We will create more as
-// needed.
+/// A node that will generate uniformly-distributed random numbers.
 create_generic_node!(
     UniformNode<T>: T where T: SampleUniform + Clone,
     [rng: StdRng, dist: Uniform<T>],
@@ -15,6 +14,7 @@ create_generic_node!(
     }
 );
 
+/// A node that will generate normally-distributed random numbers.
 create_node!(
     NormalNode: f64,
     [rng: StdRng, dist: Normal],
