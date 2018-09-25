@@ -55,6 +55,13 @@ pub trait Node {
 ///   its first parameter, but if the function doesn't need to access state the
 ///   parameter can be safely be ignored.
 ///
+/// Generics can be passed along with the following format:
+///
+/// create_generic_node!(name<generic>: out_type (where generic: Trait + ...,), [fields: field_type], [recv: recv_type], func);
+/// - generic: any generic variables to add to the structure
+/// - where generic: Trait + ...,: a list of trait bounds for the structure,
+///   trait bounds are optional
+///
 /// # Examples
 ///
 /// ```
@@ -101,8 +108,7 @@ pub trait Node {
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($name:ident: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -114,87 +120,18 @@ macro_rules! create_node {
         }
 
         impl $name {
-            pub fn new($($state: $type,)*) -> $name {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    $(
-                        $state,
-                    )*
-                    sender: vec![],
-                }
-            }
+            generate_new!($name, [$($state: $type),*], [$($recv),*]);
         }
 
         impl Node for $name
         {
-            fn call(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                let res = ($func)(&mut *self, $($recv,)*);
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
+            generate_aggregate_call!($func, $($recv),*);
         }
     };
-}
 
-/// Creates a structure with generic types with  crossbeam senders and
-/// receivers automatically and auto-implements the Node trait.
-///
-/// # Arguments
-///
-/// create_generic_node!(name<generic>: out_type (where generic: Trait + ...,), [fields: field_type], [recv: recv_type], func);
-///
-/// - name: The name of the node to construct.
-/// - generic: any generic variables to add to the structure
-/// - where generic: Trait + ...,: a list of trait bounds for the structure,
-///   trait bounds are optional
-/// - out_type: The type the node outputs, can be () if the node doesn't send
-///   anything to another node.
-/// - [fields: field_type]: A list of fields with their types to add to the
-///   structure. This is useful for maintaining state within the structure.
-/// - [recv: recv_type]: A list of receiver field names to add to the structure
-///   along with the type.
-/// - func: The function this node executes upon executing `call()`. The
-///   function must accept a mutable reference to the node being constructed as
-///   its first parameter, but if the function doesn't need to access state the
-///   parameter can be safely be ignored.
-///
-/// # Example:
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # extern crate rand;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
-/// # use rand::distributions::uniform::{Uniform, SampleUniform};
-/// # use rand::{Rng, StdRng};
-/// # fn main() {
-///
-/// // Creates a node that's generic over some type T which is bounded by
-/// // SampleUniform + Clone.
-/// create_generic_node!(
-///     UniformNode<T>: T where T: SampleUniform + Clone,
-///     [rng: StdRng, dist: Uniform<T>],
-///     [],
-///     |node: &mut UniformNode<T>| {
-///         node.rng.sample(&node.dist)
-///     }
-/// );
-/// # }
-/// ```
-#[macro_export]
-macro_rules! create_generic_node {
-    ($name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
+    ($name:ident<$($gen:ident),+>: Option<$out:ty>, [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
-        pub struct $name<$($gen,)*> {
+        pub struct $name<$($gen,)+> {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
@@ -204,43 +141,20 @@ macro_rules! create_generic_node {
             )*
         }
 
-        impl<$($gen,)*> $name<$($gen,)*> {
-            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    $(
-                        $state,
-                    )*
-                    sender: vec![],
-                }
-            }
+        impl<$($gen,)*> $name<$($gen,)+> {
+            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
-        impl<$($gen,)*> Node for $name<$($gen,)*>
+        impl<$($gen,)*> Node for $name<$($gen,)+>
         {
-            fn call(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                let res = ($func)(&mut *self, $($recv,)*);
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
+            generate_aggregate_call!($func, $($recv),*);
         }
     };
 
-    ($name:ident<$($gen:ident),+>: $out:ty where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
-     [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*],
-     $func:expr) => {
-        pub struct $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
+    ($name:ident<$($gen:ident),+>: Option<$out:ty> where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -251,203 +165,19 @@ macro_rules! create_generic_node {
             )*
         }
 
-        impl<$($gen,)*> $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
+        impl<$($gen,)*> $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
-            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    $(
-                        $state,
-                    )*
-                    sender: vec![],
-                }
-            }
+            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
-        impl<$($gen,)*> Node for $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
+        impl<$($gen,)*> Node for $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
-            fn call(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                let res = ($func)(&mut *self, $($recv,)*);
-                for send in &self.sender {
-                    send.send(res.clone());
-                }
-            }
+            generate_aggregate_call!($func, $($recv),*);
         }
     };
-}
-
-/// Creates a structure with generic types with  crossbeam senders and
-/// receivers automatically and auto-implements the Node trait.
-///
-/// # Arguments
-///
-/// create_generic_aggregate_node!(
-///     name<generic>: out_type (where generic: Trait + ...,),
-///     [fields: field_type],
-///     [recv: recv_type],
-///     func
-/// );
-///
-/// - name: The name of the node to construct.
-/// - generic: any generic variables to add to the structure
-/// - where generic: Trait + ...,: a list of trait bounds for the structure,
-///   trait bounds are optional
-/// - out_type: The type the node outputs, can be () if the node doesn't send
-///   anything to another node.
-/// - [fields: field_type]: A list of fields with their types to add to the
-///   structure. This is useful for maintaining state within the structure.
-/// - [recv: recv_type]: A list of receiver field names to add to the structure
-///   along with the type.
-/// - func: The function this node executes upon executing `call()`. The
-///   function must accept a mutable reference to the node being constructed as
-///   its first parameter, but if the function doesn't need to access state the
-///   parameter can be safely be ignored.
-///
-/// # Example:
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # extern crate rand;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
-/// # use rand::distributions::uniform::{Uniform, SampleUniform};
-/// # use rand::{Rng, StdRng};
-/// # fn main() {
-///
-/// // Creates a node that's generic over some type T which is bounded by
-/// // SampleUniform + Clone.
-/// create_generic_aggregate_node!(
-///     UniformNode<T>: Option<T> where T: SampleUniform + Clone,
-///     [rng: StdRng, dist: Uniform<T>],
-///     [],
-///     |node: &mut UniformNode<T>| {
-///         Some(node.rng.sample(&node.dist))
-///     }
-/// );
-/// # }
-/// ```
-#[macro_export]
-macro_rules! create_generic_aggregate_node {
-    ($name:ident<$($gen:ident),+>: Option<$out:ty>,
-     [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
-        pub struct $name<$($gen,)*> {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<Sender<$out>>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)*> {
-            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    $(
-                        $state,
-                    )*
-                    sender: vec![],
-                }
-            }
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)*>
-        {
-            fn call(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                if let Some(res) = ($func)(&mut *self, $($recv,)*) {
-                    for send in &self.sender {
-                        send.send(res.clone());
-                    }
-                }
-            }
-        }
-    };
-
-    ($name:ident<$($gen:ident),+>: Option<$out:ty> where
-     $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
-     [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*],
-     $func:expr) => {
-        pub struct $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<Sender<$out>>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
-        {
-            pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    $(
-                        $state,
-                    )*
-                    sender: vec![],
-                }
-            }
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)*>
-        where $( $gen_t: $where $(+ ($where_rep))*, )*
-        {
-            fn call(&mut self) {
-                $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
-                )*
-                if let Some(res) = ($func)(&mut *self, $($recv,)*) {
-                    for send in &self.sender {
-                        send.send(res.clone());
-                    }
-                }
-            }
-        }
-    };
-}
-
-/// An aggregate node is a node that does not generate output each time it
-/// receives an input. Instead, an aggregate node will generate output after
-/// receiving multiple inputs. Output is only sent along a channel when
-/// the output of the function is not None.
-///
-/// See `create_node!` for an explanation of the format of the macro. The key
-/// difference is that the function must output an Option type.
-///
-#[macro_export]
-macro_rules! create_aggregate_node {
-    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($name:ident: $out:ty, [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -459,35 +189,133 @@ macro_rules! create_aggregate_node {
         }
 
         impl $name {
-            pub fn new($($state: $type,)*) -> $name {
-                $name {
-                    $(
-                        $recv: None,
-                    )*
-                    sender: vec![],
-                    $(
-                        $state,
-                    )*
+            generate_new!($name, [$($state: $type),*], [$($recv),*]);
+        }
+
+        impl Node for $name
+        {
+            generate_call!($func, $($recv),*);
+        }
+    };
+
+    ($name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name<$($gen,)+> {
+            $(
+                pub $recv: Option<Receiver<$in>>,
+            )*
+            pub sender: Vec<Sender<$out>>,
+            $(
+                pub $state: $type,
+            )*
+        }
+
+        impl<$($gen,)*> $name<$($gen,)+> {
+            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
+        }
+
+        impl<$($gen,)*> Node for $name<$($gen,)+>
+        {
+            generate_call!($func, $($recv),*);
+        }
+    };
+
+    ($name:ident<$($gen:ident),+>: $out:ty where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+        pub struct $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        {
+            $(
+                pub $recv: Option<Receiver<$in>>,
+            )*
+            pub sender: Vec<Sender<$out>>,
+            $(
+                pub $state: $type,
+            )*
+        }
+
+        impl<$($gen,)*> $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        {
+            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
+        }
+
+        impl<$($gen,)*> Node for $name<$($gen,)+>
+        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        {
+            generate_call!($func, $($recv),*);
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_call {
+    ($func:expr, $($recv:ident),*) => {
+        fn call(&mut self) {
+            $(
+                let $recv = match self.$recv {
+                    Some(ref r) => r.recv().unwrap(),
+                    None => return,
+                };
+            )*
+            let res = ($func)(&mut *self, $($recv,)*);
+            for send in &self.sender {
+                send.send(res.clone());
+            }
+        }
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_aggregate_call {
+    ($func:expr, $($recv:ident),*) => {
+        fn call(&mut self) {
+            $(
+                let $recv = match self.$recv {
+                    Some(ref r) => r.recv().unwrap(),
+                    None => return,
+                };
+            )*
+            if let Some(res) = ($func)(&mut *self, $($recv,)*) {
+                for send in &self.sender {
+                    send.send(res.clone());
                 }
             }
         }
+    }
+}
 
-        impl Node for $name {
-            fn call(&mut self) {
+#[doc(hidden)]
+#[macro_export]
+macro_rules! generate_new {
+    ($name:ident, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
+        pub fn new($($state: $type,)*) -> $name {
+            $name {
                 $(
-                    let $recv = match self.$recv {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return,
-                    };
+                    $recv: None,
                 )*
-                if let Some(res) = ($func)(&mut *self, $($recv,)*) {
-                    for send in &self.sender {
-                        send.send(res.clone());
-                    }
-                }
+                $(
+                    $state,
+                )*
+                sender: vec![],
             }
         }
     };
+    ($name:ident<$($gen:ident),*>, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
+        pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
+            $name {
+                $(
+                    $recv: None,
+                )*
+                $(
+                    $state,
+                )*
+                sender: vec![],
+            }
+        }
+    }
 }
 
 /// Connects two nodes together with crossbeam channels.
@@ -593,7 +421,7 @@ mod test {
     /// used to pass around references through the channels much easier,
     /// saving on potential expensive copies.
     fn test_aggregate_nodes() {
-        create_aggregate_node!(
+        create_node!(
             Node1: Option<Arc<Vec<u32>>>,
             [agg: Vec<u32>],
             [],
@@ -606,7 +434,7 @@ mod test {
                 Some(Arc::new(val))
             }
         );
-        create_aggregate_node!(
+        create_node!(
             Node2: Option<Arc<Vec<u32>>>,
             [],
             [recv1: Arc<Vec<u32>>],
