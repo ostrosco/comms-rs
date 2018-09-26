@@ -113,7 +113,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -135,7 +135,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -159,7 +159,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -182,7 +182,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -204,7 +204,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -228,7 +228,7 @@ macro_rules! create_node {
             $(
                 pub $recv: Option<Receiver<$in>>,
             )*
-            pub sender: Vec<Sender<$out>>,
+            pub sender: Vec<(Sender<$out>, Option<$out>)>,
             $(
                 pub $state: $type,
             )*
@@ -260,7 +260,7 @@ macro_rules! generate_call {
                 };
             )*
             let res = ($func)(&mut *self, $($recv,)*);
-            for send in &self.sender {
+            for (send, _) in &self.sender {
                 send.send(res.clone());
             }
         }
@@ -279,7 +279,7 @@ macro_rules! generate_aggregate_call {
                 };
             )*
             if let Some(res) = ($func)(&mut *self, $($recv,)*) {
-                for send in &self.sender {
+                for (send, _) in &self.sender {
                     send.send(res.clone());
                 }
             }
@@ -340,7 +340,7 @@ macro_rules! generate_new {
 macro_rules! connect_nodes {
     ($n1:ident, $n2:ident, $recv:ident) => {{
         let (send, recv) = channel::bounded(0);
-        $n1.sender.push(send);
+        $n1.sender.push((send, None));
         $n2.$recv = Some(recv);
     }};
 }
@@ -348,7 +348,7 @@ macro_rules! connect_nodes {
 /// Connects two nodes together in a feedback configuration using channels.
 /// When the nodes are connected in feedback, a specified value is sent
 /// through the channel immediately so that the nodes don't deadlock on
-/// the first iteration. Unlike
+/// the first iteration.
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
@@ -361,17 +361,18 @@ macro_rules! connect_nodes {
 /// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
-/// // message on its receiver named `recv`.
-/// connect_nodes!(node1, node2, recv);
+/// // message on its receiver named `recv`. When node1 starts, it will send
+/// // a 0 to node2 the first time it's run by start_nodes! and run a normal
+/// // loop afterwards.
+/// connect_nodes_feedback!(node1, node2, recv, 0);
 /// # }
 /// ```
 ///
 #[macro_export]
 macro_rules! connect_nodes_feedback {
     ($n1:ident, $n2:ident, $recv:ident, $default:tt) => {{
-        let (send, recv) = channel::bounded(1);
-        send.send($default);
-        $n1.sender.push(send);
+        let (send, recv) = channel::bounded(0);
+        $n1.sender.push((send, Some($default)));
         $n2.$recv = Some(recv);
     }};
 }
@@ -403,6 +404,12 @@ macro_rules! start_nodes {
     ($($node:ident),+) => {
         $(
             thread::spawn(move || {
+                for (send, val) in &$node.sender {
+                    match val {
+                        Some(v) => send.send(v.clone()),
+                        None => continue,
+                    }
+                }
                 loop {
                     $node.call();
                 }
@@ -671,11 +678,14 @@ mod test {
         let mut add_node = AddNode::new(1);
         let mut print_node = PrintNode::new(0);
         connect_nodes!(add_node, print_node, recv_sum);
-        connect_nodes!(print_node, add_node, recv_f);
+        connect_nodes_feedback!(print_node, add_node, recv_f, 0);
         start_nodes!(add_node);
         let check = thread::spawn(move || {
-            for print in &print_node.sender {
-                print.send(0);
+            for (print, val) in &print_node.sender {
+                match val {
+                    Some(v) => print.send(*v),
+                    None => continue,
+                }
             }
             for _ in 0..10 {
                 print_node.call();
