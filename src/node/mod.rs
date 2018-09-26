@@ -345,6 +345,37 @@ macro_rules! connect_nodes {
     }};
 }
 
+/// Connects two nodes together in a feedback configuration using channels.
+/// When the nodes are connected in feedback, a specified value is sent
+/// through the channel immediately so that the nodes don't deadlock on
+/// the first iteration. Unlike
+///
+/// ```
+/// # #[macro_use] extern crate comms_rs;
+/// # use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
+/// # fn main() {
+/// # create_node!(Node1: u32, [], [], |_| 1);
+/// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
+/// let mut node1 = Node1::new();
+/// let mut node2 = Node2::new();
+///
+/// // node1 will now send its messages to node2. node2 will receive the
+/// // message on its receiver named `recv`.
+/// connect_nodes!(node1, node2, recv);
+/// # }
+/// ```
+///
+#[macro_export]
+macro_rules! connect_nodes_feedback {
+    ($n1:ident, $n2:ident, $recv:ident, $default:tt) => {{
+        let (send, recv) = channel::bounded(1);
+        send.send($default);
+        $n1.sender.push(send);
+        $n2.$recv = Some(recv);
+    }};
+}
+
 /// Spawns a thread for each node in order and starts nodes to run
 /// indefinitely.
 ///
@@ -612,6 +643,45 @@ mod test {
             assert_eq!(count_node.count, 55);
         });
 
+        assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// A test to verify that feedback will work.
+    fn test_feedback() {
+        create_node!(
+            AddNode: i32,
+            [count: i32],
+            [recv_f: i32],
+            |node: &mut AddNode, val: i32| {
+                node.count += val;
+                node.count
+            }
+        );
+        create_node!(
+            PrintNode: i32,
+            [count: i32],
+            [recv_sum: i32],
+            |node: &mut PrintNode, val: i32| {
+                node.count = val;
+                val
+            }
+        );
+
+        let mut add_node = AddNode::new(1);
+        let mut print_node = PrintNode::new(0);
+        connect_nodes!(add_node, print_node, recv_sum);
+        connect_nodes!(print_node, add_node, recv_f);
+        start_nodes!(add_node);
+        let check = thread::spawn(move || {
+            for print in &print_node.sender {
+                print.send(0);
+            }
+            for _ in 0..10 {
+                print_node.call();
+            }
+            assert_eq!(print_node.count, 512);
+        });
         assert!(check.join().is_ok());
     }
 }
