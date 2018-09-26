@@ -4,8 +4,7 @@ use node::Node;
 extern crate num; // 0.2.0
 
 use num::PrimInt;
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::mem::size_of;
 
 // A node that implements a generic LFSR based PRNS generator.
 create_generic_node!(
@@ -18,34 +17,12 @@ create_generic_node!(
 // Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnsNode<T> {
     fn run(&mut self) -> u8 {
-        self.state = self.state << 1;
-        let new_bit =
+        let fb_bit =
             T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
-        self.state = self.state | new_bit;
-        new_bit.to_u8().unwrap()
-    }
-}
-
-struct TestPrnsGenerator<T: PrimInt + Hash> {
-    poly_mask: T,
-    state: T,
-    statemap: HashMap<T, u8>
-}
-
-impl<T: PrimInt + Hash> TestPrnsGenerator<T> {
-    fn run(&mut self) -> Option<u8> {
-        if self.statemap.contains_key(&self.state) {
-            println!("\n\nWrapped, size = {}!", self.statemap.len());
-            assert_eq!(self.statemap.len(), 255);
-            return None
-        } else {
-            self.statemap.insert(self.state, 1 as u8);
-        }
-
+        let output = self.state >> (size_of::<T>() * 8 - 1);
         self.state = self.state << 1;
-        let new_bit = T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
-        self.state = self.state | new_bit;
-        new_bit.to_u8()
+        self.state = self.state | fb_bit;
+        output.to_u8().unwrap()
     }
 }
 
@@ -67,23 +44,52 @@ mod test {
     use crossbeam_channel as channel;
     use node::Node;
     use prn::prn_node;
+    use num::PrimInt;
+    use std::mem::size_of;
+    use std::collections::HashMap;
+    use std::hash::Hash;
     use std::thread;
     use std::time::Instant;
-    use std::collections::HashMap;
 
     #[test]
     // A test to verify the correctness of a maximum length PRBS7.
     fn test_prns7_correctness() {
-        let mut prngen = prn_node::TestPrnsGenerator {
-            poly_mask: 0xC0 as u8,
+        struct TestPrnsGenerator<T: PrimInt + Hash> {
+            poly_mask: T,
+            state: T,
+            statemap: HashMap<T, u8>,
+        }
+
+        impl<T: PrimInt + Hash> TestPrnsGenerator<T> {
+            fn run(&mut self) -> Option<u8> {
+                if self.statemap.contains_key(&self.state) {
+                    println!("\nSize of <T>: {}", size_of::<T>());
+                    println!("\n\nWrapped, size = {}!", self.statemap.len());
+                    assert_eq!(self.statemap.len(), 255);
+                    return None;
+                } else {
+                    self.statemap.insert(self.state, 1 as u8);
+                }
+
+                let fb_bit =
+                    T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
+                let output = self.state >> (size_of::<T>() * 8 - 1);
+                self.state = self.state << 1;
+                self.state = self.state | fb_bit;
+                output.to_u8()
+            }
+        }
+
+        let mut prngen = TestPrnsGenerator {
+            poly_mask: 0xB8 as u8,
             state: 0x01,
-            statemap: HashMap::new()
+            statemap: HashMap::new(),
         };
 
         loop {
             match prngen.run() {
                 Some(x) => print!("{:x}", x),
-                None => break
+                None => break,
             }
         }
     }
@@ -100,14 +106,14 @@ mod test {
                 assert_eq!(
                     node.state,
                     vec![
-                        0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1,
-                        1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1,
-                        0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1,
-                        1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
-                        0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1,
-                        0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1,
-                        0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-                        1, 0
+                        0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+                        0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1,
+                        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1,
+                        0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                        0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0,
+                        0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0,
+                        0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+                        0, 0
                     ]
                 );
             } else {
