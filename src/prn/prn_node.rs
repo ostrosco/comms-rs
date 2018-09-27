@@ -6,7 +6,7 @@ extern crate num; // 0.2.0
 use num::PrimInt;
 use std::mem::size_of;
 
-// A node that implements a generic LFSR based PRNS generator.
+/// A node that implements a generic LFSR based PRNS generator.
 create_generic_node!(
     PrnsNode<T>: u8 where T: PrimInt,
     [poly_mask: T, state: T],
@@ -14,7 +14,7 @@ create_generic_node!(
     |node: &mut PrnsNode<T>| node.run()
 );
 
-// Implementation of run for the PrnsNode.
+/// Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnsNode<T> {
     fn run(&mut self) -> u8 {
         let fb_bit =
@@ -26,14 +26,13 @@ impl<T: PrimInt> PrnsNode<T> {
     }
 }
 
-// PrnsNode constructor.
-//
-// Arguments:
-//  poly_mask - Polynomial bit mask to define the feedback taps on the LFSR. A
-//              1 designates that the state bit present should be part of the
-//              xor operation when creating the next bit in the sequence.
-//  state     - Initial state of the LFSR.
-//
+/// Constructs a new `PrnsNode<T: PrimInt>`.
+///
+/// Arguments:
+///  poly_mask - Polynomial bit mask to define the feedback taps on the LFSR. A
+///              1 designates that the state bit present should be part of the
+///              xor operation when creating the next bit in the sequence.
+///  state     - Initial state of the LFSR.
 pub fn prns<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
     PrnsNode::new(poly_mask, state)
 }
@@ -52,8 +51,8 @@ mod test {
     use std::time::Instant;
 
     #[test]
-    // A test to verify the correctness of a maximum length PRBS7.
-    fn test_prns7_correctness() {
+    // A test to verify the correctness of a maximum length PRBS8.
+    fn test_prns8_correctness() {
         struct TestPrnsGenerator<T: PrimInt + Hash> {
             poly_mask: T,
             state: T,
