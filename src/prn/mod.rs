@@ -17,7 +17,7 @@
 //! what you want.  Doing `let mut node = prns(0xC0 as u8, 1);` indicates to the
 //! node internals that you want an 8 bit LSFR implementation.
 //! ### Example Useage
-//! ``` rust
+//! ```rust,no_run
 //! use prn::prn_node;
 //! let mut node = prns(0xC0 as u8, 0x01);
 //! create_node!(
