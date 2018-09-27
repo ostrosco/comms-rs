@@ -16,45 +16,5 @@
 //! like `let mut node = prns(0xC0, 1);` you'll get a 32 bit LFSR, which may not be
 //! what you want.  Doing `let mut node = prns(0xC0 as u8, 1);` indicates to the
 //! node internals that you want an 8 bit LSFR implementation.
-//! ### Example Useage
-//! ```rust,no_run
-//! use prn::prn_node;
-//! let mut node = prns(0xC0 as u8, 0x01);
-//! create_node!(
-//!     CheckNode: (),
-//!     [state: Vec<u8>],
-//!     [recv: u8],
-//!     |node: &mut CheckNode, x| if node.state.len() == 128 {
-//!         assert_eq!(
-//!             node.state,
-//!             vec![
-//!                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-//!                 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1,
-//!                 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1,
-//!                 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-//!                 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0,
-//!                 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0,
-//!                 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-//!                 0, 0
-//!             ]
-//!         );
-//!     } else {
-//!         node.state.push(x);
-//!     }
-//! );
-//! let mut check_node = CheckNode::new(Vec::new());
-//! connect_nodes!(mynode, check_node, recv);
-//! start_nodes!(mynode);
-//! let check = thread::spawn(move || {
-//!     let now = Instant::now();
-//!     loop {
-//!         check_node.call();
-//!         if now.elapsed().as_secs() > 1 {
-//!             break;
-//!         }
-//!     }
-//! });
-//! assert!(check.join().is_ok());
-//! ```
 
 pub mod prn_node;
