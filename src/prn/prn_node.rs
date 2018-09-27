@@ -42,11 +42,11 @@ mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
     use node::Node;
-    use prn::prn_node;
     use num::PrimInt;
-    use std::mem::size_of;
+    use prn::prn_node;
     use std::collections::HashMap;
     use std::hash::Hash;
+    use std::mem::size_of;
     use std::thread;
     use std::time::Instant;
 
@@ -71,7 +71,8 @@ mod test {
                 }
 
                 let fb_bit =
-                    T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
+                    T::from((self.state & self.poly_mask).count_ones() % 2)
+                        .unwrap();
                 let output = self.state >> (size_of::<T>() * 8 - 1);
                 self.state = self.state << 1;
                 self.state = self.state | fb_bit;
