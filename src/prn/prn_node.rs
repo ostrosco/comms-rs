@@ -7,7 +7,7 @@ use num::PrimInt;
 use std::mem::size_of;
 
 /// A node that implements a generic LFSR based PRNS generator.
-create_generic_node!(
+create_node!(
     PrnsNode<T>: u8 where T: PrimInt,
     [poly_mask: T, state: T],
     [],

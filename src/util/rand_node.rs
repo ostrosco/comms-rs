@@ -5,7 +5,7 @@ use rand::distributions::{Normal, Uniform};
 use rand::{FromEntropy, Rng, StdRng};
 
 /// A node that will generate uniformly-distributed random numbers.
-create_generic_node!(
+create_node!(
     UniformNode<T>: T where T: SampleUniform + Clone,
     [rng: StdRng, dist: Uniform<T>],
     [],
