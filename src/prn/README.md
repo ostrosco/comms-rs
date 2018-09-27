@@ -15,6 +15,12 @@ an LFSR in this code has the register shifting to the left rather than right.
 This is different than the Wiki graphics, and I chose it because it matches the
 feedback polynomials in standard form better in my opinion.
 
+A final note regarding the arguments to the constructor: be careful to size the
+input type as the type with the desired LFSR length.  If you simply do something
+like `let mut node = prns(0xC0, 1);` you'll get a 32 bit LFSR, which may not be
+what you want.  Doing `let mut node = prns(0xC0 as u8, 1);` indicates to the
+node internals that you want an 8 bit LSFR implementation.
+
 ### Example Useage
 
 ``` rust
