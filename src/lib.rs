@@ -6,6 +6,7 @@ extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;
 extern crate rand;
+extern crate rustfft;
 
 #[macro_use]
 pub mod node;
