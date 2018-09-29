@@ -13,6 +13,7 @@ pub mod fft;
 pub mod filter;
 pub mod hardware;
 pub mod modulation;
+pub mod output;
 pub mod prn;
 pub mod util;
 
