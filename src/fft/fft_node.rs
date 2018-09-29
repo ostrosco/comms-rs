@@ -1,5 +1,5 @@
-use node::Node;
 use crossbeam::{Receiver, Sender};
+use node::Node;
 use num::NumCast;
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::Zero;
