@@ -15,6 +15,7 @@ pub mod filter;
 pub mod fir;
 pub mod hardware;
 pub mod modulation;
+pub mod output;
 pub mod prn;
 pub mod util;
 
