@@ -4,8 +4,8 @@ use rand::distributions::uniform::SampleUniform;
 use rand::distributions::{Normal, Uniform};
 use rand::{FromEntropy, Rng, StdRng};
 
-/// A node that will generate uniformly-distributed random numbers.
 create_node!(
+    #[doc="A node that will generate uniformly-distributed random numbers."]
     UniformNode<T>: T where T: SampleUniform + Clone,
     [rng: StdRng, dist: Uniform<T>],
     [],
@@ -14,8 +14,8 @@ create_node!(
     }
 );
 
-/// A node that will generate normally-distributed random numbers.
 create_node!(
+    #[doc="A node that will generate normally-distributed random numbers."]
     NormalNode: f64,
     [rng: StdRng, dist: Normal],
     [],
