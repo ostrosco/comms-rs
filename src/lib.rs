@@ -12,6 +12,7 @@ extern crate rustfft;
 pub mod node;
 pub mod fft;
 pub mod filter;
+pub mod fir;
 pub mod hardware;
 pub mod modulation;
 pub mod prn;
