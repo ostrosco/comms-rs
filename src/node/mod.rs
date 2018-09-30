@@ -108,7 +108,7 @@ pub trait Node {
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], 
+    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
         $(#[$attr])*
         pub struct $name {

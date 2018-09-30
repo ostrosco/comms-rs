@@ -11,9 +11,13 @@ license = "MIT"
 
 [dependencies]
 byteorder = "1"
-num = "0.2.0"
-num-complex = "0.2.0"
+num = "0.2"
+num-complex = "0.2"
 crossbeam = "0.4"
 crossbeam-channel = "0.2"
 rand = "0.5"
-rustfft = "2.1.0"
+rustfft = "2.1"
+rtlsdr = "0.1"
+
+[features]
+rtlsdr_support = []
