@@ -108,8 +108,9 @@ pub trait Node {
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], 
+    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], 
      [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -130,9 +131,10 @@ macro_rules! create_node {
         }
     };
 
-    ($name:ident<$($gen:ident),+>: Option<$out:ty>,
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
      [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name<$($gen,)+> {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -153,9 +155,10 @@ macro_rules! create_node {
         }
     };
 
-    ($name:ident<$($gen:ident),+>: Option<$out:ty> where
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty> where
      $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
      [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
@@ -180,8 +183,9 @@ macro_rules! create_node {
             generate_aggregate_call!($func, $out, $($recv),*);
         }
     };
-    ($name:ident: $out:ty, [$($state:ident: $type:ty),*],
+    ($(#[$attr:meta])* $name:ident: $out:ty, [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -202,8 +206,9 @@ macro_rules! create_node {
         }
     };
 
-    ($name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name<$($gen,)+> {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -224,9 +229,10 @@ macro_rules! create_node {
         }
     };
 
-    ($name:ident<$($gen:ident),+>: $out:ty where
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty where
      $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
      [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+        $(#[$attr])*
         pub struct $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
