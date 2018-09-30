@@ -8,6 +8,9 @@ use rustfft::{FFTplanner, FFT};
 use std::sync::Arc;
 
 create_node!(
+    #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
+    #[doc="node expects that input data matching the specified FFT size is "]
+    #[doc="provided."]
     FFTBatchNode<T>: Vec<Complex<T>> where T: NumCast + Clone + Num,
     [fft: Arc<FFT<f64>>, fft_size: usize],
     [recv: Vec<Complex<T>>],
@@ -40,6 +43,25 @@ where
     }
 }
 
+/// Constructs a node that performs FFT or IFFTs in batches.
+///
+/// Example:
+/// ```
+/// # extern crate comms_rs;
+/// # #[macro_use] use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
+/// # fn main() {
+/// use comms_rs::fft::fft_node::{self, FFTBatchNode};
+///
+/// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
+/// // an FFT on those samples.
+/// let mut fft_node: FFTBatchNode<i16> = fft_node::fft_batch_node(1024, false);
+///
+/// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
+/// // an IFFT on those samples.
+/// let mut ifft_node: FFTBatchNode<f32> = fft_node::fft_batch_node(1024, true);
+/// # }
+///
 pub fn fft_batch_node<T: NumCast + Clone + Num>(
     fft_size: usize,
     ifft: bool,
@@ -50,6 +72,9 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
 }
 
 create_node!(
+    #[doc="A node that supports FFTs and IFFTs. This node expects data to be "]
+    #[doc="provided sample by sample and will only perform the FFT once it "]
+    #[doc="has received enough samples specified by fft_size."]
     FFTSampleNode<T>: Option<Vec<Complex<T>>> where T: NumCast + Clone + Num,
     [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
     [recv: Complex<T>],
@@ -88,6 +113,25 @@ where
     }
 }
 
+/// Constructs a node that performs FFT or IFFTs, but only receives a sample
+/// at a time versus a batch of samples.
+///
+/// Example:
+/// ```
+/// # extern crate comms_rs;
+/// # #[macro_use] use comms_rs::node::Node;
+/// # use comms_rs::{channel, Receiver, Sender};
+/// # fn main() {
+/// use comms_rs::fft::fft_node::{self, FFTSampleNode};
+///
+/// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
+/// // an FFT on those samples.
+/// let mut fft_node: FFTSampleNode<i16> = fft_node::fft_sample_node(1024, false);
+///
+/// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
+/// // an IFFT on those samples.
+/// let mut ifft_node: FFTSampleNode<f32> = fft_node::fft_sample_node(1024, true);
+/// # }
 pub fn fft_sample_node<T: NumCast + Clone + Num>(
     fft_size: usize,
     ifft: bool,
