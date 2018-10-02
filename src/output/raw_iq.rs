@@ -10,13 +10,13 @@ use std::path::Path;
 type IQSample = Complex<i16>;
 
 create_node!(
-    IQFileOutput<W>: () where W: Write,
+    IQOutput<W>: () where W: Write,
     [writer: W],
     [sample: IQSample],
-    |node: &mut IQFileOutput<W>, sample: IQSample| node.run(sample)
+    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample)
 );
 
-impl<W: Write> IQFileOutput<W> {
+impl<W: Write> IQOutput<W> {
     fn run(&mut self, samp: IQSample) {
         let bytes = self
             .writer
@@ -30,18 +30,18 @@ impl<W: Write> IQFileOutput<W> {
 
 pub fn iq_file_out<P: AsRef<Path>>(
     path: P,
-) -> io::Result<IQFileOutput<impl Write>> {
-    Ok(IQFileOutput::new(BufWriter::new(File::create(path)?)))
+) -> io::Result<IQOutput<impl Write>> {
+    Ok(IQOutput::new(BufWriter::new(File::create(path)?)))
 }
 
 create_node!(
-    IQFileBatchOutput<W>: () where W: Write,
+    IQBatchOutput<W>: () where W: Write,
     [writer: W],
     [samples: Vec<IQSample>],
     |node: &mut Self, samples: Vec<IQSample>| node.run(samples)
 );
 
-impl<W: Write> IQFileBatchOutput<W> {
+impl<W: Write> IQBatchOutput<W> {
     fn run(&mut self, samples: Vec<IQSample>) {
         let bytes: usize = samples
             .iter()
@@ -58,8 +58,8 @@ impl<W: Write> IQFileBatchOutput<W> {
 
 pub fn iq_batch_file_out<P: AsRef<Path>>(
     path: P,
-) -> io::Result<IQFileBatchOutput<impl Write>> {
-    Ok(IQFileBatchOutput::new(File::create(path)?))
+) -> io::Result<IQBatchOutput<impl Write>> {
+    Ok(IQBatchOutput::new(File::create(path)?))
 }
 
 // copied from source of https://doc.rust-lang.org/std/primitive.i16.html#method.to_bytes
@@ -92,7 +92,7 @@ mod test {
             .map(|i| Complex::new(i * 2, i * 2 + 1))
             .collect();
         {
-            let mut node = IQFileOutput::new(&mut out);
+            let mut node = IQOutput::new(&mut out);
             for item in expected.iter() {
                 node.run(*item);
             }
@@ -113,7 +113,7 @@ mod test {
             .map(|i| Complex::new(i * 2, i * 2 + 1))
             .collect();
         {
-            let mut node = IQFileBatchOutput::new(&mut out);
+            let mut node = IQBatchOutput::new(&mut out);
             for _ in 0..iterations {
                 node.run(expected.clone());
             }
