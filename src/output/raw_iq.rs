@@ -82,4 +82,52 @@ mod test {
 
         assert_eq!(bytes, [0x34, 0x12, 0x78, 0x56]);
     }
+
+    #[test]
+    fn test_single_out_node() {
+        let iterations = 100usize;
+
+        let mut out: Vec<u8> = Vec::new();
+        let expected: Vec<Complex<i16>> = (0..iterations as i16)
+            .map(|i| Complex::new(i * 2, i * 2 + 1))
+            .collect();
+        {
+            let mut node = IQFileOutput::new(&mut out);
+            for item in expected.iter() {
+                node.run(*item);
+            }
+        }
+
+        assert_eq!(out.len(), iterations * mem::size_of::<IQSample>());
+        for i in 0..iterations {
+            assert_eq!(complex_to_bytes(expected[i]), out[(i * 4)..(i * 4 + 4)])
+        }
+    }
+
+    #[test]
+    fn test_batch_out_node() {
+        let iterations = 100usize;
+
+        let mut out: Vec<u8> = Vec::new();
+        let expected: Vec<Complex<i16>> = (0..iterations as i16)
+            .map(|i| Complex::new(i * 2, i * 2 + 1))
+            .collect();
+        {
+            let mut node = IQFileBatchOutput::new(&mut out);
+            for _ in 0..iterations {
+                node.run(expected.clone());
+            }
+        }
+
+        assert_eq!(
+            out.len(),
+            iterations * iterations * mem::size_of::<IQSample>()
+        );
+        for i in 0..iterations {
+            for j in 0..iterations {
+                let ind = ((expected.len() * i) + j) * 4;
+                assert_eq!(complex_to_bytes(expected[j]), out[ind..(ind + 4)])
+            }
+        }
+    }
 }
