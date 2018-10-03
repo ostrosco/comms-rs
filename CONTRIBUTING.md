@@ -6,7 +6,8 @@ this document is a work in progress.
 ## How to Help
 
 1. Find something to do. This could be adding a new node for DSP processing,
-   new hardware support, more documentation, anything.
+   new hardware support, more documentation, anything. Or if you have an idea
+   in mind, open an issue for any new functionality you'd like.
 2. Make some changes! Be sure to add documentation for new functionality.
 3. Run `cargo test` to make sure things are working. If you're performing
    throughput testing, run `cargo test --release`.
