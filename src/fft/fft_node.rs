@@ -11,12 +11,13 @@ create_node!(
     #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
     #[doc="node expects that input data matching the specified FFT size is "]
     #[doc="provided."]
-    FFTBatchNode<T>: Vec<Complex<T>> where T: NumCast + Clone + Num,
+    FFTBatchNode<T>: Vec<Complex<T>>,
     [fft: Arc<FFT<f64>>, fft_size: usize],
     [recv: Vec<Complex<T>>],
     |node: &mut FFTBatchNode<T>, data: Vec<Complex<T>>| {
         node.run_fft(&data)
-    }
+    },
+    T: NumCast + Clone + Num,
 );
 
 impl<T> FFTBatchNode<T>
@@ -76,7 +77,7 @@ create_node!(
     #[doc="A node that supports FFTs and IFFTs. This node expects data to be "]
     #[doc="provided sample by sample and will only perform the FFT once it "]
     #[doc="has received enough samples specified by fft_size."]
-    FFTSampleNode<T>: Option<Vec<Complex<T>>> where T: NumCast + Clone + Num,
+    FFTSampleNode<T>: Option<Vec<Complex<T>>>,
     [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
     [recv: Complex<T>],
     |node: &mut FFTSampleNode<T>, sample: Complex<T>| {
@@ -88,7 +89,8 @@ create_node!(
         } else {
             None
         }
-    }
+    },
+    T: NumCast + Clone + Num,
 );
 
 impl<T> FFTSampleNode<T>
