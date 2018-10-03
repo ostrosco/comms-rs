@@ -15,7 +15,7 @@ create_node!(
 );
 
 create_node!(
-    #[doc="A node that will generate normally-distributed random numbers."]
+    #[doc = "A node that will generate normally-distributed random numbers."]
     NormalNode: f64,
     [rng: StdRng, dist: Normal],
     [],
