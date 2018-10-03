@@ -8,10 +8,11 @@ use std::mem::size_of;
 
 /// A node that implements a generic LFSR based PRNS generator.
 create_node!(
-    PrnsNode<T>: u8 where T: PrimInt,
+    PrnsNode<T>: u8,
     [poly_mask: T, state: T],
     [],
-    |node: &mut PrnsNode<T>| node.run()
+    |node: &mut PrnsNode<T>| node.run(),
+    T: PrimInt,
 );
 
 /// Implementation of run for the PrnsNode.

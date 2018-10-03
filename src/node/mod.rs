@@ -155,12 +155,12 @@ macro_rules! create_node {
         }
     };
 
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty> where
-     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
+     $($bounds:tt)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -172,13 +172,13 @@ macro_rules! create_node {
         }
 
         impl<$($gen,)*> $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_aggregate_call!($func, $out, $($recv),*);
         }
@@ -229,12 +229,12 @@ macro_rules! create_node {
         }
     };
 
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty where
-     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
+     $($bounds:tt)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -246,13 +246,13 @@ macro_rules! create_node {
         }
 
         impl<$($gen,)*> $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_call!($func, $out, $($recv),*);
         }

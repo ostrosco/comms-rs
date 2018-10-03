@@ -6,12 +6,13 @@ use rand::{FromEntropy, Rng, StdRng};
 
 create_node!(
     #[doc="A node that will generate uniformly-distributed random numbers."]
-    UniformNode<T>: T where T: SampleUniform + Clone,
+    UniformNode<T>: T,
     [rng: StdRng, dist: Uniform<T>],
     [],
     |node: &mut UniformNode<T>| {
         node.rng.sample(&node.dist)
-    }
+    },
+    T: SampleUniform + Clone,
 );
 
 create_node!(
