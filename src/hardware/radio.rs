@@ -1,16 +1,5 @@
-use crossbeam::{channel, Receiver, Sender};
+use crossbeam::{Receiver, Sender};
 use node::Node;
-
-pub trait RadioConfig {
-    fn init_radio(&mut self);
-    fn teardown(&mut self);
-    fn set_center_freq(&mut self);
-    fn get_center_freq(&mut self);
-    fn set_sample_rate(&mut self);
-    fn get_sample_rate(&mut self);
-    fn set_gain(&mut self);
-    fn get_gain(&mut self);
-}
 
 pub trait RadioTx<T> {
     fn send_samples(&mut self, samples: Vec<T>, output_idx: usize);
@@ -27,7 +16,7 @@ create_node!(
     |node: &mut RadioTxNode<T, U>, samples: Vec<U>| {
         node.radio.send_samples(samples, node.output_idx);
     },
-    T: RadioConfig + RadioTx<U>, U: Clone,
+    T: RadioTx<U>, U: Clone,
 );
 
 create_node!(
@@ -37,5 +26,5 @@ create_node!(
     |node: &mut RadioRxNode<T, U>| {
         node.radio.recv_samples(node.num_samples, node.input_idx)
     },
-    T: RadioConfig + RadioRx<U>, U: Clone,
+    T: RadioRx<U>, U: Clone,
 );
