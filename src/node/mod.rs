@@ -57,9 +57,10 @@ pub trait Node {
 ///
 /// Generics can be passed along with the following format:
 ///
-/// create_generic_node!(name<generic>: out_type (where generic: Trait + ...,), [fields: field_type], [recv: recv_type], func);
+/// create_node!(name<generic>: out_type, [fields: field_type], [recv: recv_type], func, generic:
+/// Trait + ...);
 /// - generic: any generic variables to add to the structure
-/// - where generic: Trait + ...,: a list of trait bounds for the structure,
+/// - generic: Trait + ...,: a list of trait bounds for the structure,
 ///   trait bounds are optional
 ///
 /// # Examples
