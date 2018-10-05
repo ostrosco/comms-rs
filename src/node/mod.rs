@@ -108,7 +108,8 @@ pub trait Node {
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], 
+     [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -125,11 +126,12 @@ macro_rules! create_node {
 
         impl Node for $name
         {
-            generate_aggregate_call!($func, $($recv),*);
+            generate_aggregate_call!($func, $out, $($recv),*);
         }
     };
 
-    ($name:ident<$($gen:ident),+>: Option<$out:ty>, [$($state:ident: $type:ty),*],
+    ($name:ident<$($gen:ident),+>: Option<$out:ty>,
+     [$($state:ident: $type:ty),*],
      [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name<$($gen,)+> {
             $(
@@ -147,11 +149,12 @@ macro_rules! create_node {
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
         {
-            generate_aggregate_call!($func, $($recv),*);
+            generate_aggregate_call!($func, $out, $($recv),*);
         }
     };
 
-    ($name:ident<$($gen:ident),+>: Option<$out:ty> where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
+    ($name:ident<$($gen:ident),+>: Option<$out:ty> where
+     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
      [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
@@ -174,10 +177,11 @@ macro_rules! create_node {
         impl<$($gen,)*> Node for $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
-            generate_aggregate_call!($func, $($recv),*);
+            generate_aggregate_call!($func, $out, $($recv),*);
         }
     };
-    ($name:ident: $out:ty, [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($name:ident: $out:ty, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -194,7 +198,7 @@ macro_rules! create_node {
 
         impl Node for $name
         {
-            generate_call!($func, $($recv),*);
+            generate_call!($func, $out, $($recv),*);
         }
     };
 
@@ -216,11 +220,12 @@ macro_rules! create_node {
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
         {
-            generate_call!($func, $($recv),*);
+            generate_call!($func, $out, $($recv),*);
         }
     };
 
-    ($name:ident<$($gen:ident),+>: $out:ty where $($gen_t:ident: $where:ident $(+ $where_rep:ident),*),+,
+    ($name:ident<$($gen:ident),+>: $out:ty where
+     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
      [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
         pub struct $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
@@ -243,7 +248,7 @@ macro_rules! create_node {
         impl<$($gen,)*> Node for $name<$($gen,)+>
         where $( $gen_t: $where $(+ ($where_rep))*, )+
         {
-            generate_call!($func, $($recv),*);
+            generate_call!($func, $out, $($recv),*);
         }
     };
 }
@@ -251,7 +256,7 @@ macro_rules! create_node {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! generate_call {
-    ($func:expr, $($recv:ident),*) => {
+    ($func:expr, $out:ty, $($recv:ident),*) => {
         fn call(&mut self) {
             $(
                 let $recv = match self.$recv {
@@ -259,7 +264,7 @@ macro_rules! generate_call {
                     None => return,
                 };
             )*
-            let res = ($func)(&mut *self, $($recv,)*);
+            let res: $out = ($func)(&mut *self, $($recv,)*);
             for (send, _) in &self.sender {
                 send.send(res.clone());
             }
@@ -270,7 +275,7 @@ macro_rules! generate_call {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! generate_aggregate_call {
-    ($func:expr, $($recv:ident),*) => {
+    ($func:expr, $out:ty, $($recv:ident),*) => {
         fn call(&mut self) {
             $(
                 let $recv = match self.$recv {
@@ -278,7 +283,8 @@ macro_rules! generate_aggregate_call {
                     None => return,
                 };
             )*
-            if let Some(res) = ($func)(&mut *self, $($recv,)*) {
+            let result: Option<$out> = ($func)(&mut *self, $($recv,)*);
+            if let Some(res) = result {
                 for (send, _) in &self.sender {
                     send.send(res.clone());
                 }
