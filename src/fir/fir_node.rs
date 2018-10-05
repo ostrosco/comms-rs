@@ -4,6 +4,7 @@ use node::Node;
 extern crate num; // 0.2.0
 
 use num::complex::Complex;
+use num::Zero;
 
 /// A node that implements a generic FIR filter.
 create_node!(
@@ -27,8 +28,12 @@ impl FirNode {
     fn run(&mut self, input: Complex<i16>) -> Complex<i16> {
         self.state.rotate_right(1);
         self.state[0] = input;
-        let output = self.taps.iter().zip(self.state.iter())
-            .map(|(x, y)| *x * *y).sum();
+        let output = self
+            .taps
+            .iter()
+            .zip(self.state.iter())
+            .map(|(x, y)| *x * *y)
+            .sum();
         output
     }
 }
@@ -40,29 +45,59 @@ impl BatchFirNode {
         for sample in input {
             self.state.rotate_right(1);
             self.state[0] = sample;
-            output.push(self.taps.iter().zip(self.state.iter())
-                .map(|(x, y)| *x * *y).sum());
-        };
+            output.push(
+                self.taps
+                    .iter()
+                    .zip(self.state.iter())
+                    .map(|(x, y)| *x * *y)
+                    .sum(),
+            );
+        }
         output
     }
 }
 
-/// Constructs a new `FirNode<T>`.
+/// Constructs a new `FirNode<T>` with initial state set to zeros.
 ///
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<i16>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn fir(taps: Vec<Complex<i16>>, state: Vec<Complex<i16>>) -> FirNode {
+pub fn fir(taps: Vec<Complex<i16>>) -> FirNode {
+    let len = taps.len();
+    FirNode::new(taps, vec![Complex::zero(); len])
+}
+
+/// Constructs a new `FirNode<T>` with user defined initial state.
+///
+/// Arguments:
+///     taps  - FIR filter tap Vec[Complex<i16>].
+///     state - Initial state for the internal filter state and memory.
+pub fn fir_with_state(
+    taps: Vec<Complex<i16>>,
+    state: Vec<Complex<i16>>,
+) -> FirNode {
     FirNode::new(taps, state)
 }
 
-/// Constructs a new `BatchFirNode<T>`.
+/// Constructs a new `BatchFirNode<T>` with initial state set to zeros.
 ///
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<i16>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn batch_fir(taps: Vec<Complex<i16>>,
-                 state: Vec<Complex<i16>>) -> BatchFirNode {
+pub fn batch_fir(taps: Vec<Complex<i16>>) -> BatchFirNode {
+    let len = taps.len();
+    BatchFirNode::new(taps, vec![Complex::zero(); len])
+}
+
+/// Constructs a new `BatchFirNode<T>` with user defined initial state.
+///
+/// Arguments:
+///     taps  - FIR filter tap Vec[Complex<i16>].
+///     state - Initial state for the internal filter state and memory.
+pub fn batch_fir_with_state(
+    taps: Vec<Complex<i16>>,
+    state: Vec<Complex<i16>>,
+) -> BatchFirNode {
     BatchFirNode::new(taps, state)
 }
 
@@ -70,10 +105,10 @@ pub fn batch_fir(taps: Vec<Complex<i16>>,
 mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
+    use fir::fir_node;
     use node::Node;
     use num::Complex;
     use num::Zero;
-    use fir::fir_node;
     use std::thread;
     use std::time::Instant;
 
@@ -84,59 +119,55 @@ mod test {
             SomeSamples: Complex<i16>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| {
-                if node.samples.len() == 0 {
-                    Complex::zero()
-                } else {
-                    node.samples.remove(0)
-                }
-            });
+            |node: &mut Self| if node.samples.len() == 0 {
+                Complex::zero()
+            } else {
+                node.samples.remove(0)
+            }
+        );
 
-        let mut source = SomeSamples::new(vec![Complex::new(1, 2),
-                                               Complex::new(3, 4),
-                                               Complex::new(5, 6),
-                                               Complex::new(7, 8),
-                                               Complex::new(9, 0),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero()]);
+        let mut source = SomeSamples::new(vec![
+            Complex::new(1, 2),
+            Complex::new(3, 4),
+            Complex::new(5, 6),
+            Complex::new(7, 8),
+            Complex::new(9, 0),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+        ]);
 
-        let mut mynode = fir_node::fir(vec![Complex::new(9, 0),
-                                            Complex::new(8, 7),
-                                            Complex::new(6, 5),
-                                            Complex::new(4, 3),
-                                            Complex::new(2, 1)],
-                                       vec![Complex::zero(),
-                                            Complex::zero(),
-                                            Complex::zero(),
-                                            Complex::zero(),
-                                            Complex::zero()]);
+        let mut mynode = fir_node::fir(vec![
+            Complex::new(9, 0),
+            Complex::new(8, 7),
+            Complex::new(6, 5),
+            Complex::new(4, 3),
+            Complex::new(2, 1),
+        ]);
 
         create_node!(
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Complex<i16>],
-            |node: &mut CheckNode, x| {
-
-                if node.state.len() == 9 {
-                    assert_eq!(
-                        node.state,
-                        vec![Complex::new(9, 18),
-                             Complex::new(21, 59),
-                             Complex::new(37, 124),
-                             Complex::new(57, 205),
-                             Complex::new(81, 204),
-                             Complex::new(78, 196),
-                             Complex::new(62, 115),
-                             Complex::new(42, 50),
-                             Complex::new(18, 9)
-                        ]
-                    );
-                } else {
-                    node.state.push(x);
-                }
+            |node: &mut CheckNode, x| if node.state.len() == 9 {
+                assert_eq!(
+                    node.state,
+                    vec![
+                        Complex::new(9, 18),
+                        Complex::new(21, 59),
+                        Complex::new(37, 124),
+                        Complex::new(57, 205),
+                        Complex::new(81, 204),
+                        Complex::new(78, 196),
+                        Complex::new(62, 115),
+                        Complex::new(42, 50),
+                        Complex::new(18, 9)
+                    ]
+                );
+            } else {
+                node.state.push(x);
             }
         );
 
@@ -164,62 +195,61 @@ mod test {
             SomeSamples: Vec<Complex<i16>>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| {
-                if node.samples.len() == 0 {
-                    vec![Complex::zero(), Complex::zero()]
-                } else {
-                    let s1 = node.samples.remove(0);
-                    let s2 = node.samples.remove(0);
-                    vec![s1, s2]
-                }
-            });
+            |node: &mut Self| if node.samples.len() == 0 {
+                vec![Complex::zero(), Complex::zero()]
+            } else {
+                let s1 = node.samples.remove(0);
+                let s2 = node.samples.remove(0);
+                vec![s1, s2]
+            }
+        );
 
-        let mut source = SomeSamples::new(vec![Complex::new(1, 2),
-                                               Complex::new(3, 4),
-                                               Complex::new(5, 6),
-                                               Complex::new(7, 8),
-                                               Complex::new(9, 0),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero(),
-                                               Complex::zero()]);
+        let mut source = SomeSamples::new(vec![
+            Complex::new(1, 2),
+            Complex::new(3, 4),
+            Complex::new(5, 6),
+            Complex::new(7, 8),
+            Complex::new(9, 0),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+            Complex::zero(),
+        ]);
 
-        let mut mynode = fir_node::batch_fir(vec![Complex::new(9, 0),
-                                                  Complex::new(8, 7),
-                                                  Complex::new(6, 5),
-                                                  Complex::new(4, 3),
-                                                  Complex::new(2, 1)],
-                                             vec![Complex::zero(),
-                                                  Complex::zero(),
-                                                  Complex::zero(),
-                                                  Complex::zero(),
-                                                  Complex::zero()]);
+        let mut mynode = fir_node::batch_fir_with_state(
+            vec![
+                Complex::new(9, 0),
+                Complex::new(8, 7),
+                Complex::new(6, 5),
+                Complex::new(4, 3),
+                Complex::new(2, 1),
+            ],
+            vec![Complex::zero(); 5],
+        );
 
         create_node!(
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Vec<Complex<i16>>],
-            |node: &mut CheckNode, mut x| {
-
-                if node.state.len() == 10 {
-                    assert_eq!(
-                        node.state,
-                        vec![Complex::new(9, 18),
-                             Complex::new(21, 59),
-                             Complex::new(37, 124),
-                             Complex::new(57, 205),
-                             Complex::new(81, 204),
-                             Complex::new(78, 196),
-                             Complex::new(62, 115),
-                             Complex::new(42, 50),
-                             Complex::new(18, 9),
-                             Complex::new(0, 0)
-                        ]
-                    );
-                } else {
-                    node.state.append(&mut x);
-                }
+            |node: &mut CheckNode, mut x| if node.state.len() == 10 {
+                assert_eq!(
+                    node.state,
+                    vec![
+                        Complex::new(9, 18),
+                        Complex::new(21, 59),
+                        Complex::new(37, 124),
+                        Complex::new(57, 205),
+                        Complex::new(81, 204),
+                        Complex::new(78, 196),
+                        Complex::new(62, 115),
+                        Complex::new(42, 50),
+                        Complex::new(18, 9),
+                        Complex::new(0, 0)
+                    ]
+                );
+            } else {
+                node.state.append(&mut x);
             }
         );
 
