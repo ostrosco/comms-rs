@@ -1,3 +1,10 @@
+//! Provides nodes for sending data to various external sources.
+//!
+//! Nodes will send data as bytes to the writer provided at initialization.
+//! Currently the only supported receivable primitive type is Complex<i16>.
+//! Complex<i16> will be written to the writer as first the real then
+//! imaginary portions, with each item in host byte-order.
+
 use crossbeam::{Receiver, Sender};
 use node::Node;
 use num::Complex;
@@ -9,6 +16,7 @@ use std::path::Path;
 
 type IQSample = Complex<i16>;
 
+/// Will send samples as interleaved 16-bit values in host byte-order to writer.
 create_node!(
     IQOutput<W>: () where W: Write,
     [writer: W],
@@ -28,6 +36,15 @@ impl<W: Write> IQOutput<W> {
     }
 }
 
+/// Make an IQOutput node sending data to the given file.
+///
+/// # Example
+///
+/// ```
+/// use comms_rs::output::raw_iq::iq_file_out;
+///
+/// let outnode = iq_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
+/// ```
 pub fn iq_file_out<P: AsRef<Path>>(
     path: P,
 ) -> io::Result<IQOutput<impl Write>> {
@@ -56,6 +73,15 @@ impl<W: Write> IQBatchOutput<W> {
     }
 }
 
+/// Make an IQBatchOutput node sending data to the given file.
+///
+/// # Example
+///
+/// ```
+/// use comms_rs::output::raw_iq::iq_batch_file_out;
+///
+/// let outnode = iq_batch_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
+/// ```
 pub fn iq_batch_file_out<P: AsRef<Path>>(
     path: P,
 ) -> io::Result<IQBatchOutput<impl Write>> {
@@ -76,6 +102,7 @@ mod test {
     use output::raw_iq::*;
 
     #[test]
+    /// Test that complex_to_bytes behaves in the expected manner.
     fn test_complex_to_bytes() {
         let c = Complex::new(0x1234, 0x5678);
         let bytes = complex_to_bytes(c);
@@ -84,6 +111,7 @@ mod test {
     }
 
     #[test]
+    /// Test that node correctly sends received data to writer.
     fn test_single_out_node() {
         let iterations = 100usize;
 
@@ -105,6 +133,7 @@ mod test {
     }
 
     #[test]
+    /// Test that batch node correctly sends received data to writer.
     fn test_batch_out_node() {
         let iterations = 100usize;
 
