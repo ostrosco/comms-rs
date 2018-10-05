@@ -165,15 +165,13 @@ mod test {
             [samples: Vec<Complex<i16>>],
             [],
             |node: &mut Self| {
-                let mut s1 = Complex::zero();
-                let mut s2 = Complex::zero();
-                match node.samples.pop() {
-                    Some(T) => s1 = T
-                };
-                match node.samples.pop() {
-                    Some(T) => s2 = T
-                };
-                vec![s1, s2]
+                if node.samples.len() == 0 {
+                    vec![Complex::zero(), Complex::zero()]
+                } else {
+                    let s1 = node.samples.remove(0);
+                    let s2 = node.samples.remove(0);
+                    vec![s1, s2]
+                }
             });
 
         let mut source = SomeSamples::new(vec![Complex::new(1, 2),
@@ -202,7 +200,7 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Vec<Complex<i16>>],
-            |node: &mut CheckNode, x| {
+            |node: &mut CheckNode, mut x| {
 
                 if node.state.len() == 10 {
                     assert_eq!(
@@ -220,7 +218,7 @@ mod test {
                         ]
                     );
                 } else {
-                    node.state.append(x);
+                    node.state.append(&mut x);
                 }
             }
         );
