@@ -5,13 +5,13 @@
 //! Complex<i16> will be written to the writer as first the real then
 //! imaginary portions, with each item in host byte-order.
 
+use byteorder::{NativeEndian, WriteBytesExt};
 use crossbeam::{Receiver, Sender};
 use node::Node;
 use num::Complex;
 
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
-use std::mem;
 use std::path::Path;
 
 type IQSample = Complex<i16>;
@@ -26,13 +26,12 @@ create_node!(
 
 impl<W: Write> IQOutput<W> {
     fn run(&mut self, samp: IQSample) {
-        let bytes = self
-            .writer
-            .write(&complex_to_bytes(samp))
+        self.writer
+            .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
-        if bytes != mem::size_of::<IQSample>() {
-            panic!("did not write the expected number of bytes to writer");
-        }
+        self.writer
+            .write_i16::<NativeEndian>(samp.im)
+            .expect("failed to write sample to writer");
     }
 }
 
@@ -60,16 +59,14 @@ create_node!(
 
 impl<W: Write> IQBatchOutput<W> {
     fn run(&mut self, samples: Vec<IQSample>) {
-        let bytes: usize = samples
-            .iter()
-            .map(|samp| {
-                self.writer
-                    .write(&complex_to_bytes(*samp))
-                    .expect("failed to write samples to file")
-            }).sum();
-        if bytes != mem::size_of::<IQSample>() * samples.len() {
-            panic!("did not write the expected number of bytes to writer");
-        }
+        samples.iter().for_each(|samp| {
+            self.writer
+                .write_i16::<NativeEndian>(samp.re)
+                .expect("failed to write sample to writer");
+            self.writer
+                .write_i16::<NativeEndian>(samp.im)
+                .expect("failed to write sample to writer");
+        });
     }
 }
 
@@ -88,26 +85,15 @@ pub fn iq_batch_file_out<P: AsRef<Path>>(
     Ok(IQBatchOutput::new(File::create(path)?))
 }
 
-// copied from source of https://doc.rust-lang.org/std/primitive.i16.html#method.to_bytes
-fn i16_to_bytes(i: i16) -> [u8; 2] {
-    unsafe { mem::transmute(i) }
-}
-
-fn complex_to_bytes(c: Complex<i16>) -> [u8; mem::size_of::<Complex<i16>>()] {
-    unsafe { mem::transmute(c) }
-}
-
 #[cfg(test)]
 mod test {
+    use byteorder::{ByteOrder, NativeEndian};
     use output::raw_iq::*;
+    use std::mem;
 
-    #[test]
-    /// Test that complex_to_bytes behaves in the expected manner.
-    fn test_complex_to_bytes() {
-        let c = Complex::new(0x1234, 0x5678);
-        let bytes = complex_to_bytes(c);
-
-        assert_eq!(bytes, [0x34, 0x12, 0x78, 0x56]);
+    fn complex_into_bytes(buf: &mut [u8], c: Complex<i16>) {
+        NativeEndian::write_i16(buf, c.re);
+        NativeEndian::write_i16(&mut buf[2..], c.im);
     }
 
     #[test]
@@ -127,8 +113,10 @@ mod test {
         }
 
         assert_eq!(out.len(), iterations * mem::size_of::<IQSample>());
+        let mut buf = vec![0u8; 4];
         for i in 0..iterations {
-            assert_eq!(complex_to_bytes(expected[i]), out[(i * 4)..(i * 4 + 4)])
+            complex_into_bytes(&mut buf, expected[i]);
+            assert_eq!(*buf, out[(i * 4)..(i * 4 + 4)])
         }
     }
 
@@ -152,10 +140,12 @@ mod test {
             out.len(),
             iterations * iterations * mem::size_of::<IQSample>()
         );
+        let mut buf = vec![0u8; 4];
         for i in 0..iterations {
             for j in 0..iterations {
                 let ind = ((expected.len() * i) + j) * 4;
-                assert_eq!(complex_to_bytes(expected[j]), out[ind..(ind + 4)])
+                complex_into_bytes(&mut buf, expected[j]);
+                assert_eq!(*buf, out[ind..(ind + 4)])
             }
         }
     }
