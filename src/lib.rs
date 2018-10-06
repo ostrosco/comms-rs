@@ -8,6 +8,7 @@ extern crate crossbeam_channel;
 extern crate num;
 extern crate rand;
 extern crate rustfft;
+extern crate rodio;
 
 #[macro_use]
 pub mod node;
