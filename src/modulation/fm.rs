@@ -23,6 +23,7 @@ impl<T> FMDemodNode<T> where T: Float {
             demod_queue.push(conj.arg());
             prev = samp;
         }
+        self.prev = prev;
 
         demod_queue
     }
