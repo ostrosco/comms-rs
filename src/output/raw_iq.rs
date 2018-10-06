@@ -18,10 +18,11 @@ type IQSample = Complex<i16>;
 
 /// Will send samples as interleaved 16-bit values in host byte-order to writer.
 create_node!(
-    IQOutput<W>: () where W: Write,
+    IQOutput<W>: (),
     [writer: W],
     [sample: IQSample],
-    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample)
+    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample),
+    W: Write,
 );
 
 impl<W: Write> IQOutput<W> {
@@ -51,10 +52,11 @@ pub fn iq_file_out<P: AsRef<Path>>(
 }
 
 create_node!(
-    IQBatchOutput<W>: () where W: Write,
+    IQBatchOutput<W>: (),
     [writer: W],
     [samples: Vec<IQSample>],
-    |node: &mut Self, samples: Vec<IQSample>| node.run(samples)
+    |node: &mut Self, samples: Vec<IQSample>| node.run(samples),
+    W: Write,
 );
 
 impl<W: Write> IQBatchOutput<W> {
