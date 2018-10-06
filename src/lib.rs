@@ -2,6 +2,7 @@
 // here: https://github.com/rust-lang-nursery/rust-clippy/issues/1553.
 #![cfg_attr(feature = "cargo-clippy", allow(redundant_closure_call))]
 
+extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;

@@ -10,6 +10,7 @@ keywords = ["dsp", "rf"]
 license = "MIT"
 
 [dependencies]
+byteorder = "1"
 num = "0.2.0"
 num-complex = "0.2.0"
 crossbeam = "0.4"
