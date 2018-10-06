@@ -112,7 +112,7 @@ fn main() {
         );
         exit(2);
     }
-    if center_freq > max_freq {
+    if center_freq < min_freq {
         error!(
             "Center frequency less than minimum supported value: {} < {}",
             center_freq, min_freq
@@ -127,7 +127,7 @@ fn main() {
         );
         exit(3);
     }
-    if vga_gain > min_vga_gain {
+    if vga_gain < min_vga_gain {
         error!(
             "VGA gain is less than minimum supported value: {} < {}",
             vga_gain, min_vga_gain
@@ -149,7 +149,7 @@ fn main() {
         );
         exit(3);
     }
-    if lna_gain > min_lna_gain {
+    if lna_gain < min_lna_gain {
         error!(
             "VGA gain is less than minimum supported value: {} < {}",
             lna_gain, min_lna_gain
@@ -164,5 +164,5 @@ fn main() {
         exit(3);
     }
 
-    //info!("Setting V
+    debug!("Setting center frequency to {}", center_freq);
 }
