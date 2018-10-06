@@ -7,8 +7,11 @@ extern crate hackrf_sys;
 extern crate simple_logger;
 
 use clap::{App, Arg};
-use std::collections::HashSet;
+use std::boxed::Box;
 use std::process::exit;
+use std::vec;
+
+use hackrf_sys::hackrf_error;
 
 fn main() {
     //First, initalize logging
@@ -164,5 +167,38 @@ fn main() {
         exit(3);
     }
 
-    debug!("Setting center frequency to {}", center_freq);
+    //Now that we're out of the woods, parameter-wise, create a stack to hold cleanup functions:
+    let mut cleanup_stack: vec::Vec<Box<FnMut() -> ()>> = vec::Vec::new();
+    debug!("Initializing hackrf library");
+    unsafe {
+        let code: hackrf_error = hackrf_sys::hackrf_init();
+        match code {
+            hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
+            hackrf_sys::hackrf_error_HACKRF_TRUE => (),
+            _ => {
+                error!(
+                    "Got value of {} when initializing the hackrf subsystem",
+                    code
+                );
+                exit(4);
+            }
+        }
+        // If went well, add the de-init to the stack, to be called later:
+        cleanup_stack.push(Box::new(|| {
+            hackrf_sys::hackrf_exit();
+        }));
+        // The reason for the extra {} and ; is to return "unit"
+
+        // Now that we're done, go through each item in the stack and call it
+        let mut next_item = cleanup_stack.pop();
+        loop {
+            match next_item {
+                Some(mut item) => {
+                    item();
+                    next_item = cleanup_stack.pop();
+                }
+                None => break,
+            }
+        }
+    }
 }
