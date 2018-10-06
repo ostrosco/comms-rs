@@ -20,7 +20,7 @@ provided to work with a few common SDR platforms.
 Initial Goals:
 - [x] Node based architecture
 - [x] FFT/IFFT
-- [ ] FIR filter
+- [x] FIR filter
 - [ ] Decimation
 - [ ] Upsampling
 - [ ] Pulse shaping
