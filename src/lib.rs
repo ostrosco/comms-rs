@@ -13,8 +13,10 @@ pub mod node;
 pub mod fft;
 pub mod filter;
 pub mod hardware;
+pub mod mixer;
 pub mod modulation;
 pub mod prn;
 pub mod util;
+extern crate assert_approx_eq; // 1.0.0
 
 pub use crossbeam::{channel, Receiver, Sender};
