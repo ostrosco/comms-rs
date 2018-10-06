@@ -57,9 +57,10 @@ pub trait Node {
 ///
 /// Generics can be passed along with the following format:
 ///
-/// create_generic_node!(name<generic>: out_type (where generic: Trait + ...,), [fields: field_type], [recv: recv_type], func);
+/// create_node!(name<generic>: out_type, [fields: field_type], [recv: recv_type], func, generic:
+/// Trait + ...);
 /// - generic: any generic variables to add to the structure
-/// - where generic: Trait + ...,: a list of trait bounds for the structure,
+/// - generic: Trait + ...,: a list of trait bounds for the structure,
 ///   trait bounds are optional
 ///
 /// # Examples
@@ -102,14 +103,26 @@ pub trait Node {
 ///     |node: &mut CounterNode, val: i32| {
 ///         node.count += val;
 ///         node.count
-///     }
+///     },
+/// );
+///
+/// // Create a node that takes a generic type parameter.
+/// create_node!(
+///     GenericNode<T>: T,
+///     [state: T],
+///     [recv: T],
+///     |node: &mut GenericNode<T>, new_val: T| {
+///         node.state = new_val.clone();
+///         node.state.clone()
+///     },
+///     T: Clone,
 /// );
 /// # }
 /// ```
 #[macro_export]
 macro_rules! create_node {
-    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*], 
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
+     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
         $(#[$attr])*
         pub struct $name {
             $(
@@ -133,7 +146,7 @@ macro_rules! create_node {
 
     ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
      [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+> {
             $(
@@ -155,12 +168,12 @@ macro_rules! create_node {
         }
     };
 
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty> where
-     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
+     $($bounds:tt)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -172,19 +185,19 @@ macro_rules! create_node {
         }
 
         impl<$($gen,)*> $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_aggregate_call!($func, $out, $($recv),*);
         }
     };
     ($(#[$attr:meta])* $name:ident: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
         $(#[$attr])*
         pub struct $name {
             $(
@@ -207,7 +220,7 @@ macro_rules! create_node {
     };
 
     ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr) => {
+     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+> {
             $(
@@ -229,12 +242,12 @@ macro_rules! create_node {
         }
     };
 
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty where
-     $($gen_t:ident: $where:ident $(+ $where_rep:ident)*,)+
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr) => {
+    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty,
+     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
+     $($bounds:tt)*) => {
         $(#[$attr])*
         pub struct $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             $(
                 pub $recv: Option<Receiver<$in>>,
@@ -246,13 +259,13 @@ macro_rules! create_node {
         }
 
         impl<$($gen,)*> $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
         }
 
         impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $( $gen_t: $where $(+ ($where_rep))*, )+
+        where $($bounds)*
         {
             generate_call!($func, $out, $($recv),*);
         }
@@ -444,7 +457,7 @@ mod test {
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
         create_node!(Node1: u32, [], [], { |_| 1 });
-        create_node!(Node2: (), [], [recv1: u32], { |_, x| assert_eq!(x, 1) });
+        create_node!(Node2: (), [], [recv1: u32], { |_, x| assert_eq!(x, 1) },);
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();

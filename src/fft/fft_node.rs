@@ -1,8 +1,8 @@
 use crossbeam::{Receiver, Sender};
 use node::Node;
 use num::NumCast;
-use rustfft::num_traits::Num;
 use rustfft::num_complex::Complex;
+use rustfft::num_traits::Num;
 use rustfft::num_traits::Zero;
 use rustfft::{FFTplanner, FFT};
 use std::sync::Arc;
@@ -11,12 +11,13 @@ create_node!(
     #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
     #[doc="node expects that input data matching the specified FFT size is "]
     #[doc="provided."]
-    FFTBatchNode<T>: Vec<Complex<T>> where T: NumCast + Clone + Num,
+    FFTBatchNode<T>: Vec<Complex<T>>,
     [fft: Arc<FFT<f64>>, fft_size: usize],
     [recv: Vec<Complex<T>>],
     |node: &mut FFTBatchNode<T>, data: Vec<Complex<T>>| {
         node.run_fft(&data)
-    }
+    },
+    T: NumCast + Clone + Num,
 );
 
 impl<T> FFTBatchNode<T>
@@ -37,8 +38,9 @@ where
         // After the FFT, convert back to interleaved values.
         let res: Vec<Complex<T>> = output
             .iter()
-            .map(|x| Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap()))
-            .collect();
+            .map(|x| {
+                Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
+            }).collect();
         res
     }
 }
@@ -75,7 +77,7 @@ create_node!(
     #[doc="A node that supports FFTs and IFFTs. This node expects data to be "]
     #[doc="provided sample by sample and will only perform the FFT once it "]
     #[doc="has received enough samples specified by fft_size."]
-    FFTSampleNode<T>: Option<Vec<Complex<T>>> where T: NumCast + Clone + Num,
+    FFTSampleNode<T>: Option<Vec<Complex<T>>>,
     [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
     [recv: Complex<T>],
     |node: &mut FFTSampleNode<T>, sample: Complex<T>| {
@@ -87,7 +89,8 @@ create_node!(
         } else {
             None
         }
-    }
+    },
+    T: NumCast + Clone + Num,
 );
 
 impl<T> FFTSampleNode<T>
@@ -95,7 +98,8 @@ where
     T: NumCast + Clone + Num,
 {
     fn run_fft(&mut self) -> Vec<Complex<T>> {
-        let mut input: Vec<Complex<f64>> = self.samples
+        let mut input: Vec<Complex<f64>> = self
+            .samples
             .iter()
             .map(|x| {
                 Complex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
@@ -107,8 +111,9 @@ where
         // After the FFT, convert back to interleaved values.
         let res: Vec<Complex<T>> = output
             .iter()
-            .map(|x| Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap()))
-            .collect();
+            .map(|x| {
+                Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
+            }).collect();
         res
     }
 }
@@ -147,32 +152,27 @@ mod test {
     use crossbeam_channel as channel;
     use fft::fft_node;
     use node::Node;
+    use rustfft::num_complex::Complex;
     use std::thread;
     use std::time::Instant;
-    use rustfft::num_complex::Complex;
 
     #[test]
     fn test_fft_batch() {
-        create_node!(
-            SendNode: Vec<Complex<f32>>,
-            [],
-            [],
-            |_| {
-                let input = vec![
-                    Complex::new(0.1, 0.1),
-                    Complex::new(0.2, 0.2),
-                    Complex::new(0.3, 0.3),
-                    Complex::new(0.4, 0.4),
-                    Complex::new(0.5, 0.5),
-                    Complex::new(0.6, 0.6),
-                    Complex::new(0.7, 0.7),
-                    Complex::new(0.8, 0.8),
-                    Complex::new(0.9, 0.9),
-                    Complex::new(1.0, 1.0),
-                ];
-                input
-            }
-        );
+        create_node!(SendNode: Vec<Complex<f32>>, [], [], |_| {
+            let input = vec![
+                Complex::new(0.1, 0.1),
+                Complex::new(0.2, 0.2),
+                Complex::new(0.3, 0.3),
+                Complex::new(0.4, 0.4),
+                Complex::new(0.5, 0.5),
+                Complex::new(0.6, 0.6),
+                Complex::new(0.7, 0.7),
+                Complex::new(0.8, 0.8),
+                Complex::new(0.9, 0.9),
+                Complex::new(1.0, 1.0),
+            ];
+            input
+        });
         let mut send_node = SendNode::new();
 
         let mut fft_node = fft_node::fft_batch_node(10, false);
@@ -222,9 +222,7 @@ mod test {
             SendNode: Option<Complex<f32>>,
             [input: Vec<Complex<f32>>],
             [],
-            |node: &mut SendNode| {
-                node.input.pop()
-            }
+            |node: &mut SendNode| node.input.pop()
         );
 
         let input = vec![

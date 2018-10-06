@@ -2,6 +2,7 @@
 // here: https://github.com/rust-lang-nursery/rust-clippy/issues/1553.
 #![cfg_attr(feature = "cargo-clippy", allow(redundant_closure_call))]
 
+extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;
@@ -12,9 +13,11 @@ extern crate rustfft;
 pub mod node;
 pub mod fft;
 pub mod filter;
+pub mod fir;
 pub mod hardware;
 pub mod mixer;
 pub mod modulation;
+pub mod output;
 pub mod prn;
 pub mod util;
 extern crate assert_approx_eq; // 1.0.0
