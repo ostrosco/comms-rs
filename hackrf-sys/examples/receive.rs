@@ -46,6 +46,14 @@ fn catch_hackrf_code_and_quit(code: i32, message: &str, cleanup_stack: &mut vec:
 
 extern "C" fn writer(xfer: *mut hackrf_transfer) -> i32 {
     trace!("writer method called");
+    unsafe {
+        let num_bytes = (*xfer).valid_length as usize;
+        let mut data_buffer: vec::Vec<u8> = vec::Vec::with_capacity(num_bytes);
+        for idx in 0..num_bytes {
+            data_buffer.push(*((*xfer).buffer.offset(idx as isize)));
+        }
+        trace!("Pushed {} bytes into the vector", data_buffer.len());
+    }
     0
 }
 
