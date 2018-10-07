@@ -31,6 +31,19 @@ fn cleanup(cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
     debug!("Finished executing all items on the cleanup stack");
 }
 
+//This method expects a message which can display the code at the end
+fn catch_hackrf_code_and_quit(code: i32, message: &str, cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
+    match code {
+        hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
+        hackrf_sys::hackrf_error_HACKRF_TRUE => (),
+        _ => {
+            error!("Got failure when calling {}: {}", message, code);
+            cleanup(cleanup_stack);
+            exit(10);
+        }
+    }
+}
+
 extern "C" fn writer(xfer: *mut hackrf_transfer) -> i32 {
     trace!("writer method called");
     0
@@ -279,26 +292,32 @@ fn main() {
 
         //Next, we should be able to tune the radio using our center_freq
         debug!("About to set the center frequency");
-        //TODO verify all of these worked
-        hackrf_sys::hackrf_set_freq(hackrf_dev, center_freq as u64);
+
+        let code = hackrf_sys::hackrf_set_freq(hackrf_dev, center_freq as u64);
+        catch_hackrf_code_and_quit(code, "set_freq", &mut cleanup_stack);
 
         debug!("About to set the sample rate");
-        hackrf_sys::hackrf_set_sample_rate(hackrf_dev, samp_rate);
+        let code = hackrf_sys::hackrf_set_sample_rate(hackrf_dev, samp_rate);
+        catch_hackrf_code_and_quit(code, "set_sample_rate", &mut cleanup_stack);
 
         debug!("About to set the VGA gain");
-        hackrf_sys::hackrf_set_vga_gain(hackrf_dev, vga_gain);
+        let code = hackrf_sys::hackrf_set_vga_gain(hackrf_dev, vga_gain);
+        catch_hackrf_code_and_quit(code, "set_vga_gain", &mut cleanup_stack);
 
         debug!("About to set the LNA gain");
-        hackrf_sys::hackrf_set_lna_gain(hackrf_dev, lna_gain);
+        let code = hackrf_sys::hackrf_set_lna_gain(hackrf_dev, lna_gain);
+        catch_hackrf_code_and_quit(code, "set_lna_gain", &mut cleanup_stack); 
 
         debug!("About to set up the receiver");
-        hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), ptr::null_mut());
+        let code = hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), ptr::null_mut());
+        catch_hackrf_code_and_quit(code, "start_rx", &mut cleanup_stack); 
 
         debug!("Going to sleep for ten milliseconds");
         thread::sleep(time::Duration::from_millis(10));
 
         debug!("About to stop receiving");
-        hackrf_sys::hackrf_stop_rx(hackrf_dev);
+        let code = hackrf_sys::hackrf_stop_rx(hackrf_dev);
+        catch_hackrf_code_and_quit(code, "stop_rx", &mut cleanup_stack);
 
         // Now that we're done, go through each item in the stack and call it
         cleanup(&mut cleanup_stack);
