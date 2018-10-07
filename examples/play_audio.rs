@@ -2,12 +2,12 @@
 extern crate comms_rs;
 extern crate crossbeam;
 extern crate rodio;
-use crossbeam::{channel, Sender};
 use comms_rs::node::Node;
 use comms_rs::output::audio::{self, AudioNode};
+use crossbeam::{channel, Sender};
 use rodio::source::{self, Source};
-use std::thread;
 use std::boxed::Box;
+use std::thread;
 
 fn main() {
     let mut audio: AudioNode<f32> = audio::audio(1, 48000, 0.5);
