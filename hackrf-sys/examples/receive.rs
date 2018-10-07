@@ -9,9 +9,32 @@ extern crate simple_logger;
 use clap::{App, Arg};
 use std::boxed::Box;
 use std::process::exit;
-use std::vec;
 
-use hackrf_sys::hackrf_error;
+use std::ptr;
+use std::vec;
+use std::time;
+use std::thread;
+
+use hackrf_sys::{hackrf_device, hackrf_device_list_t, hackrf_error, hackrf_transfer};
+
+fn cleanup(cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
+    let mut next_item = cleanup_stack.pop();
+    loop {
+        match next_item {
+            Some(mut item) => {
+                item();
+                next_item = cleanup_stack.pop();
+            }
+            None => break,
+        }
+    }
+    debug!("Finished executing all items on the cleanup stack");
+}
+
+extern "C" fn writer(xfer: *mut hackrf_transfer) -> i32 {
+    trace!("writer method called");
+    0
+}
 
 fn main() {
     //First, initalize logging
@@ -81,14 +104,14 @@ fn main() {
         .unwrap_or("1e9")
         .parse()
         .unwrap();
-    let samp_rate: f32 = matches
+    let samp_rate: f64 = matches
         .value_of("samp_rate")
         .unwrap_or("20e6")
         .parse()
         .unwrap();
-    let vga_gain: i16 =
+    let vga_gain: u32 =
         matches.value_of("vga_gain").unwrap_or("0").parse().unwrap();
-    let lna_gain: i16 =
+    let lna_gain: u32 =
         matches.value_of("vga_gain").unwrap_or("0").parse().unwrap();
     let output_fname =
         matches.value_of("output_file").unwrap_or("tmp_samps.dat");
@@ -169,7 +192,7 @@ fn main() {
 
     //Now that we're out of the woods, parameter-wise, create a stack to hold cleanup functions:
     let mut cleanup_stack: vec::Vec<Box<FnMut() -> ()>> = vec::Vec::new();
-    debug!("Initializing hackrf library");
+    debug!("About to initialize the hackrf subsystem");
     unsafe {
         let code: hackrf_error = hackrf_sys::hackrf_init();
         match code {
@@ -185,20 +208,99 @@ fn main() {
         }
         // If went well, add the de-init to the stack, to be called later:
         cleanup_stack.push(Box::new(|| {
-            hackrf_sys::hackrf_exit();
+            trace!("About to call hackrf_exit()");
+            let code = hackrf_sys::hackrf_exit();
+            match code {
+                hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
+                hackrf_sys::hackrf_error_HACKRF_TRUE => (),
+                _ => {
+                    error!(
+                        "Got value of {} when deinitializing hackrf subsystem",
+                        code
+                    );
+                }
+            }
+            trace!("Called hackrf_exit()");
         }));
+        debug!("Initialized hackrf subsystem");
         // The reason for the extra {} and ; is to return "unit"
 
-        // Now that we're done, go through each item in the stack and call it
-        let mut next_item = cleanup_stack.pop();
-        loop {
-            match next_item {
-                Some(mut item) => {
-                    item();
-                    next_item = cleanup_stack.pop();
-                }
-                None => break,
+        //Next, list out any HackRFs that are present:
+        let device_list: *mut hackrf_device_list_t =
+            hackrf_sys::hackrf_device_list();
+
+        //Check and see if there are any items in the list:
+        let num_devices = (*device_list).devicecount;
+        debug!(
+            "Found {} device(s) when querying hackrf library",
+            num_devices
+        );
+        if num_devices <= 0 {
+            println!("To use this program, please connect a HackRF device and have the correct permissions.");
+            debug!("Cleaning up and exiting...");
+            hackrf_sys::hackrf_device_list_free(device_list);
+            cleanup(&mut cleanup_stack);
+            exit(5);
+        }
+
+        let mut hackrf_dev: *mut hackrf_device = ptr::null_mut();
+        debug!("About to try and open the first device in the list");
+        let code = hackrf_sys::hackrf_device_list_open(
+            device_list,
+            0,
+            &mut hackrf_dev,
+        );
+        hackrf_sys::hackrf_device_list_free(device_list);
+
+        match code {
+            hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
+            _ => {
+                error!(
+                    "Got value of {} when deinitializing hackrf subsystem",
+                    code
+                );
+                cleanup(&mut cleanup_stack);
+                exit(6);
             }
         }
+
+        cleanup_stack.push(Box::new(move || {
+            trace!("About to call hackrf_close()");
+            let code = hackrf_sys::hackrf_close(hackrf_dev);
+            match code {
+                hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
+                hackrf_sys::hackrf_error_HACKRF_TRUE => (),
+                _ => {
+                    error!("Got value of {} when closing hackrf device", code);
+                }
+            }
+            trace!("Called hackrf_close()");
+        }));
+
+        //Next, we should be able to tune the radio using our center_freq
+        debug!("About to set the center frequency");
+        //TODO verify all of these worked
+        hackrf_sys::hackrf_set_freq(hackrf_dev, center_freq as u64);
+
+        debug!("About to set the sample rate");
+        hackrf_sys::hackrf_set_sample_rate(hackrf_dev, samp_rate);
+
+        debug!("About to set the VGA gain");
+        hackrf_sys::hackrf_set_vga_gain(hackrf_dev, vga_gain);
+
+        debug!("About to set the LNA gain");
+        hackrf_sys::hackrf_set_lna_gain(hackrf_dev, lna_gain);
+
+        debug!("About to set up the receiver");
+        hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), ptr::null_mut());
+
+        debug!("Going to sleep for ten milliseconds");
+        thread::sleep(time::Duration::from_millis(10));
+
+        debug!("About to stop receiving");
+        hackrf_sys::hackrf_stop_rx(hackrf_dev);
+
+        // Now that we're done, go through each item in the stack and call it
+        cleanup(&mut cleanup_stack);
     }
 }
