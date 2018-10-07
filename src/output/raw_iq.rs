@@ -55,12 +55,12 @@ create_node!(
     IQBatchOutput<W>: (),
     [writer: W],
     [samples: Vec<IQSample>],
-    |node: &mut Self, samples: Vec<IQSample>| node.run(samples),
+    |node: &mut Self, samples: Vec<IQSample>| node.run(&samples),
     W: Write,
 );
 
 impl<W: Write> IQBatchOutput<W> {
-    fn run(&mut self, samples: Vec<IQSample>) {
+    fn run(&mut self, samples: &[IQSample]) {
         samples.iter().for_each(|samp| {
             self.writer
                 .write_i16::<NativeEndian>(samp.re)
@@ -134,7 +134,7 @@ mod test {
         {
             let mut node = IQBatchOutput::new(&mut out);
             for _ in 0..iterations {
-                node.run(expected.clone());
+                node.run(&expected.clone());
             }
         }
 
