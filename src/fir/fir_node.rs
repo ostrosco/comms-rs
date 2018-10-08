@@ -28,13 +28,11 @@ impl FirNode {
     fn run(&mut self, input: Complex<i16>) -> Complex<i16> {
         self.state.rotate_right(1);
         self.state[0] = input;
-        let output = self
-            .taps
+        self.taps
             .iter()
             .zip(self.state.iter())
             .map(|(x, y)| *x * *y)
-            .sum();
-        output
+            .sum()
     }
 }
 
