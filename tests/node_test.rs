@@ -1,8 +1,7 @@
 #[macro_use]
 extern crate comms_rs;
 
-use comms_rs::node::Node;
-use comms_rs::{channel, Receiver, Sender};
+use comms_rs::prelude::*;
 use std::thread;
 use std::time::Duration;
 

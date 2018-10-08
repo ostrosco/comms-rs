@@ -1,8 +1,8 @@
-use crossbeam::Sender;
-use node::Node;
 use rand::distributions::uniform::SampleUniform;
 use rand::distributions::{Normal, Uniform};
 use rand::{FromEntropy, Rng, StdRng};
+
+use prelude::*;
 
 create_node!(
     #[doc="A node that will generate uniformly-distributed random numbers."]
@@ -44,12 +44,11 @@ pub fn random_bit() -> UniformNode<u8> {
 
 #[cfg(test)]
 mod test {
-    use crossbeam::{Receiver, Sender};
-    use crossbeam_channel as channel;
-    use node::Node;
     use std::thread;
     use std::time::Instant;
     use util::rand_node;
+
+    use prelude::*;
 
     #[test]
     // A basic test that just makes sure the node doesn't crash.

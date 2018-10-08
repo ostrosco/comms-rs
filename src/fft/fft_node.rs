@@ -1,11 +1,11 @@
-use crossbeam::{Receiver, Sender};
-use node::Node;
 use num::NumCast;
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::Num;
 use rustfft::num_traits::Zero;
 use rustfft::{FFTplanner, FFT};
 use std::sync::Arc;
+
+use prelude::*;
 
 create_node!(
     #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
@@ -51,7 +51,7 @@ where
 /// ```
 /// # extern crate comms_rs;
 /// # #[macro_use] use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # fn main() {
 /// use comms_rs::fft::fft_node::{self, FFTBatchNode};
 ///
@@ -125,7 +125,7 @@ where
 /// ```
 /// # extern crate comms_rs;
 /// # #[macro_use] use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # fn main() {
 /// use comms_rs::fft::fft_node::{self, FFTSampleNode};
 ///
@@ -148,13 +148,12 @@ pub fn fft_sample_node<T: NumCast + Clone + Num>(
 
 #[cfg(test)]
 mod test {
-    use crossbeam::{Receiver, Sender};
-    use crossbeam_channel as channel;
     use fft::fft_node;
-    use node::Node;
     use rustfft::num_complex::Complex;
     use std::thread;
     use std::time::Instant;
+
+    use prelude::*;
 
     #[test]
     fn test_fft_batch() {

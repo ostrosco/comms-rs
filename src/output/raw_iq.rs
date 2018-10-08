@@ -6,9 +6,9 @@
 //! imaginary portions, with each item in host byte-order.
 
 use byteorder::{NativeEndian, WriteBytesExt};
-use crossbeam::{Receiver, Sender};
-use node::Node;
 use num::Complex;
+
+use prelude::*;
 
 use std::fs::File;
 use std::io::{self, BufWriter, Write};

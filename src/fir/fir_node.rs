@@ -1,5 +1,4 @@
-use crossbeam::{Receiver, Sender};
-use node::Node;
+use prelude::*;
 
 extern crate num; // 0.2.0
 

@@ -1,5 +1,4 @@
-use crossbeam::{Receiver, Sender};
-use node::Node;
+use prelude::*;
 
 /// A trait to capture the ability to send samples out of the hardware
 /// platform on a particular output.
