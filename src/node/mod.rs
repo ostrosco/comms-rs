@@ -6,8 +6,7 @@
 //!
 //! ```
 //! #[macro_use] extern crate comms_rs;
-//! use comms_rs::node::Node;
-//! use comms_rs::{channel, Receiver, Sender};
+//! use comms_rs::prelude::*;
 //! use std::thread;
 //!
 //! # fn main() {
@@ -67,8 +66,7 @@ pub trait Node {
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # fn main() {
 /// // Creates a node that takes no inputs and outputs a u32.
 /// create_node!(
@@ -347,8 +345,7 @@ macro_rules! generate_new {
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # fn main() {
 /// # create_node!(Node1: u32, [], [], |_| 1);
 /// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
@@ -377,8 +374,7 @@ macro_rules! connect_nodes {
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # fn main() {
 /// # create_node!(Node1: u32, [], [], |_| 1);
 /// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
@@ -409,8 +405,7 @@ macro_rules! connect_nodes_feedback {
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::node::Node;
-/// # use comms_rs::{channel, Receiver, Sender};
+/// # use comms_rs::prelude::*;
 /// # use std::thread;
 /// # fn main() {
 /// # create_node!(Node1: u32, [], [], |_| 1);
@@ -445,13 +440,12 @@ macro_rules! start_nodes {
 
 #[cfg(test)]
 mod test {
-    use crossbeam::{Receiver, Sender};
-    use crossbeam_channel as channel;
-    use node::Node;
     use rand::{thread_rng, Rng};
     use std::sync::Arc;
     use std::thread;
     use std::time::{Duration, Instant};
+
+    use prelude::*;
 
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
@@ -587,9 +581,7 @@ mod test {
     /// This serves to make sure that fan-in operation works as we expect
     /// it to.
     fn test_fan_in() {
-        use crossbeam::{Receiver, Sender};
-        use crossbeam_channel as channel;
-        use node::Node;
+        use prelude::*;
         use std::thread;
         use std::time::Duration;
 

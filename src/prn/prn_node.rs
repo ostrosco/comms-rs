@@ -40,10 +40,8 @@ pub fn prns<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
 
 #[cfg(test)]
 mod test {
-    use crossbeam::{Receiver, Sender};
-    use crossbeam_channel as channel;
-    use node::Node;
     use num::PrimInt;
+    use prelude::*;
     use prn::prn_node;
     use std::collections::HashMap;
     use std::hash::Hash;

@@ -59,11 +59,10 @@ pub fn rtlsdr(index: i32) -> Result<RTLSDR, RTLSDRError> {
 
 #[cfg(test)]
 mod test {
-    use crossbeam::{channel, Receiver, Sender};
     use hardware::{radio, rtlsdr_radio};
-    use node::Node;
-    use std::thread;
     use std::time::Instant;
+
+    use prelude::*;
 
     #[test]
     #[cfg_attr(not(feature = "rtlsdr_support"), ignore)]
