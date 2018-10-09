@@ -24,3 +24,10 @@ rtlsdr = {version = "0.1", optional = true}
 
 [features]
 rtlsdr_support = ["rtlsdr"]
+
+[[example]]
+name = "fm_radio"
+required-features = ["rtlsdr_support"]
+
+[[example]]
+name = "play_audio"
