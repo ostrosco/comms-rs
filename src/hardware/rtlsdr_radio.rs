@@ -44,7 +44,10 @@ impl RadioRx<u8> for RTLSDR {
     fn recv_samples(&mut self, num_samples: usize, _: usize) -> Vec<u8> {
         match self.rtlsdr.read_sync(num_samples) {
             Ok(samp) => samp,
-            Err(_) => vec![],
+            Err(_) => {
+                println!("Couldn't get samples");
+                return vec![];
+            }
         }
     }
 }
@@ -63,6 +66,7 @@ mod test {
     use std::time::Instant;
 
     use prelude::*;
+    use std::thread;
 
     #[test]
     #[cfg_attr(not(feature = "rtlsdr_support"), ignore)]
