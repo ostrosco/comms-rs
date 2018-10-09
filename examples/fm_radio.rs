@@ -21,12 +21,10 @@ fn main() {
         ConvertNode: Vec<Complex<f32>>,
         [],
         [recv: Vec<u8>],
-        |_, samples: Vec<u8>| {
-            samples
+        |_, samples: Vec<u8>| samples
             .chunks(2)
             .map(|x| Complex::new(x[0] as f32, x[1] as f32))
             .collect()
-        }
     );
 
     create_node!(

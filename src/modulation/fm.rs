@@ -13,7 +13,10 @@ create_node!(
     T: Float,
 );
 
-impl<T> FMDemodNode<T> where T: Float {
+impl<T> FMDemodNode<T>
+where
+    T: Float,
+{
     pub fn demod(&mut self, samples: Vec<Complex<T>>) -> Vec<T> {
         let mut prev = self.prev;
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
