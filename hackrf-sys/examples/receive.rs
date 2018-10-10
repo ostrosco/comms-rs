@@ -25,14 +25,9 @@ use hackrf_sys::{
 
 fn cleanup(cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
     let mut next_item = cleanup_stack.pop();
-    loop {
-        match next_item {
-            Some(mut item) => {
-                item();
-                next_item = cleanup_stack.pop();
-            }
-            None => break,
-        }
+    while let Some(mut item) = next_item {
+        item();
+        next_item = cleanup_stack.pop();
     }
     debug!("Finished executing all items on the cleanup stack");
 }
@@ -64,7 +59,7 @@ extern "C" fn writer(xfer: *mut hackrf_transfer) -> i32 {
             data_buffer.push(*((*xfer).buffer.offset(idx as isize)));
         }
         trace!("Pushed {} bytes into the vector", data_buffer.len());
-        match (*file_ptr).write_all(&mut data_buffer) {
+        match (*file_ptr).write_all(&data_buffer) {
             Ok(_) => (),
             Err(_exc) => {
                 error!("Could not write to file!");
