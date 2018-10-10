@@ -7,19 +7,21 @@ extern crate hackrf_sys;
 extern crate simple_logger;
 
 use clap::{App, Arg};
+use log::Level;
 use std::boxed::Box;
 use std::process::exit;
-use log::Level;
 
-use std::ptr;
-use std::vec;
-use std::time;
-use std::thread;
-use std::io::Write;
 use std::fs::File;
+use std::io::Write;
 use std::os::raw::c_void;
+use std::ptr;
+use std::thread;
+use std::time;
+use std::vec;
 
-use hackrf_sys::{hackrf_device, hackrf_device_list_t, hackrf_error, hackrf_transfer};
+use hackrf_sys::{
+    hackrf_device, hackrf_device_list_t, hackrf_error, hackrf_transfer,
+};
 
 fn cleanup(cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
     let mut next_item = cleanup_stack.pop();
@@ -36,7 +38,11 @@ fn cleanup(cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
 }
 
 //This method expects a message which can display the code at the end
-fn catch_hackrf_code_and_quit(code: i32, message: &str, cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>) {
+fn catch_hackrf_code_and_quit(
+    code: i32,
+    message: &str,
+    cleanup_stack: &mut vec::Vec<Box<FnMut() -> ()>>,
+) {
     match code {
         hackrf_sys::hackrf_error_HACKRF_SUCCESS => (),
         hackrf_sys::hackrf_error_HACKRF_TRUE => (),
@@ -326,11 +332,11 @@ fn main() {
 
         debug!("About to set the LNA gain");
         let code = hackrf_sys::hackrf_set_lna_gain(hackrf_dev, lna_gain);
-        catch_hackrf_code_and_quit(code, "set_lna_gain", &mut cleanup_stack); 
+        catch_hackrf_code_and_quit(code, "set_lna_gain", &mut cleanup_stack);
 
         debug!("About to open a file");
         let out_file_result = File::create(output_fname);
-        
+
         let mut out_file = match out_file_result {
             Ok(file) => file,
             Err(_exc) => {
@@ -343,8 +349,12 @@ fn main() {
         let file_ptr: *mut File = &mut out_file;
 
         debug!("About to set up the receiver");
-        let code = hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), file_ptr as *mut c_void);
-        catch_hackrf_code_and_quit(code, "start_rx", &mut cleanup_stack); 
+        let code = hackrf_sys::hackrf_start_rx(
+            hackrf_dev,
+            Some(writer),
+            file_ptr as *mut c_void,
+        );
+        catch_hackrf_code_and_quit(code, "start_rx", &mut cleanup_stack);
 
         debug!("Going to sleep for ten seconds");
         thread::sleep(time::Duration::from_secs(1));
