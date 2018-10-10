@@ -6,6 +6,7 @@ extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;
+extern crate num_traits;
 extern crate rand;
 extern crate rodio;
 extern crate rustfft;
