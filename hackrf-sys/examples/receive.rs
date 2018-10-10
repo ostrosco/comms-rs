@@ -9,11 +9,15 @@ extern crate simple_logger;
 use clap::{App, Arg};
 use std::boxed::Box;
 use std::process::exit;
+use log::Level;
 
 use std::ptr;
 use std::vec;
 use std::time;
 use std::thread;
+use std::io::Write;
+use std::fs::File;
+use std::os::raw::c_void;
 
 use hackrf_sys::{hackrf_device, hackrf_device_list_t, hackrf_error, hackrf_transfer};
 
@@ -48,18 +52,26 @@ extern "C" fn writer(xfer: *mut hackrf_transfer) -> i32 {
     trace!("writer method called");
     unsafe {
         let num_bytes = (*xfer).valid_length as usize;
+        let file_ptr = (*xfer).rx_ctx as *mut File;
         let mut data_buffer: vec::Vec<u8> = vec::Vec::with_capacity(num_bytes);
         for idx in 0..num_bytes {
             data_buffer.push(*((*xfer).buffer.offset(idx as isize)));
         }
         trace!("Pushed {} bytes into the vector", data_buffer.len());
+        match (*file_ptr).write_all(&mut data_buffer) {
+            Ok(_) => (),
+            Err(_exc) => {
+                error!("Could not write to file!");
+                return 1;
+            }
+        };
     }
     0
 }
 
 fn main() {
     //First, initalize logging
-    simple_logger::init().unwrap();
+    simple_logger::init_with_level(Level::Warn).unwrap();
 
     //Next, setup our command line arguments so we can bail out if they're not specified
 
@@ -316,12 +328,26 @@ fn main() {
         let code = hackrf_sys::hackrf_set_lna_gain(hackrf_dev, lna_gain);
         catch_hackrf_code_and_quit(code, "set_lna_gain", &mut cleanup_stack); 
 
+        debug!("About to open a file");
+        let out_file_result = File::create(output_fname);
+        
+        let mut out_file = match out_file_result {
+            Ok(file) => file,
+            Err(_exc) => {
+                error!("Couldn't open file for writing: {}", output_fname);
+                cleanup(&mut cleanup_stack);
+                exit(11);
+            }
+        };
+        //Assuming the file gets cleaned up when we leave scope. May cause errors
+        let file_ptr: *mut File = &mut out_file;
+
         debug!("About to set up the receiver");
-        let code = hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), ptr::null_mut());
+        let code = hackrf_sys::hackrf_start_rx(hackrf_dev, Some(writer), file_ptr as *mut c_void);
         catch_hackrf_code_and_quit(code, "start_rx", &mut cleanup_stack); 
 
-        debug!("Going to sleep for ten milliseconds");
-        thread::sleep(time::Duration::from_millis(10));
+        debug!("Going to sleep for ten seconds");
+        thread::sleep(time::Duration::from_secs(1));
 
         debug!("About to stop receiving");
         let code = hackrf_sys::hackrf_stop_rx(hackrf_dev);
