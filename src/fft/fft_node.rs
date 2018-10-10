@@ -1,6 +1,6 @@
+use num::Complex;
 use num::NumCast;
 use rustfft::num_complex::Complex as FFTComplex;
-use num::Complex;
 use rustfft::num_traits::Num;
 use rustfft::num_traits::Zero;
 use rustfft::{FFTplanner, FFT};
