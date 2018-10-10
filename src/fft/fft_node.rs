@@ -1,5 +1,6 @@
 use num::NumCast;
-use rustfft::num_complex::Complex;
+use rustfft::num_complex::Complex as FFTComplex;
+use num::Complex;
 use rustfft::num_traits::Num;
 use rustfft::num_traits::Zero;
 use rustfft::{FFTplanner, FFT};
@@ -26,13 +27,13 @@ where
 {
     fn run_fft(&mut self, data: &[Complex<T>]) -> Vec<Complex<T>> {
         // Convert the input type from interleaved values to Complex<f32>.
-        let mut input: Vec<Complex<f64>> = data
+        let mut input: Vec<FFTComplex<f64>> = data
             .iter()
             .map(|x| {
-                Complex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
+                FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
             }).collect();
-        let mut output: Vec<Complex<f64>> =
-            vec![Complex::zero(); self.fft_size];
+        let mut output: Vec<FFTComplex<f64>> =
+            vec![FFTComplex::zero(); self.fft_size];
         self.fft.process(&mut input[..], &mut output[..]);
 
         // After the FFT, convert back to interleaved values.
@@ -98,14 +99,14 @@ where
     T: NumCast + Clone + Num,
 {
     fn run_fft(&mut self) -> Vec<Complex<T>> {
-        let mut input: Vec<Complex<f64>> = self
+        let mut input: Vec<FFTComplex<f64>> = self
             .samples
             .iter()
             .map(|x| {
-                Complex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
+                FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
             }).collect();
-        let mut output: Vec<Complex<f64>> =
-            vec![Complex::zero(); self.fft_size];
+        let mut output: Vec<FFTComplex<f64>> =
+            vec![FFTComplex::zero(); self.fft_size];
         self.fft.process(&mut input[..], &mut output[..]);
 
         // After the FFT, convert back to interleaved values.
@@ -149,7 +150,7 @@ pub fn fft_sample_node<T: NumCast + Clone + Num>(
 #[cfg(test)]
 mod test {
     use fft::fft_node;
-    use rustfft::num_complex::Complex;
+    use num::Complex;
     use std::thread;
     use std::time::Instant;
 
