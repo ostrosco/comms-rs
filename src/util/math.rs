@@ -6,7 +6,7 @@ use num_traits::AsPrimitive;
 pub fn cast_complex<T, U>(input: Complex<T>) -> Complex<U>
 where
     T: AsPrimitive<U> + Clone + Num,
-    U: AsPrimitive<T> + Clone + Num,
+    U: Clone + Copy + Num + 'static,
 {
     Complex::new(input.re.as_(), input.im.as_())
 }
