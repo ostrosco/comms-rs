@@ -22,6 +22,8 @@ pub mod modulation;
 pub mod output;
 pub mod prn;
 pub mod util;
+
+#[macro_use]
 extern crate assert_approx_eq; // 1.0.0
 
 pub mod prelude;
