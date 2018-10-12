@@ -8,6 +8,7 @@ extern crate crossbeam_channel;
 extern crate num;
 extern crate num_traits;
 extern crate rand;
+extern crate rayon;
 extern crate rodio;
 extern crate rustfft;
 
