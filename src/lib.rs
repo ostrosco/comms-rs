@@ -6,7 +6,9 @@ extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;
+extern crate num_traits;
 extern crate rand;
+extern crate rodio;
 extern crate rustfft;
 
 #[macro_use]
@@ -22,4 +24,4 @@ pub mod prn;
 pub mod util;
 extern crate assert_approx_eq; // 1.0.0
 
-pub use crossbeam::{channel, Receiver, Sender};
+pub mod prelude;

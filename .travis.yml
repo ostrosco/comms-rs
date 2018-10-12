@@ -5,6 +5,8 @@ rust:
   - nightly
 matrix:
   allow_failures: nightly
+before_install:
+    sudo apt-get install libasound2-dev
 script:
   - cargo build --release --verbose --all
   - cargo test --release --verbose --all
