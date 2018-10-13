@@ -5,23 +5,33 @@ use std::f64::consts::PI;
 extern crate num; // 0.2.0
 
 use num::complex::Complex;
+use num::Num;
+use num_traits::NumCast;
+use std::fmt::Debug;
+use util::math;
 
 /// A node that implements a generic mixer.
 create_node!(
-    MixerNode: Complex<f64>,
+    MixerNode<T>: Complex<T>,
     [phase: f64, dphase: f64],
-    [input: Complex<f64>],
-    |node: &mut MixerNode, input: Complex<f64>| node.run(input)
+    [input: Complex<T>],
+    |node: &mut MixerNode<T>, input: Complex<T>| node.run(&input),
+    T: Clone + Num + NumCast + Debug,
 );
 
 /// Implementation of run for the MixerNode.
-impl MixerNode {
-    fn run(&mut self, input: Complex<f64>) -> Complex<f64> {
+impl<T> MixerNode<T>
+where
+    T: NumCast + Clone + Num + Debug,
+{
+    fn run(&mut self, input: &Complex<T>) -> Complex<T> {
         self.phase += self.dphase;
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
         }
-        input * Complex::exp(&Complex::new(0.0, self.phase))
+        let inp: Complex<f64> = math::cast_complex(input).unwrap();
+        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
+        math::cast_complex(&res).unwrap()
     }
 }
 
@@ -32,7 +42,10 @@ impl MixerNode {
 /// Arguments:
 ///     dphase - The change in phase (radians) per sampling period. This should
 ///              be dphase = 2 * PI * freq(Hz) * Ts.
-pub fn mixer(mut dphase: f64) -> MixerNode {
+pub fn mixer<T>(mut dphase: f64) -> MixerNode<T>
+where
+    T: NumCast + Clone + Num + Debug,
+{
     while dphase >= 2.0 * PI {
         dphase -= 2.0 * PI;
     }
@@ -50,7 +63,10 @@ pub fn mixer(mut dphase: f64) -> MixerNode {
 ///     dphase - The change in phase (radians) per sampling period. This should
 ///              be dphase = 2 * PI * freq(Hz) * Ts.
 ///     phase  - The initial phase of the oscillator.
-pub fn mixer_with_phase(mut dphase: f64, phase: f64) -> MixerNode {
+pub fn mixer_with_phase<T>(mut dphase: f64, phase: f64) -> MixerNode<T>
+where
+    T: NumCast + Clone + Num + Debug,
+{
     while dphase >= 2.0 * PI {
         dphase -= 2.0 * PI;
     }
@@ -64,10 +80,10 @@ pub fn mixer_with_phase(mut dphase: f64, phase: f64) -> MixerNode {
 mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
+    use mixer::mixer_node;
+    use node::Node;
     use num::complex::Complex;
     use num::Zero;
-    use node::Node;
-    use mixer::mixer_node;
     use std::thread;
     use std::time::Instant;
 
@@ -90,10 +106,10 @@ mod test {
             Complex::new(3.0, 4.0),
             Complex::new(5.0, 6.0),
             Complex::new(7.0, 8.0),
-            Complex::new(9.0, 0.0)
+            Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::mixer(0.123);
+        let mut mixer = mixer_node::mixer::<f64>(0.123);
 
         create_node!(
             CheckNode: (),
@@ -108,14 +124,8 @@ mod test {
                     Complex::new(14.72025707, 0.0),
                 ];
                 for i in 0..node.state.len() {
-                    assert_approx_eq!(
-                        node.state[i].re,
-                        truth[i].re
-                    );
-                    assert_approx_eq!(
-                        node.state[i].im,
-                        truth[i].im
-                    );
+                    assert_approx_eq!(node.state[i].re, truth[i].re);
+                    assert_approx_eq!(node.state[i].im, truth[i].im);
                 }
             } else {
                 node.state.push(x);
@@ -126,6 +136,7 @@ mod test {
 
         connect_nodes!(source, mixer, input);
         connect_nodes!(mixer, check_node, recv);
+        start_nodes!(source, mixer);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {

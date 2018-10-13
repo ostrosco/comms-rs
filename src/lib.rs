@@ -23,6 +23,7 @@ pub mod output;
 pub mod prn;
 pub mod util;
 
+#[cfg(test)]
 #[macro_use]
 extern crate assert_approx_eq; // 1.0.0
 
