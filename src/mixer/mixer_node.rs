@@ -7,7 +7,6 @@ extern crate num; // 0.2.0
 use num::complex::Complex;
 use num::Num;
 use num_traits::NumCast;
-use std::fmt::Debug;
 use util::math;
 
 /// A node that implements a generic mixer.
@@ -16,13 +15,13 @@ create_node!(
     [phase: f64, dphase: f64],
     [input: Complex<T>],
     |node: &mut MixerNode<T>, input: Complex<T>| node.run(&input),
-    T: Clone + Num + NumCast + Debug,
+    T: Clone + Num + NumCast,
 );
 
 /// Implementation of run for the MixerNode.
 impl<T> MixerNode<T>
 where
-    T: NumCast + Clone + Num + Debug,
+    T: NumCast + Clone + Num,
 {
     fn run(&mut self, input: &Complex<T>) -> Complex<T> {
         self.phase += self.dphase;
@@ -44,7 +43,7 @@ where
 ///              be dphase = 2 * PI * freq(Hz) * Ts.
 pub fn mixer<T>(mut dphase: f64) -> MixerNode<T>
 where
-    T: NumCast + Clone + Num + Debug,
+    T: NumCast + Clone + Num,
 {
     while dphase >= 2.0 * PI {
         dphase -= 2.0 * PI;
@@ -65,7 +64,7 @@ where
 ///     phase  - The initial phase of the oscillator.
 pub fn mixer_with_phase<T>(mut dphase: f64, phase: f64) -> MixerNode<T>
 where
-    T: NumCast + Clone + Num + Debug,
+    T: NumCast + Clone + Num,
 {
     while dphase >= 2.0 * PI {
         dphase -= 2.0 * PI;
