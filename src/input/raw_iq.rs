@@ -68,7 +68,7 @@ impl<R: Read> IQInput<R> {
 /// ```
 /// use comms_rs::input::raw_iq::iq_file_in;
 ///
-/// let innode = iq_file_in("/tmp/raw_iq.bin").expect("couldn't open file");
+/// let innode_res = iq_file_in("/tmp/raw_iq.bin");
 /// ```
 pub fn iq_file_in<P: AsRef<Path>>(
     path: P,
@@ -134,7 +134,7 @@ impl<R: Read> IQBatchInput<R> {
 /// ```
 /// use comms_rs::input::raw_iq::iq_batch_file_in;
 ///
-/// let innode = iq_batch_file_in("/tmp/raw_iq.bin", 1024).expect("couldn't open file");
+/// let innode_res = iq_batch_file_in("/tmp/raw_iq.bin", 1024);
 /// ```
 pub fn iq_batch_file_in<P: AsRef<Path>>(
     path: P, buffer_size: usize
