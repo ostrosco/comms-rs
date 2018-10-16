@@ -18,9 +18,9 @@ pub mod fft;
 pub mod filter;
 pub mod fir;
 pub mod hardware;
+pub mod io;
 pub mod modulation;
 pub mod prn;
 pub mod util;
-pub mod io;
 
 pub mod prelude;
