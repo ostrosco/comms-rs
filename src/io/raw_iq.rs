@@ -4,13 +4,13 @@
 //! Complex<i16> will be read from the reader as first the real then
 //! imaginary portions, with each item in host byte-order.
 
-use byteorder::{NativeEndian, ReadBytesExt};
+use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use num::Complex;
 
 use prelude::*;
 
 use std::fs::File;
-use std::io::{self, Read, BufReader};
+use std::io::{self, Read, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::{thread, time};
 
@@ -40,7 +40,7 @@ impl<R: Read> IQInput<R> {
                     io::ErrorKind::UnexpectedEof => {
                         // reached eof, sleep forever
                         // TODO determine what happens if we kill the thread
-                        thread::sleep(time::Duration::from_secs(100000));
+                        thread::sleep(time::Duration::from_secs(100_000));
                     },
                     _ => (),
                 }
@@ -49,7 +49,7 @@ impl<R: Read> IQInput<R> {
             (_, Err(e)) => {
                 match e.kind() {
                     io::ErrorKind::UnexpectedEof => {
-                        thread::sleep(time::Duration::from_secs(100000));
+                        thread::sleep(time::Duration::from_secs(100_000));
                     },
                     _ => (),
                 }
@@ -103,7 +103,7 @@ impl<R: Read> IQBatchInput<R> {
                         io::ErrorKind::UnexpectedEof => {
                             // reached eof, sleep forever
                             // TODO determine what happens if we kill the thread
-                            thread::sleep(time::Duration::from_secs(1000000));
+                            thread::sleep(time::Duration::from_secs(1_000_000));
                         },
                         _ => (),
                     }
@@ -112,7 +112,7 @@ impl<R: Read> IQBatchInput<R> {
                 (_, Err(e)) => {
                     match e.kind() {
                         io::ErrorKind::UnexpectedEof => {
-                            thread::sleep(time::Duration::from_secs(1000000));
+                            thread::sleep(time::Duration::from_secs(1_000_000));
                         },
                         _ => (),
                     }
@@ -142,6 +142,78 @@ pub fn iq_batch_file_in<P: AsRef<Path>>(
     Ok(IQBatchInput::new(File::open(path)?, buffer_size))
 }
 
+/// Will send samples as interleaved 16-bit values in host byte-order to writer.
+create_node!(
+    IQOutput<W>: (),
+    [writer: W],
+    [sample: IQSample],
+    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample),
+    W: Write,
+);
+
+impl<W: Write> IQOutput<W> {
+    fn run(&mut self, samp: IQSample) {
+        self.writer
+            .write_i16::<NativeEndian>(samp.re)
+            .expect("failed to write sample to writer");
+        self.writer
+            .write_i16::<NativeEndian>(samp.im)
+            .expect("failed to write sample to writer");
+    }
+}
+
+/// Make an IQOutput node sending data to the given file.
+///
+/// # Example
+///
+/// ```
+/// use comms_rs::io::raw_iq::iq_file_out;
+///
+/// let outnode = iq_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
+/// ```
+pub fn iq_file_out<P: AsRef<Path>>(
+    path: P,
+) -> io::Result<IQOutput<impl Write>> {
+    Ok(IQOutput::new(BufWriter::new(File::create(path)?)))
+}
+
+create_node!(
+    IQBatchOutput<W>: (),
+    [writer: W],
+    [samples: Vec<IQSample>],
+    |node: &mut Self, samples: Vec<IQSample>| node.run(&samples),
+    W: Write,
+);
+
+impl<W: Write> IQBatchOutput<W> {
+    fn run(&mut self, samples: &[IQSample]) {
+        samples.iter().for_each(|samp| {
+            self.writer
+                .write_i16::<NativeEndian>(samp.re)
+                .expect("failed to write sample to writer");
+            self.writer
+                .write_i16::<NativeEndian>(samp.im)
+                .expect("failed to write sample to writer");
+        });
+    }
+}
+
+/// Make an IQBatchOutput node sending data to the given file.
+///
+/// # Example
+///
+/// ```
+/// use comms_rs::io::raw_iq::iq_batch_file_out;
+///
+/// let outnode = iq_batch_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
+/// ```
+pub fn iq_batch_file_out<P: AsRef<Path>>(
+    path: P,
+) -> io::Result<IQBatchOutput<impl Write>> {
+    Ok(IQBatchOutput::new(File::create(path)?))
+}
+
+
 #[cfg(test)]
 mod test {
     use std::io::Cursor;
@@ -149,26 +221,9 @@ mod test {
     use byteorder::{ByteOrder, NativeEndian};
     use io::raw_iq::*;
 
-    create_node!(
-        CollectionNode<T>: (),
-        [collection: Vec<T>],
-        [recv: T],
-        |node: &mut Self, val: T| {
-            node.collection.push(val);
-        },
-        T: Sized,
-    );
-
     fn complex_into_bytes(buf: &mut [u8], c: Complex<i16>) {
         NativeEndian::write_i16(buf, c.re);
         NativeEndian::write_i16(&mut buf[2..], c.im);
-    }
-
-    fn complex_from_bytes(buf: &[u8]) -> Complex<i16> {
-        let re = NativeEndian::read_i16(buf);
-        let im = NativeEndian::read_i16(&buf[2..]);
-
-        Complex::new(re, im)
     }
 
     #[test]
@@ -212,7 +267,7 @@ mod test {
         }
         let input = {
             let mut tmp = Vec::with_capacity(mem::size_of::<u8>() * iterations * iterations);
-            for i in 0..iterations {
+            for _i in 0..iterations {
                 tmp.extend(&input);
             }
 
@@ -233,5 +288,59 @@ mod test {
         }
     }
 
+    #[test]
+    /// Test that node correctly sends received data to writer.
+    fn test_single_out_node() {
+        let iterations = 100usize;
+
+        let mut out: Vec<u8> = Vec::new();
+        let expected: Vec<Complex<i16>> = (0..iterations as i16)
+            .map(|i| Complex::new(i * 2, i * 2 + 1))
+            .collect();
+        {
+            let mut node = IQOutput::new(&mut out);
+            for item in expected.iter() {
+                node.run(*item);
+            }
+        }
+
+        assert_eq!(out.len(), iterations * mem::size_of::<IQSample>());
+        let mut buf = vec![0u8; 4];
+        for i in 0..iterations {
+            complex_into_bytes(&mut buf, expected[i]);
+            assert_eq!(*buf, out[(i * 4)..(i * 4 + 4)])
+        }
+    }
+
+    #[test]
+    /// Test that batch node correctly sends received data to writer.
+    fn test_batch_out_node() {
+        let iterations = 100usize;
+
+        let mut out: Vec<u8> = Vec::new();
+        let expected: Vec<Complex<i16>> = (0..iterations as i16)
+            .map(|i| Complex::new(i * 2, i * 2 + 1))
+            .collect();
+        {
+            let mut node = IQBatchOutput::new(&mut out);
+            for _ in 0..iterations {
+                node.run(&expected.clone());
+            }
+        }
+
+        assert_eq!(
+            out.len(),
+            iterations * iterations * mem::size_of::<IQSample>()
+        );
+        let mut buf = vec![0u8; 4];
+        for i in 0..iterations {
+            for j in 0..iterations {
+                let ind = ((expected.len() * i) + j) * 4;
+                complex_into_bytes(&mut buf, expected[j]);
+                assert_eq!(*buf, out[ind..(ind + 4)])
+            }
+        }
+    }
+    
     // TODO add tests for thread blocking on input exhaustion
 }
