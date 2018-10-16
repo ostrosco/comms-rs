@@ -66,7 +66,7 @@ impl<R: Read> IQInput<R> {
 /// # Example
 ///
 /// ```
-/// use comms_rs::input::raw_iq::iq_file_in;
+/// use comms_rs::io::raw_iq::iq_file_in;
 ///
 /// let innode_res = iq_file_in("/tmp/raw_iq.bin");
 /// ```
@@ -132,7 +132,7 @@ impl<R: Read> IQBatchInput<R> {
 /// # Example
 ///
 /// ```
-/// use comms_rs::input::raw_iq::iq_batch_file_in;
+/// use comms_rs::io::raw_iq::iq_batch_file_in;
 ///
 /// let innode_res = iq_batch_file_in("/tmp/raw_iq.bin", 1024);
 /// ```
@@ -147,7 +147,7 @@ mod test {
     use std::io::Cursor;
     use std::mem;
     use byteorder::{ByteOrder, NativeEndian};
-    use input::raw_iq::*;
+    use io::raw_iq::*;
 
     create_node!(
         CollectionNode<T>: (),
