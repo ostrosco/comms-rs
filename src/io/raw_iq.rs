@@ -10,7 +10,7 @@ use num::Complex;
 use prelude::*;
 
 use std::fs::File;
-use std::io::{self, Read, BufReader, BufWriter, Write};
+use std::io::{self, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::{thread, time};
 
@@ -28,33 +28,27 @@ create_node!(
 
 impl<R: Read> IQInput<R> {
     fn run(&mut self) -> IQSample {
-        let re_res = self.reader
-            .read_i16::<NativeEndian>();
-        let im_res = self.reader
-            .read_i16::<NativeEndian>();
+        let re_res = self.reader.read_i16::<NativeEndian>();
+        let im_res = self.reader.read_i16::<NativeEndian>();
 
         let (re, im) = match (re_res, im_res) {
             (Ok(re), Ok(im)) => (re, im),
             (Err(e), _) => {
-                match e.kind() {
-                    io::ErrorKind::UnexpectedEof => {
-                        // reached eof, sleep forever
-                        // TODO determine what happens if we kill the thread
-                        thread::sleep(time::Duration::from_secs(100_000));
-                    },
-                    _ => (),
+                if let io::ErrorKind::UnexpectedEof = e.kind() {
+                    // reached eof, sleep forever
+                    // TODO determine what happens if we kill the thread
+                    thread::sleep(time::Duration::from_secs(100_000));
                 }
                 panic!("Unable to read file with err: {}", e);
-            },
+            }
             (_, Err(e)) => {
-                match e.kind() {
-                    io::ErrorKind::UnexpectedEof => {
-                        thread::sleep(time::Duration::from_secs(100_000));
-                    },
-                    _ => (),
+                if let io::ErrorKind::UnexpectedEof = e.kind() {
+                    // reached eof, sleep forever
+                    // TODO determine what happens if we kill the thread
+                    thread::sleep(time::Duration::from_secs(100_000));
                 }
                 panic!("Unable to read file with err: {}", e);
-            },
+            }
         };
 
         Complex::new(re, im)
@@ -70,9 +64,7 @@ impl<R: Read> IQInput<R> {
 ///
 /// let innode_res = iq_file_in("/tmp/raw_iq.bin");
 /// ```
-pub fn iq_file_in<P: AsRef<Path>>(
-    path: P,
-) -> io::Result<IQInput<impl Read>> {
+pub fn iq_file_in<P: AsRef<Path>>(path: P) -> io::Result<IQInput<impl Read>> {
     Ok(IQInput::new(BufReader::new(File::open(path)?)))
 }
 
@@ -91,37 +83,30 @@ impl<R: Read> IQBatchInput<R> {
     fn run(&mut self) -> Vec<IQSample> {
         let mut buf = Vec::with_capacity(self.batch_size);
         for _ in 0..self.batch_size {
-            let re_res = self.reader
-                .read_i16::<NativeEndian>();
-            let im_res = self.reader
-                .read_i16::<NativeEndian>();
+            let re_res = self.reader.read_i16::<NativeEndian>();
+            let im_res = self.reader.read_i16::<NativeEndian>();
 
             let (re, im) = match (re_res, im_res) {
                 (Ok(re), Ok(im)) => (re, im),
                 (Err(e), _) => {
-                    match e.kind() {
-                        io::ErrorKind::UnexpectedEof => {
-                            // reached eof, sleep forever
-                            // TODO determine what happens if we kill the thread
-                            thread::sleep(time::Duration::from_secs(1_000_000));
-                        },
-                        _ => (),
+                    if let io::ErrorKind::UnexpectedEof = e.kind() {
+                        // reached eof, sleep forever
+                        // TODO determine what happens if we kill the thread
+                        thread::sleep(time::Duration::from_secs(1_000_000));
                     }
                     panic!("Unable to read file with err: {}", e);
-                },
+                }
                 (_, Err(e)) => {
-                    match e.kind() {
-                        io::ErrorKind::UnexpectedEof => {
-                            thread::sleep(time::Duration::from_secs(1_000_000));
-                        },
-                        _ => (),
+                    if let io::ErrorKind::UnexpectedEof = e.kind() {
+                        // reached eof, sleep forever
+                        // TODO determine what happens if we kill the thread
+                        thread::sleep(time::Duration::from_secs(1_000_000));
                     }
                     panic!("Unable to read file with err: {}", e);
-                },
+                }
             };
             buf.push(Complex::new(re, im));
         }
-
 
         buf
     }
@@ -137,7 +122,8 @@ impl<R: Read> IQBatchInput<R> {
 /// let innode_res = iq_batch_file_in("/tmp/raw_iq.bin", 1024);
 /// ```
 pub fn iq_batch_file_in<P: AsRef<Path>>(
-    path: P, buffer_size: usize
+    path: P,
+    buffer_size: usize,
 ) -> io::Result<IQBatchInput<impl Read>> {
     Ok(IQBatchInput::new(File::open(path)?, buffer_size))
 }
@@ -213,13 +199,12 @@ pub fn iq_batch_file_out<P: AsRef<Path>>(
     Ok(IQBatchOutput::new(File::create(path)?))
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::io::Cursor;
-    use std::mem;
     use byteorder::{ByteOrder, NativeEndian};
     use io::raw_iq::*;
+    use std::io::Cursor;
+    use std::mem;
 
     fn complex_into_bytes(buf: &mut [u8], c: Complex<i16>) {
         NativeEndian::write_i16(buf, c.re);
@@ -237,7 +222,7 @@ mod test {
             .collect();
         let mut input = vec![0u8; iterations * 2 * 2];
         for i in 0..iterations {
-            complex_into_bytes(&mut input[(i*4)..], expected_out[i]);
+            complex_into_bytes(&mut input[(i * 4)..], expected_out[i]);
         }
         {
             let mut node = IQInput::new(Cursor::new(input));
@@ -263,10 +248,12 @@ mod test {
             .collect();
         let mut input = vec![0u8; iterations * 2 * 2];
         for i in 0..iterations {
-            complex_into_bytes(&mut input[(i*4)..], expected_out[i]);
+            complex_into_bytes(&mut input[(i * 4)..], expected_out[i]);
         }
         let input = {
-            let mut tmp = Vec::with_capacity(mem::size_of::<u8>() * iterations * iterations);
+            let mut tmp = Vec::with_capacity(
+                mem::size_of::<u8>() * iterations * iterations,
+            );
             for _i in 0..iterations {
                 tmp.extend(&input);
             }
@@ -341,6 +328,6 @@ mod test {
             }
         }
     }
-    
+
     // TODO add tests for thread blocking on input exhaustion
 }
