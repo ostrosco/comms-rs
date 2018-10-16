@@ -1,30 +1,34 @@
 use prelude::*;
 
-extern crate num; // 0.2.0
-
 use num::complex::Complex;
 use num::Zero;
+use num_traits::Num;
 
 /// A node that implements a generic FIR filter.
 create_node!(
-    FirNode: Complex<i16>,
-    [taps: Vec<Complex<i16>>, state: Vec<Complex<i16>>],
-    [input: Complex<i16>],
-    |node: &mut FirNode, input: Complex<i16>| node.run(input)
+    FirNode<T>: Complex<T>,
+    [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
+    [input: Complex<T>],
+    |node: &mut FirNode<T>, input: Complex<T>| node.run(input),
+    T: Num + Copy,
 );
 
 /// A node that implements a generic FIR filter.  Operates on a batch of
 /// samples at a time.
 create_node!(
-    BatchFirNode: Vec<Complex<i16>>,
-    [taps: Vec<Complex<i16>>, state: Vec<Complex<i16>>],
-    [input: Vec<Complex<i16>>],
-    |node: &mut BatchFirNode, input: Vec<Complex<i16>>| node.run(input)
+    BatchFirNode<T>: Vec<Complex<T>>,
+    [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
+    [input: Vec<Complex<T>>],
+    |node: &mut BatchFirNode<T>, input: Vec<Complex<T>>| node.run(input),
+    T: Num + Copy,
 );
 
 /// Implementation of run for the FirNode.
-impl FirNode {
-    fn run(&mut self, input: Complex<i16>) -> Complex<i16> {
+impl<T> FirNode<T>
+where
+    T: Num + Copy,
+{
+    fn run(&mut self, input: Complex<T>) -> Complex<T> {
         self.state.rotate_right(1);
         self.state[0] = input;
         self.taps
@@ -36,8 +40,11 @@ impl FirNode {
 }
 
 /// Implementation of run for the BatchFirNode.
-impl BatchFirNode {
-    fn run(&mut self, input: Vec<Complex<i16>>) -> Vec<Complex<i16>> {
+impl<T> BatchFirNode<T>
+where
+    T: Num + Copy,
+{
+    fn run(&mut self, input: Vec<Complex<T>>) -> Vec<Complex<T>> {
         let mut output = Vec::new();
         for sample in input {
             self.state.rotate_right(1);
@@ -57,9 +64,12 @@ impl BatchFirNode {
 /// Constructs a new `FirNode<T>` with initial state set to zeros.
 ///
 /// Arguments:
-///     taps  - FIR filter tap Vec[Complex<i16>].
+///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn fir(taps: Vec<Complex<i16>>) -> FirNode {
+pub fn fir<T>(taps: Vec<Complex<T>>) -> FirNode<T>
+where
+    T: Num + Copy,
+{
     let len = taps.len();
     FirNode::new(taps, vec![Complex::zero(); len])
 }
@@ -67,21 +77,27 @@ pub fn fir(taps: Vec<Complex<i16>>) -> FirNode {
 /// Constructs a new `FirNode<T>` with user defined initial state.
 ///
 /// Arguments:
-///     taps  - FIR filter tap Vec[Complex<i16>].
+///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn fir_with_state(
-    taps: Vec<Complex<i16>>,
-    state: Vec<Complex<i16>>,
-) -> FirNode {
+pub fn fir_with_state<T>(
+    taps: Vec<Complex<T>>,
+    state: Vec<Complex<T>>,
+) -> FirNode<T>
+where
+    T: Num + Copy,
+{
     FirNode::new(taps, state)
 }
 
 /// Constructs a new `BatchFirNode<T>` with initial state set to zeros.
 ///
 /// Arguments:
-///     taps  - FIR filter tap Vec[Complex<i16>].
+///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn batch_fir(taps: Vec<Complex<i16>>) -> BatchFirNode {
+pub fn batch_fir<T>(taps: Vec<Complex<T>>) -> BatchFirNode<T>
+where
+    T: Num + Copy,
+{
     let len = taps.len();
     BatchFirNode::new(taps, vec![Complex::zero(); len])
 }
@@ -89,12 +105,15 @@ pub fn batch_fir(taps: Vec<Complex<i16>>) -> BatchFirNode {
 /// Constructs a new `BatchFirNode<T>` with user defined initial state.
 ///
 /// Arguments:
-///     taps  - FIR filter tap Vec[Complex<i16>].
+///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn batch_fir_with_state(
-    taps: Vec<Complex<i16>>,
-    state: Vec<Complex<i16>>,
-) -> BatchFirNode {
+pub fn batch_fir_with_state<T>(
+    taps: Vec<Complex<T>>,
+    state: Vec<Complex<T>>,
+) -> BatchFirNode<T>
+where
+    T: Num + Copy,
+{
     BatchFirNode::new(taps, state)
 }
 
