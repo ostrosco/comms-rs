@@ -147,4 +147,66 @@ mod test {
         });
         assert!(check.join().is_ok());
     }
+
+    #[test]
+    // A test to verify the sample by sample mixer node with initial phase 0.1.
+    fn test_mixer_with_phase() {
+        create_node!(
+            SomeSamples: Complex<f64>,
+            [samples: Vec<Complex<f64>>],
+            [],
+            |node: &mut Self| if node.samples.len() == 0 {
+                Complex::zero()
+            } else {
+                node.samples.remove(0)
+            }
+        );
+
+        let mut source = SomeSamples::new(vec![
+            Complex::new(1.0, 2.0),
+            Complex::new(3.0, 4.0),
+            Complex::new(5.0, 6.0),
+            Complex::new(7.0, 8.0),
+            Complex::new(9.0, 0.0),
+        ]);
+
+        let mut mixer = mixer_node::mixer_with_phase::<f64>(0.123, 0.1);
+
+        create_node!(
+            CheckNode: (),
+            [state: Vec<Complex<f64>>],
+            [recv: Complex<f64>],
+            |node: &mut CheckNode, x| if node.state.len() == 5 {
+                let truth = vec![
+                    Complex::new(0.795337332, 2.089841747),
+                    Complex::new(2.041089794, 4.564422467),
+                    Complex::new(2.668858427, 7.340108630),
+                    Complex::new(2.628189174, 10.300127265),
+                    Complex::new(7.468436663, 5.022196114),
+                ];
+                for i in 0..node.state.len() {
+                    assert_approx_eq!(node.state[i].re, truth[i].re);
+                    assert_approx_eq!(node.state[i].im, truth[i].im);
+                }
+            } else {
+                node.state.push(x);
+            }
+        );
+
+        let mut check_node = CheckNode::new(Vec::new());
+
+        connect_nodes!(source, mixer, input);
+        connect_nodes!(mixer, check_node, recv);
+        start_nodes!(source, mixer);
+        let check = thread::spawn(move || {
+            let now = Instant::now();
+            loop {
+                check_node.call();
+                if now.elapsed().subsec_millis() > 10 {
+                    break;
+                }
+            }
+        });
+        assert!(check.join().is_ok());
+    }
 }
