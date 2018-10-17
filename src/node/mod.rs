@@ -438,6 +438,47 @@ macro_rules! start_nodes {
     }
 }
 
+/// Spawns a thread from a Rayon threadpool for each node in order and starts
+/// nodes to run indefinitely.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use] extern crate comms_rs;
+/// # extern crate rayon;
+/// # use comms_rs::prelude::*;
+/// # use std::thread;
+/// # fn main() {
+/// # create_node!(Node1: u32, [], [], |_| 1);
+/// # create_node!(Node2: (), [], [recv: u32], |_, x| assert_eq!(x, 1));
+/// # let mut node1 = Node1::new();
+/// # let mut node2 = Node2::new();
+/// # connect_nodes!(node1, node2, recv);
+/// // Connect two nodes named node1 and node2. node1 will now send its
+/// // messages to node2. node2 will receive the
+/// // message on its receiver named `recv`.
+/// start_nodes_threadpool!(node1, node2);
+/// # }
+/// ```
+#[macro_export]
+macro_rules! start_nodes_threadpool {
+    ($($node:ident),+) => {
+        $(
+            rayon::spawn(move || {
+                for (send, val) in &$node.sender {
+                    match val {
+                        Some(v) => send.send(v.clone()),
+                        None => continue,
+                    }
+                }
+                loop {
+                    $node.call();
+                }
+            });
+        )*
+    }
+}
+
 #[cfg(test)]
 mod test {
     use rand::{thread_rng, Rng};
@@ -446,6 +487,7 @@ mod test {
     use std::time::{Duration, Instant};
 
     use prelude::*;
+    use rayon;
 
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
@@ -561,7 +603,9 @@ mod test {
             |node: &mut Node3, _val: Arc<Vec<i16>>| {
                 node.count = node.count + 1;
                 if node.count == 40000 {
-                    println!("Hit goal of 400 million i16 sent.");
+                    println!(
+                        "test_throughput: Hit goal of 400 million i16 sent."
+                    );
                 }
             }
         );
@@ -573,6 +617,55 @@ mod test {
         connect_nodes!(node1, node2, recv1);
         connect_nodes!(node2, node3, recv2);
         start_nodes!(node1, node2, node3);
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    #[test]
+    /// Performs a _very_ simplistic throughput analysis. We generate
+    /// 10000 random i16 values at a time and pass it through the pipeline
+    /// to see if channels will handle the throughput we hope it will.
+    /// Make sure to run this test with --release.
+    fn test_threadpool_throughput() {
+        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| {
+            let mut random = vec![0i16; 10000];
+            thread_rng().fill(random.as_mut_slice());
+            Arc::new(random)
+        });
+        create_node!(
+            Node2: Arc<Vec<i16>>,
+            [],
+            [recv1: Arc<Vec<i16>>],
+            |_, x: Arc<Vec<i16>>| {
+                let mut y = Arc::clone(&x);
+                for z in Arc::make_mut(&mut y).iter_mut() {
+                    *z = z.saturating_add(1);
+                }
+                y
+            }
+        );
+        create_node!(
+            Node3: (),
+            [count: u32],
+            [recv2: Arc<Vec<i16>>],
+            |node: &mut Node3, _val: Arc<Vec<i16>>| {
+                node.count = node.count + 1;
+                if node.count == 40000 {
+                    println!(
+                        "test_threadpool_throughput: Hit goal of 400 \
+                         million i16 sent."
+                    );
+                }
+            }
+        );
+
+        let mut node1 = Node1::new();
+        let mut node2 = Node2::new();
+        let mut node3 = Node3::new(0);
+
+        connect_nodes!(node1, node2, recv1);
+        connect_nodes!(node2, node3, recv2);
+        start_nodes!(node1, node3);
+        start_nodes_threadpool!(node2);
         thread::sleep(Duration::from_secs(1));
     }
 

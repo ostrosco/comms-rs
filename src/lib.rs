@@ -8,6 +8,7 @@ extern crate crossbeam_channel;
 extern crate num;
 extern crate num_traits;
 extern crate rand;
+extern crate rayon;
 extern crate rodio;
 extern crate rustfft;
 
@@ -17,9 +18,9 @@ pub mod fft;
 pub mod filter;
 pub mod fir;
 pub mod hardware;
+pub mod io;
 pub mod mixer;
 pub mod modulation;
-pub mod output;
 pub mod prn;
 pub mod util;
 
