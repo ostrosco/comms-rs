@@ -24,12 +24,12 @@ where
     T: NumCast + Clone + Num,
 {
     fn run(&mut self, input: &Complex<T>) -> Complex<T> {
+        let inp: Complex<f64> = math::cast_complex(input).unwrap();
+        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
         self.phase += self.dphase;
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
         }
-        let inp: Complex<f64> = math::cast_complex(input).unwrap();
-        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
         math::cast_complex(&res).unwrap()
     }
 }
@@ -117,10 +117,10 @@ mod test {
             |node: &mut CheckNode, x| if node.state.len() == 5 {
                 let truth = vec![
                     Complex::new(1.0, 2.0),
-                    Complex::new(3.39265326, 4.52353768),
-                    Complex::new(6.39449787, 7.67339744),
-                    Complex::new(10.12401323, 11.57030083),
-                    Complex::new(14.72025707, 0.0),
+                    Complex::new(2.486574736, 4.337850399),
+                    Complex::new(3.388313374, 7.036997405),
+                    Complex::new(3.643356072, 9.986288426),
+                    Complex::new(7.932508585, 4.251506503),
                 ];
                 for i in 0..node.state.len() {
                     assert_approx_eq!(node.state[i].re, truth[i].re);
