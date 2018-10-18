@@ -22,6 +22,7 @@ rayon = "1"
 rodio = "0.8"
 rustfft = "2.1"
 rtlsdr = {version = "0.1", optional = true}
+zmq = "0.8"
 
 [features]
 rtlsdr_support = ["rtlsdr"]
