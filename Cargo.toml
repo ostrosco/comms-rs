@@ -10,6 +10,7 @@ keywords = ["dsp", "rf"]
 license = "MIT"
 
 [dependencies]
+assert_approx_eq = "1.0"
 byteorder = "1"
 num = "0.2"
 num-complex = "0.2"

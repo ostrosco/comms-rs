@@ -19,8 +19,13 @@ pub mod filter;
 pub mod fir;
 pub mod hardware;
 pub mod io;
+pub mod mixer;
 pub mod modulation;
 pub mod prn;
 pub mod util;
+
+#[cfg(test)]
+#[macro_use]
+extern crate assert_approx_eq; // 1.0.0
 
 pub mod prelude;
