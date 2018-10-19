@@ -11,7 +11,6 @@ extern crate rand;
 extern crate rayon;
 extern crate rodio;
 extern crate rustfft;
-extern crate zmq;
 
 #[macro_use]
 pub mod node;

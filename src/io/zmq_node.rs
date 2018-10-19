@@ -1,6 +1,6 @@
-use prelude::*;
-use zmq::Socket;
 use byteorder::ReadBytesExt;
+use io::zmq::Socket;
+use prelude::*;
 
 create_node!(
     ZMQSend<T>: (),
@@ -14,7 +14,7 @@ create_node!(
 
 impl<T> ZMQSend<T>
 where
-    T: ReadBytesExt
+    T: ReadBytesExt,
 {
     pub fn send(&mut self, data: &mut T) {
         let mut buffer = vec![];
@@ -27,13 +27,10 @@ create_node!(
     ZMQRecv: Vec<u8>,
     [socket: Socket, flags: i32],
     [],
-    |node: &mut ZMQRecv| {
-        node.recv()
-    }
+    |node: &mut ZMQRecv| node.recv()
 );
 
-impl ZMQRecv
-{
+impl ZMQRecv {
     pub fn recv(&mut self) -> Vec<u8> {
         self.socket.recv_bytes(self.flags).unwrap()
     }
