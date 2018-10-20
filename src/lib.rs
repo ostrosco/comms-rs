@@ -3,6 +3,7 @@
 #![cfg_attr(feature = "cargo-clippy", allow(redundant_closure_call))]
 
 extern crate byteorder;
+extern crate bincode;
 extern crate crossbeam;
 extern crate crossbeam_channel;
 extern crate num;
@@ -11,6 +12,7 @@ extern crate rand;
 extern crate rayon;
 extern crate rodio;
 extern crate rustfft;
+extern crate serde;
 
 #[macro_use]
 pub mod node;
