@@ -12,7 +12,6 @@ license = "MIT"
 [dependencies]
 assert_approx_eq = "1.0"
 byteorder = "1"
-num = "0.2"
 num-complex = "0.2"
 num-traits = "0.2"
 crossbeam = "0.4"
@@ -25,6 +24,10 @@ rtlsdr = {version = "0.1", optional = true}
 serde = "1"
 bincode = "1"
 zmq = {version = "0.8", optional = true}
+
+[dependencies.num]
+version = "0.2"
+features = ["serde"]
 
 [features]
 rtlsdr_node = ["rtlsdr"]

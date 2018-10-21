@@ -2,3 +2,4 @@
 
 pub use crossbeam::{channel, Receiver, Sender};
 pub use node::Node;
+pub use std::thread;
