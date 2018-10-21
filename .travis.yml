@@ -1,12 +1,30 @@
 language: rust
+sudo: false
 rust:
   - stable
   - beta
   - nightly
+addons:
+  apt:
+    packages:
+    - libasound2-dev
 matrix:
   allow_failures: nightly
 before_install:
-    sudo apt-get install libasound2-dev libzmq3-dev
+  - |
+    wget https://github.com/zeromq/zeromq4-1/archive/v4.1.6.tar.gz
+    tar zxf v4.1.6.tar.gz
+    cd zeromq4-1-4.1.6
+    ./autogen.sh
+    ./configure --prefix=$HOME
+    make
+    make install
+    cd ..
 script:
   - cargo build --release --verbose --all
   - cargo test --release --verbose --all --features=zmq_node
+env:
+  global:
+  - PATH=$HOME/.local/bin:$PATH
+  - LD_LIBRARY_PATH=$HOME/lib
+  - PKG_CONFIG_PATH=$HOME/lib/pkgconfig
