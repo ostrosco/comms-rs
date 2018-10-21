@@ -6,7 +6,7 @@ rust:
 matrix:
   allow_failures: nightly
 before_install:
-    sudo apt-get install libasound2-dev
+    sudo apt-get install libasound2-dev libzmq
 script:
   - cargo build --release --verbose --all
-  - cargo test --release --verbose --all
+  - cargo test --release --verbose --all --features=zmq_node
