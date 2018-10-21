@@ -5,6 +5,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 create_node!(
+    #[doc = "A node that will send serialized data out a ZMQ socket."]
     ZMQSend<T>: (),
     [socket: zmq::Socket, flags: i32],
     [recv: T],
@@ -24,7 +25,40 @@ where
     }
 }
 
+/// Creates a node to serialize and send data out via ZeroMQ.
+///
+/// Example:
+///
+/// ```
+/// # #[macro_use] extern crate comms_rs;
+/// # extern crate zmq;
+/// # use comms_rs::prelude::*;
+/// # use comms_rs::io::zmq_node::{self, ZMQSend};
+/// # use comms_rs::util::rand_node;
+/// # fn main() {
+/// // Generate random numbers and broadcast them out via ZeroMQ.
+/// let mut rand = rand_node::normal(0.0, 1.0);
+/// let mut send: ZMQSend<f64> = zmq_node::zmq_send("tcp://*:5556",
+///     zmq::SocketType::PUB, 0);
+/// connect_nodes!(rand, send, recv);
+/// start_nodes!(rand, send);
+/// # }
+pub fn zmq_send<T>(
+    endpoint: &str,
+    socket_type: zmq::SocketType,
+    flags: i32,
+) -> ZMQSend<T>
+where
+    T: Serialize + Clone,
+{
+    let context = zmq::Context::new();
+    let socket = context.socket(socket_type).unwrap();
+    socket.bind(endpoint).unwrap();
+    ZMQSend::new(socket, flags)
+}
+
 create_node!(
+    #[doc = "A node that will receive serialized data from a ZMQ socket."]
     ZMQRecv<T>: T,
     [socket: zmq::Socket, flags: i32],
     [],
@@ -43,6 +77,28 @@ where
     }
 }
 
+/// Creates a node to receive data from a ZMQ socket.
+///
+/// Example:
+///
+/// ```
+/// # #[macro_use] extern crate comms_rs;
+/// # extern crate zmq;
+/// # extern crate num;
+/// # use comms_rs::prelude::*;
+/// # use comms_rs::io::zmq_node::{self, ZMQRecv};
+/// # use comms_rs::fft::fft_node::{FFTBatchNode, self};
+/// # use num::Complex;
+/// # fn main() {
+/// // Generate random numbers and broadcast them out via ZeroMQ.
+/// let mut recv: ZMQRecv<Vec<Complex<u32>>> = zmq_node::zmq_recv(
+///     "tcp://localhost:5556",
+///     zmq::SocketType::SUB,
+///     0);
+/// let mut fft: FFTBatchNode<u32> = fft_node::fft_batch_node(1024, false);
+/// connect_nodes!(recv, fft, recv);
+/// start_nodes!(recv, fft);
+/// # }
 pub fn zmq_recv<T>(
     endpoint: &str,
     socket_type: zmq::SocketType,
@@ -58,35 +114,22 @@ where
     ZMQRecv::new(socket, flags)
 }
 
-pub fn zmq_send<T>(
-    endpoint: &str,
-    socket_type: zmq::SocketType,
-    flags: i32,
-) -> ZMQSend<T>
-where
-    T: Serialize + Clone,
-{
-    let context = zmq::Context::new();
-    let socket = context.socket(socket_type).unwrap();
-    socket.bind(endpoint).unwrap();
-    ZMQSend::new(socket, flags)
-}
-
 #[cfg(test)]
 mod test {
-    use byteorder::{NativeEndian, ReadBytesExt};
     use io::zmq;
     use io::zmq_node;
     use prelude::*;
-    use std::io::Cursor;
     use std::thread;
 
     #[test]
     fn test_zmq() {
         create_node!(DataGen: Vec<u32>, [], [], |_| vec![1, 2, 3, 4, 5],);
         let mut data_node = DataGen::new();
-        let mut zmq_send =
-            zmq_node::zmq_send::<Vec<u32>>("tcp://*:5556", zmq::SocketType::PUB, 0);
+        let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
+            "tcp://*:5556",
+            zmq::SocketType::PUB,
+            0,
+        );
         let mut zmq_recv = zmq_node::zmq_recv::<Vec<u32>>(
             "tcp://localhost:5556",
             zmq::SocketType::SUB,
