@@ -1,4 +1,5 @@
-//! ========
+//! Node for a finite impulse response (FIR) filter.
+//!
 //! This node implements a finite impulse response (FIR) filter.  These are
 //! general purpose filters used everywhere in communications and DSP systems.
 //! Some example use cases include low pass filters for anti aliasing, band
