@@ -5,7 +5,7 @@ extern crate num;
 use comms_rs::fir::fir_node::batch_fir;
 use comms_rs::hardware::{self, radio};
 use comms_rs::modulation::fm;
-use comms_rs::output::audio;
+use comms_rs::io::audio;
 use comms_rs::prelude::*;
 use num::Complex;
 use num::Zero;
