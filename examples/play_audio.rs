@@ -2,8 +2,8 @@
 extern crate comms_rs;
 extern crate crossbeam;
 extern crate rodio;
+use comms_rs::io::audio::{self, AudioNode};
 use comms_rs::node::Node;
-use comms_rs::output::audio::{self, AudioNode};
 use crossbeam::{channel, Sender};
 use rodio::source::{self, Source};
 use std::boxed::Box;

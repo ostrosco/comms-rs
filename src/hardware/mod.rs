@@ -2,10 +2,10 @@
 //! radio functionality.
 //!
 
-#[cfg(feature = "rtlsdr_support")]
+#[cfg(feature = "rtlsdr_node")]
 extern crate rtlsdr;
 
-#[cfg(feature = "rtlsdr_support")]
+#[cfg(feature = "rtlsdr_node")]
 pub mod rtlsdr_radio;
 
 pub mod radio;
