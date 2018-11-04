@@ -1,3 +1,5 @@
+//! Nodes for general input/output support, such as file IO, audio, and ZeroMQ.
+
 #[cfg(feature = "zmq_node")]
 extern crate zmq;
 
