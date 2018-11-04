@@ -18,7 +18,6 @@ extern crate serde;
 pub mod node;
 pub mod fft;
 pub mod filter;
-pub mod fir;
 pub mod hardware;
 pub mod io;
 pub mod mixer;
