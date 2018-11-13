@@ -25,7 +25,10 @@ impl<T> FFTBatchNode<T>
 where
     T: NumCast + Clone + Num,
 {
-    fn run_fft(&mut self, data: &[Complex<T>]) -> Vec<Complex<T>> {
+    fn run_fft(
+        &mut self,
+        data: &[Complex<T>],
+    ) -> Result<Vec<Complex<T>>, Error> {
         // Convert the input type from interleaved values to Complex<f32>.
         let mut input: Vec<FFTComplex<f64>> = data
             .iter()
@@ -42,7 +45,7 @@ where
             .map(|x| {
                 Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
             }).collect();
-        res
+        Ok(res)
     }
 }
 
@@ -81,14 +84,14 @@ create_node!(
     FFTSampleNode<T>: Option<Vec<Complex<T>>>,
     [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
     [recv: Complex<T>],
-    |node: &mut FFTSampleNode<T>, sample: Complex<T>| {
+    |node: &mut FFTSampleNode<T>, sample: Complex<T>| -> Result<Option<Vec<Complex<T>>>, Error> {
         node.samples.push(sample);
         if node.samples.len() == node.fft_size {
             let results = node.run_fft();
             node.samples = vec![];
-            Some(results)
+            Ok(Some(results))
         } else {
-            None
+            Ok(None)
         }
     },
     T: NumCast + Clone + Num,
@@ -158,21 +161,26 @@ mod test {
 
     #[test]
     fn test_fft_batch() {
-        create_node!(SendNode: Vec<Complex<f32>>, [], [], |_| {
-            let input = vec![
-                Complex::new(0.1, 0.1),
-                Complex::new(0.2, 0.2),
-                Complex::new(0.3, 0.3),
-                Complex::new(0.4, 0.4),
-                Complex::new(0.5, 0.5),
-                Complex::new(0.6, 0.6),
-                Complex::new(0.7, 0.7),
-                Complex::new(0.8, 0.8),
-                Complex::new(0.9, 0.9),
-                Complex::new(1.0, 1.0),
-            ];
-            input
-        });
+        create_node!(
+            SendNode: Vec<Complex<f32>>,
+            [],
+            [],
+            |_| -> Result<Vec<Complex<f32>>, Error> {
+                let input = vec![
+                    Complex::new(0.1, 0.1),
+                    Complex::new(0.2, 0.2),
+                    Complex::new(0.3, 0.3),
+                    Complex::new(0.4, 0.4),
+                    Complex::new(0.5, 0.5),
+                    Complex::new(0.6, 0.6),
+                    Complex::new(0.7, 0.7),
+                    Complex::new(0.8, 0.8),
+                    Complex::new(0.9, 0.9),
+                    Complex::new(1.0, 1.0),
+                ];
+                Ok(input)
+            }
+        );
         let mut send_node = SendNode::new();
 
         let mut fft_node = fft_node::fft_batch_node(10, false);
@@ -181,7 +189,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<Complex<f32>>],
-            |_, val: Vec<Complex<f32>>| {
+            |_, val: Vec<Complex<f32>>| -> Result<(), Error> {
                 let expected_out = vec![
                     Complex::new(5.5, 5.5),
                     Complex::new(-2.03884, 1.03884),
@@ -197,6 +205,7 @@ mod test {
                 for (input, out) in val.iter().zip(expected_out) {
                     assert!((input - out).norm() < 1e-5);
                 }
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new();
@@ -207,7 +216,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }
@@ -222,7 +231,9 @@ mod test {
             SendNode: Option<Complex<f32>>,
             [input: Vec<Complex<f32>>],
             [],
-            |node: &mut SendNode| node.input.pop()
+            |node: &mut SendNode| -> Result<Option<Complex<f32>>, Error> {
+                Ok(node.input.pop())
+            }
         );
 
         let input = vec![
@@ -245,7 +256,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<Complex<f32>>],
-            |_, val: Vec<Complex<f32>>| {
+            |_, val: Vec<Complex<f32>>| -> Result<(), Error> {
                 let expected_out = vec![
                     Complex::new(5.5, 5.5),
                     Complex::new(-2.03884, 1.03884),
@@ -261,6 +272,7 @@ mod test {
                 for (input, out) in val.iter().zip(expected_out) {
                     assert!((input - out).norm() < 1e-5);
                 }
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new();
@@ -269,7 +281,7 @@ mod test {
         connect_nodes!(fft_node, check_node, recv);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
-            check_node.call();
+            check_node.call().unwrap();
         });
         assert!(check.join().is_ok());
     }

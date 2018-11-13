@@ -3,7 +3,7 @@ extern crate comms_rs;
 extern crate crossbeam;
 extern crate rodio;
 use comms_rs::io::audio::{self, AudioNode};
-use comms_rs::node::Node;
+use comms_rs::prelude::*;
 use crossbeam::{channel, Sender};
 use rodio::source::{self, Source};
 use std::boxed::Box;
@@ -16,10 +16,10 @@ fn main() {
         SineNode: Vec<f32>,
         [source: Box<dyn Source<Item = f32> + Send>],
         [],
-        |node: &mut SineNode| {
+        |node: &mut SineNode| -> Result<Vec<f32>, Error> {
             let source = &mut node.source;
             let samp: Vec<f32> = source.take(48000).collect();
-            samp
+            Ok(samp)
         }
     );
 

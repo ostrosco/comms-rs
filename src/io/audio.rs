@@ -1,5 +1,4 @@
-use crossbeam::{Receiver, Sender};
-use node::Node;
+use prelude::*;
 use rodio::buffer;
 use rodio::{self, Sample, Sink};
 
@@ -11,7 +10,7 @@ create_node!(
     [sink: Sink, channels: u16, sample_rate: u32],
     [recv: Vec<T>],
     |node: &mut AudioNode<T>, samples: Vec<T>| {
-        node.play(samples);
+        node.play(samples)
     },
     T: Sample + Send + 'static,
 );
@@ -21,13 +20,14 @@ where
     T: Sample + Send + 'static,
 {
     /// Tosses the received samples into the sink for output.
-    pub fn play(&mut self, samples: Vec<T>) {
+    pub fn play(&mut self, samples: Vec<T>) -> Result<(), Error> {
         let samplebuffer = buffer::SamplesBuffer::new(
             self.channels,
             self.sample_rate,
             samples,
         );
         self.sink.append(samplebuffer);
+        Ok(())
     }
 }
 

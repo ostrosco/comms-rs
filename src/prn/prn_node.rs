@@ -1,5 +1,5 @@
 //! Generates a PRN using a linear-feedback shift register.
-//! 
+//!
 //! This node implements a PRNS generator using an linear-feedback shift register
 //! (LFSR).  These are often used in communications systems for various tasks which
 //! require a merely pseudorandom sequence as they are very cheap and easy to
@@ -18,8 +18,7 @@
 //! what you want.  Doing `let mut node = prns(0xC0 as u8, 1);` indicates to the
 //! node internals that you want an 8 bit LSFR implementation.
 
-use crossbeam::Sender;
-use node::Node;
+use prelude::*;
 
 extern crate num; // 0.2.0
 
@@ -37,13 +36,13 @@ create_node!(
 
 /// Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnsNode<T> {
-    fn run(&mut self) -> u8 {
+    fn run(&mut self) -> Result<u8, Error> {
         let fb_bit =
             T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
         let output = self.state >> (size_of::<T>() * 8 - 1);
         self.state = self.state << 1;
         self.state = self.state | fb_bit;
-        output.to_u8().unwrap()
+        Ok(output.to_u8().unwrap())
     }
 }
 
@@ -121,22 +120,25 @@ mod test {
             CheckNode: (),
             [state: Vec<u8>],
             [recv: u8],
-            |node: &mut CheckNode, x| if node.state.len() == 128 {
-                assert_eq!(
-                    node.state,
-                    vec![
-                        0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-                        0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1,
-                        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1,
-                        0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-                        0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0,
-                        0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0,
-                        0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-                        0, 0
-                    ]
-                );
-            } else {
-                node.state.push(x);
+            |node: &mut CheckNode, x| -> Result<(), Error> {
+                if node.state.len() == 128 {
+                    assert_eq!(
+                        node.state,
+                        vec![
+                            0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+                            0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+                            0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0,
+                            1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                            0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1,
+                            0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0,
+                            1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+                            1, 1, 1, 1, 1, 1, 1, 0, 0
+                        ]
+                    );
+                } else {
+                    node.state.push(x);
+                }
+                Ok(())
             }
         );
 
@@ -147,7 +149,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() > 1 {
                     break;
                 }

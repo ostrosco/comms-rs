@@ -19,9 +19,10 @@ impl<T> ZMQSend<T>
 where
     T: Serialize + Clone,
 {
-    pub fn send(&mut self, data: &mut T) {
-        let buffer: Vec<u8> = serialize(&data).unwrap();
-        self.socket.send(&buffer, self.flags).unwrap();
+    pub fn send(&mut self, data: &mut T) -> Result<(), Error> {
+        let buffer: Vec<u8> = serialize(&data)?;
+        self.socket.send(&buffer, self.flags)?;
+        Ok(())
     }
 }
 
@@ -70,10 +71,10 @@ impl<T> ZMQRecv<T>
 where
     T: DeserializeOwned + Clone,
 {
-    pub fn recv(&mut self) -> T {
-        let bytes = self.socket.recv_bytes(self.flags).unwrap();
-        let res: T = deserialize(&bytes).unwrap();
-        res
+    pub fn recv(&mut self) -> Result<T, Error> {
+        let bytes = self.socket.recv_bytes(self.flags)?;
+        let res: T = deserialize(&bytes)?;
+        Ok(res)
     }
 }
 
@@ -123,7 +124,7 @@ mod test {
 
     #[test]
     fn test_zmq() {
-        create_node!(DataGen: Vec<u32>, [], [], |_| vec![1, 2, 3, 4, 5],);
+        create_node!(DataGen: Vec<u32>, [], [], |_| Ok(vec![1, 2, 3, 4, 5]),);
         let mut data_node = DataGen::new();
         let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
             "tcp://*:5556",
@@ -141,6 +142,7 @@ mod test {
             [recv: Vec<u32>],
             |_, data: Vec<u32>| {
                 assert_eq!(&data, &[1, 2, 3, 4, 5]);
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new();
