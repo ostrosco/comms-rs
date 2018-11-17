@@ -10,7 +10,7 @@ create_node!(
     [socket: zmq::Socket, flags: i32],
     [recv: T],
     |node: &mut ZMQSend<T>, mut data: T| {
-        node.send(&mut data);
+        node.send(&mut data)
     },
     T: Serialize + Clone,
 );
