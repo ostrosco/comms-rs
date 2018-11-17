@@ -65,7 +65,7 @@ mod test {
     use prelude::*;
 
     #[test]
-    #[cfg_attr(not(feature = "rtlsdr_support"), ignore)]
+    #[cfg_attr(not(feature = "rtlsdr_node"), ignore)]
     // A quick test to check if we can read samples off the RTLSDR.
     fn test_get_samples() {
         let num_samples = 262144;
@@ -77,8 +77,9 @@ mod test {
             CheckNode: (),
             [num_samples: usize],
             [recv: Vec<u8>],
-            |node: &mut CheckNode, samples: Vec<u8>| {
+            |node: &mut CheckNode, samples: Vec<u8>| -> Result<(), Error> {
                 assert_eq!(samples.len(), node.num_samples);
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new(num_samples);
@@ -87,7 +88,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }
