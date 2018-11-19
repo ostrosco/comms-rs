@@ -27,7 +27,7 @@ create_node!(
 );
 
 impl<R: Read> IQInput<R> {
-    fn run(&mut self) -> Result<IQSample, Error> {
+    fn run(&mut self) -> Result<IQSample, NodeError> {
         let re_res = self.reader.read_i16::<NativeEndian>();
         let im_res = self.reader.read_i16::<NativeEndian>();
 
@@ -80,7 +80,7 @@ create_node!(
 /// reader. Will only send vectors completely filled to size of buf_size.
 /// Panics upon reaching end of file.
 impl<R: Read> IQBatchInput<R> {
-    fn run(&mut self) -> Result<Vec<IQSample>, Error> {
+    fn run(&mut self) -> Result<Vec<IQSample>, NodeError> {
         let mut buf = Vec::with_capacity(self.batch_size);
         for _ in 0..self.batch_size {
             let re_res = self.reader.read_i16::<NativeEndian>();
@@ -138,7 +138,7 @@ create_node!(
 );
 
 impl<W: Write> IQOutput<W> {
-    fn run(&mut self, samp: IQSample) -> Result<(), Error> {
+    fn run(&mut self, samp: IQSample) -> Result<(), NodeError> {
         self.writer
             .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
@@ -173,7 +173,7 @@ create_node!(
 );
 
 impl<W: Write> IQBatchOutput<W> {
-    fn run(&mut self, samples: &[IQSample]) -> Result<(), Error> {
+    fn run(&mut self, samples: &[IQSample]) -> Result<(), NodeError> {
         samples.iter().for_each(|samp| {
             self.writer
                 .write_i16::<NativeEndian>(samp.re)

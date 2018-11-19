@@ -23,7 +23,6 @@ extern crate bincode;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
-extern crate failure;
 extern crate num;
 extern crate num_traits;
 extern crate rand;

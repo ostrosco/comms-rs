@@ -25,7 +25,7 @@ impl<T> MixerNode<T>
 where
     T: NumCast + Clone + Num,
 {
-    fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, Error> {
+    fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
         let inp: Complex<f64> = math::cast_complex(input).unwrap();
         let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
         self.phase += self.dphase;
@@ -96,7 +96,7 @@ mod test {
             SomeSamples: Complex<f64>,
             [samples: Vec<Complex<f64>>],
             [],
-            |node: &mut Self| -> Result<Complex<f64>, Error> {
+            |node: &mut Self| -> Result<Complex<f64>, NodeError> {
                 if node.samples.len() == 0 {
                     Ok(Complex::zero())
                 } else {
@@ -119,7 +119,7 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<f64>>],
             [recv: Complex<f64>],
-            |node: &mut CheckNode, x| -> Result<(), Error> {
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
                 if node.state.len() == 5 {
                     let truth = vec![
                         Complex::new(1.0, 2.0),
@@ -163,7 +163,7 @@ mod test {
             SomeSamples: Complex<f64>,
             [samples: Vec<Complex<f64>>],
             [],
-            |node: &mut Self| -> Result<Complex<f64>, Error> {
+            |node: &mut Self| -> Result<Complex<f64>, NodeError> {
                 if node.samples.len() == 0 {
                     Ok(Complex::zero())
                 } else {
@@ -186,7 +186,7 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<f64>>],
             [recv: Complex<f64>],
-            |node: &mut CheckNode, x| -> Result<(), Error> {
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
                 if node.state.len() == 5 {
                     let truth = vec![
                         Complex::new(0.795337332, 2.089841747),

@@ -77,7 +77,7 @@ mod test {
             CheckNode: (),
             [num_samples: usize],
             [recv: Vec<u8>],
-            |node: &mut CheckNode, samples: Vec<u8>| -> Result<(), Error> {
+            |node: &mut CheckNode, samples: Vec<u8>| -> Result<(), NodeError> {
                 assert_eq!(samples.len(), node.num_samples);
                 Ok(())
             }

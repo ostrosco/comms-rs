@@ -38,7 +38,7 @@ impl<T> FirNode<T>
 where
     T: Num + Copy,
 {
-    fn run(&mut self, input: Complex<T>) -> Result<Complex<T>, Error> {
+    fn run(&mut self, input: Complex<T>) -> Result<Complex<T>, NodeError> {
         self.state.rotate_right(1);
         self.state[0] = input;
         let sum = self
@@ -59,7 +59,7 @@ where
     fn run(
         &mut self,
         input: Vec<Complex<T>>,
-    ) -> Result<Vec<Complex<T>>, Error> {
+    ) -> Result<Vec<Complex<T>>, NodeError> {
         let mut output = Vec::new();
         for sample in input {
             self.state.rotate_right(1);
@@ -151,7 +151,7 @@ mod test {
             SomeSamples: Complex<i16>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| -> Result<Complex<i16>, Error> {
+            |node: &mut Self| -> Result<Complex<i16>, NodeError> {
                 if node.samples.len() == 0 {
                     Ok(Complex::zero())
                 } else {
@@ -185,7 +185,7 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Complex<i16>],
-            |node: &mut CheckNode, x| -> Result<(), Error> {
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
                 if node.state.len() == 9 {
                     assert_eq!(
                         node.state,
@@ -232,7 +232,7 @@ mod test {
             SomeSamples: Vec<Complex<i16>>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| -> Result<Vec<Complex<i16>>, Error> {
+            |node: &mut Self| -> Result<Vec<Complex<i16>>, NodeError> {
                 if node.samples.len() == 0 {
                     Ok(vec![Complex::zero(), Complex::zero()])
                 } else {
@@ -271,7 +271,7 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Vec<Complex<i16>>],
-            |node: &mut CheckNode, mut x| -> Result<(), Error> {
+            |node: &mut CheckNode, mut x| -> Result<(), NodeError> {
                 if node.state.len() == 10 {
                     assert_eq!(
                         node.state,

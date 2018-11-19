@@ -9,7 +9,7 @@ create_node!(
     UniformNode<T>: T,
     [rng: StdRng, dist: Uniform<T>],
     [],
-    |node: &mut UniformNode<T>| -> Result<T, Error> {
+    |node: &mut UniformNode<T>| -> Result<T, NodeError> {
         Ok(node.rng.sample(&node.dist))
     },
     T: SampleUniform + Clone,
@@ -20,7 +20,7 @@ create_node!(
     NormalNode: f64,
     [rng: StdRng, dist: Normal],
     [],
-    |node: &mut NormalNode| -> Result<f64, Error> {
+    |node: &mut NormalNode| -> Result<f64, NodeError> {
         Ok(node.rng.sample(&node.dist))
     }
 );
@@ -77,7 +77,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: f64],
-            |_, x| -> Result<(), Error> {
+            |_, x| -> Result<(), NodeError> {
                 assert!(x >= 1.0 && x <= 2.0);
                 Ok(())
             }
@@ -106,7 +106,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: u8],
-            |_, x| -> Result<(), Error> {
+            |_, x| -> Result<(), NodeError> {
                 assert!(x == 0u8 || x == 1u8);
                 Ok(())
             }

@@ -36,7 +36,7 @@ create_node!(
 
 /// Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnsNode<T> {
-    fn run(&mut self) -> Result<u8, Error> {
+    fn run(&mut self) -> Result<u8, NodeError> {
         let fb_bit =
             T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
         let output = self.state >> (size_of::<T>() * 8 - 1);
@@ -120,7 +120,7 @@ mod test {
             CheckNode: (),
             [state: Vec<u8>],
             [recv: u8],
-            |node: &mut CheckNode, x| -> Result<(), Error> {
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
                 if node.state.len() == 128 {
                     assert_eq!(
                         node.state,

@@ -20,7 +20,7 @@ where
     T: Sample + Send + 'static,
 {
     /// Tosses the received samples into the sink for output.
-    pub fn play(&mut self, samples: Vec<T>) -> Result<(), Error> {
+    pub fn play(&mut self, samples: Vec<T>) -> Result<(), NodeError> {
         let samplebuffer = buffer::SamplesBuffer::new(
             self.channels,
             self.sample_rate,

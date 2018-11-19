@@ -18,7 +18,7 @@ create_node!(
     RadioTxNode<T, U>: (),
     [radio: T, output_idx: usize],
     [recv_samp: Vec<U>],
-    |node: &mut RadioTxNode<T, U>, samples: Vec<U>| -> Result<(), Error> {
+    |node: &mut RadioTxNode<T, U>, samples: Vec<U>| -> Result<(), NodeError> {
         node.radio.send_samples(samples, node.output_idx);
         Ok(())
     },
@@ -31,7 +31,7 @@ create_node!(
     RadioRxNode<T, U>: Vec<U>,
     [radio: T, input_idx: usize, num_samples: usize],
     [],
-    |node: &mut RadioRxNode<T, U>| -> Result<Vec<U>, Error> {
+    |node: &mut RadioRxNode<T, U>| -> Result<Vec<U>, NodeError> {
         let res = node.radio.recv_samples(node.num_samples, node.input_idx);
         Ok(res)
     },

@@ -16,7 +16,7 @@ fn main() {
         SineNode: Vec<f32>,
         [source: Box<dyn Source<Item = f32> + Send>],
         [],
-        |node: &mut SineNode| -> Result<Vec<f32>, Error> {
+        |node: &mut SineNode| -> Result<Vec<f32>, NodeError> {
             let source = &mut node.source;
             let samp: Vec<f32> = source.take(48000).collect();
             Ok(samp)

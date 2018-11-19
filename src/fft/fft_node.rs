@@ -28,7 +28,7 @@ where
     fn run_fft(
         &mut self,
         data: &[Complex<T>],
-    ) -> Result<Vec<Complex<T>>, Error> {
+    ) -> Result<Vec<Complex<T>>, NodeError> {
         // Convert the input type from interleaved values to Complex<f32>.
         let mut input: Vec<FFTComplex<f64>> = data
             .iter()
@@ -84,7 +84,7 @@ create_node!(
     FFTSampleNode<T>: Option<Vec<Complex<T>>>,
     [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
     [recv: Complex<T>],
-    |node: &mut FFTSampleNode<T>, sample: Complex<T>| -> Result<Option<Vec<Complex<T>>>, Error> {
+    |node: &mut FFTSampleNode<T>, sample: Complex<T>| -> Result<Option<Vec<Complex<T>>>, NodeError> {
         node.samples.push(sample);
         if node.samples.len() == node.fft_size {
             let results = node.run_fft();
@@ -165,7 +165,7 @@ mod test {
             SendNode: Vec<Complex<f32>>,
             [],
             [],
-            |_| -> Result<Vec<Complex<f32>>, Error> {
+            |_| -> Result<Vec<Complex<f32>>, NodeError> {
                 let input = vec![
                     Complex::new(0.1, 0.1),
                     Complex::new(0.2, 0.2),
@@ -189,7 +189,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<Complex<f32>>],
-            |_, val: Vec<Complex<f32>>| -> Result<(), Error> {
+            |_, val: Vec<Complex<f32>>| -> Result<(), NodeError> {
                 let expected_out = vec![
                     Complex::new(5.5, 5.5),
                     Complex::new(-2.03884, 1.03884),
@@ -231,7 +231,7 @@ mod test {
             SendNode: Option<Complex<f32>>,
             [input: Vec<Complex<f32>>],
             [],
-            |node: &mut SendNode| -> Result<Option<Complex<f32>>, Error> {
+            |node: &mut SendNode| -> Result<Option<Complex<f32>>, NodeError> {
                 Ok(node.input.pop())
             }
         );
@@ -256,7 +256,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<Complex<f32>>],
-            |_, val: Vec<Complex<f32>>| -> Result<(), Error> {
+            |_, val: Vec<Complex<f32>>| -> Result<(), NodeError> {
                 let expected_out = vec![
                     Complex::new(5.5, 5.5),
                     Complex::new(-2.03884, 1.03884),

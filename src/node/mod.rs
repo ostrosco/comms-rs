@@ -16,7 +16,7 @@
 //!     Node1: u32,
 //!     [],
 //!     [],
-//!     |_| -> Result<u32, Error> {
+//!     |_| -> Result<u32, NodeError> {
 //!         Ok(1)
 //!     }
 //! );
@@ -24,7 +24,7 @@
 //!     Node2: (),
 //!     [],
 //!     [recv: u32],
-//!     |_, x| -> Result<(), Error> {
+//!     |_, x| -> Result<(), NodeError> {
 //!         assert_eq!(x, 1);
 //!         Ok(())
 //!     }
@@ -44,11 +44,38 @@
 //! # }
 //! ```
 
-use failure::Error;
+use std::error;
+use std::fmt;
+
+#[derive(Clone, Debug)]
+pub enum NodeError {
+    DataError,
+    PermanentError,
+    DataEnd,
+    CommError,
+}
+
+impl fmt::Display for NodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let desc = match *self {
+            NodeError::DataError => "unable to access data",
+            NodeError::PermanentError => "unable to continue executing node",
+            NodeError::DataEnd => "end of data source",
+            NodeError::CommError => "unable to establish comm channel",
+        };
+        write!(f, "Node error: {}", desc)
+    }
+}
+
+impl error::Error for NodeError {
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
 
 /// The trait that all nodes in the library implement.
 pub trait Node {
-    fn call(&mut self) -> Result<(), Error>;
+    fn call(&mut self) -> Result<(), NodeError>;
 }
 
 /// Creates a structure with crossbeam senders and receivers automatically and
@@ -89,7 +116,7 @@ pub trait Node {
 ///     NoInputNode: u32,
 ///     [],
 ///     [],
-///     |_| -> Result<u32, Error> {
+///     |_| -> Result<u32, NodeError> {
 ///         Ok(1)
 ///     }
 /// );
@@ -99,7 +126,7 @@ pub trait Node {
 ///     DoubleInputNode: f32,
 ///     [],
 ///     [recv_u: u32, recv_v: f64],
-///     |_, x, y| -> Result<f32, Error> {
+///     |_, x, y| -> Result<f32, NodeError> {
 ///         Ok((x as f64 + y) as f32)
 ///     }
 /// );
@@ -109,7 +136,7 @@ pub trait Node {
 ///     NoOutputNode: (),
 ///     [],
 ///     [recv_u: u32],
-///     |_, x| -> Result<(), Error> {
+///     |_, x| -> Result<(), NodeError> {
 ///         println!("{}", x);
 ///         Ok(())
 ///     }
@@ -121,7 +148,7 @@ pub trait Node {
 /// create_node!(CounterNode: i32,
 ///     [count: i32],
 ///     [recv: i32],
-///     |node: &mut CounterNode, val: i32| -> Result<i32, Error> {
+///     |node: &mut CounterNode, val: i32| -> Result<i32, NodeError> {
 ///         node.count += val;
 ///         Ok(node.count)
 ///     },
@@ -132,7 +159,7 @@ pub trait Node {
 ///     GenericNode<T>: T,
 ///     [state: T],
 ///     [recv: T],
-///     |node: &mut GenericNode<T>, new_val: T| -> Result<T, Error> {
+///     |node: &mut GenericNode<T>, new_val: T| -> Result<T, NodeError> {
 ///         node.state = new_val.clone();
 ///         Ok(node.state.clone())
 ///     },
@@ -297,11 +324,11 @@ macro_rules! create_node {
 #[macro_export]
 macro_rules! generate_call {
     ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) -> Result<(), Error>  {
+        fn call(&mut self) -> Result<(), NodeError>  {
             $(
                 let $recv = match self.$recv {
                     Some(ref r) => r.recv().unwrap(),
-                    None => return Err(err_msg("couldn't receive node data")),
+                    None => return Err(NodeError::PermanentError),
                 };
             )*
             let res: $out = ($func)(&mut *self, $($recv,)*)?;
@@ -317,11 +344,11 @@ macro_rules! generate_call {
 #[macro_export]
 macro_rules! generate_aggregate_call {
     ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) -> Result<(), Error>{
+        fn call(&mut self) -> Result<(), NodeError>{
             $(
                 let $recv = match self.$recv {
                     Some(ref r) => r.recv().unwrap(),
-                    None => return Err(err_msg("couldn't receive node data")),
+                    None => return Err(NodeError::PermanentError),
                 };
             )*
             let result: Option<$out> = ($func)(&mut *self, $($recv,)*)?;
@@ -376,7 +403,7 @@ macro_rules! generate_new {
 /// #     Node1: u32,
 /// #     [],
 /// #     [],
-/// #     |_| -> Result<u32, Error> {
+/// #     |_| -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
 /// # );
@@ -384,7 +411,7 @@ macro_rules! generate_new {
 /// #     Node2: (),
 /// #     [],
 /// #     [recv: u32],
-/// #     |_, x| -> Result<(), Error> {
+/// #     |_, x| -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #     }
@@ -420,7 +447,7 @@ macro_rules! connect_nodes {
 /// #     Node1: u32,
 /// #     [],
 /// #     [],
-/// #     |_| -> Result<u32, Error> {
+/// #     |_| -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
 /// # );
@@ -428,7 +455,7 @@ macro_rules! connect_nodes {
 /// #     Node2: (),
 /// #     [],
 /// #     [recv: u32],
-/// #     |_, x| -> Result<(), Error> {
+/// #     |_, x| -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #     }
@@ -467,7 +494,7 @@ macro_rules! connect_nodes_feedback {
 /// #     Node1: u32,
 /// #     [],
 /// #     [],
-/// #     |_| -> Result<u32, Error> {
+/// #     |_| -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
 /// # );
@@ -475,7 +502,7 @@ macro_rules! connect_nodes_feedback {
 /// #     Node2: (),
 /// #     [],
 /// #     [recv: u32],
-/// #     |_, x| -> Result<(), Error> {
+/// #     |_, x| -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #     }
@@ -524,7 +551,7 @@ macro_rules! start_nodes {
 /// #     Node1: u32,
 /// #     [],
 /// #     [],
-/// #     |_| -> Result<u32, Error> {
+/// #     |_| -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
 /// # );
@@ -532,7 +559,7 @@ macro_rules! start_nodes {
 /// #     Node2: (),
 /// #     [],
 /// #     [recv: u32],
-/// #     |_, x| -> Result<(), Error> {
+/// #     |_, x| -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #     }
@@ -581,12 +608,14 @@ mod test {
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        create_node!(Node1: u32, [], [], |_| -> Result<u32, Error> { Ok(1) });
+        create_node!(Node1: u32, [], [], |_| -> Result<u32, NodeError> {
+            Ok(1)
+        });
         create_node!(
             Node2: (),
             [],
             [recv1: u32],
-            |_, x| -> Result<(), Error> {
+            |_, x| -> Result<(), NodeError> {
                 assert_eq!(x, 1);
                 Ok(())
             }
@@ -621,7 +650,7 @@ mod test {
             Node1: Option<Arc<Vec<u32>>>,
             [agg: Vec<u32>],
             [],
-            |node: &mut Node1| -> Result<Option<Arc<Vec<u32>>>, Error> {
+            |node: &mut Node1| -> Result<Option<Arc<Vec<u32>>>, NodeError> {
                 if node.agg.len() < 2 {
                     node.agg.push(1);
                     Ok(None)
@@ -636,7 +665,7 @@ mod test {
             Node2: Option<Arc<Vec<u32>>>,
             [],
             [recv1: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| -> Result<Option<Arc<Vec<u32>>>, Error> {
+            |_, x: Arc<Vec<u32>>| -> Result<Option<Arc<Vec<u32>>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = *z + 1;
@@ -648,7 +677,7 @@ mod test {
             Node3: (),
             [],
             [recv2: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| -> Result<(), Error> {
+            |_, x: Arc<Vec<u32>>| -> Result<(), NodeError> {
                 assert_eq!(*x, vec![2, 2]);
                 Ok(())
             }
@@ -683,7 +712,7 @@ mod test {
             Node1: Arc<Vec<i16>>,
             [],
             [],
-            |_| -> Result<Arc<Vec<i16>>, Error> {
+            |_| -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut random = vec![0i16; 10000];
                 thread_rng().fill(random.as_mut_slice());
                 Ok(Arc::new(random))
@@ -693,7 +722,7 @@ mod test {
             Node2: Arc<Vec<i16>>,
             [],
             [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, Error> {
+            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
@@ -705,7 +734,7 @@ mod test {
             Node3: (),
             [count: u32],
             [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), Error> {
+            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), NodeError> {
                 node.count = node.count + 1;
                 if node.count == 40000 {
                     println!(
@@ -736,7 +765,7 @@ mod test {
             Node1: Arc<Vec<i16>>,
             [],
             [],
-            |_| -> Result<Arc<Vec<i16>>, Error> {
+            |_| -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut random = vec![0i16; 10000];
                 thread_rng().fill(random.as_mut_slice());
                 Ok(Arc::new(random))
@@ -746,7 +775,7 @@ mod test {
             Node2: Arc<Vec<i16>>,
             [],
             [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, Error> {
+            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
@@ -758,7 +787,7 @@ mod test {
             Node3: (),
             [count: u32],
             [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), Error> {
+            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), NodeError> {
                 node.count = node.count + 1;
                 if node.count == 40000 {
                     println!(
@@ -791,10 +820,10 @@ mod test {
         use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
-        create_node!(NoInputNode: u32, [], [], |_| -> Result<u32, Error> {
+        create_node!(NoInputNode: u32, [], [], |_| -> Result<u32, NodeError> {
             Ok(1)
         });
-        create_node!(AnotherNode: f64, [], [], |_| -> Result<f64, Error> {
+        create_node!(AnotherNode: f64, [], [], |_| -> Result<f64, NodeError> {
             Ok(2.0)
         });
 
@@ -804,7 +833,7 @@ mod test {
             DoubleInputNode: f32,
             [],
             [recv1: u32, recv2: f64],
-            |_, x: u32, y: f64| -> Result<f32, Error> {
+            |_, x: u32, y: f64| -> Result<f32, NodeError> {
                 Ok((x as f64 + y) as f32)
             }
         );
@@ -814,7 +843,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: f32],
-            |_, x: f32| -> Result<(), Error> {
+            |_, x: f32| -> Result<(), NodeError> {
                 assert_eq!(x, 3.0, "Node didn't work!");
                 Ok(())
             }
@@ -856,7 +885,7 @@ mod test {
             OneNode: i32,
             [count: i32],
             [],
-            |node: &mut OneNode| -> Result<i32, Error> {
+            |node: &mut OneNode| -> Result<i32, NodeError> {
                 node.count += 1;
                 Ok(node.count)
             }
@@ -866,7 +895,7 @@ mod test {
             CounterNode: i32,
             [count: i32],
             [recv: i32],
-            |node: &mut CounterNode, val: i32| -> Result<i32, Error> {
+            |node: &mut CounterNode, val: i32| -> Result<i32, NodeError> {
                 node.count = node.count + val;
                 Ok(node.count)
             }
@@ -899,7 +928,7 @@ mod test {
             AddNode: i32,
             [count: i32],
             [recv_f: i32],
-            |node: &mut AddNode, val: i32| -> Result<i32, Error> {
+            |node: &mut AddNode, val: i32| -> Result<i32, NodeError> {
                 node.count += val;
                 Ok(node.count)
             }
@@ -908,7 +937,7 @@ mod test {
             PrintNode: i32,
             [count: i32],
             [recv_sum: i32],
-            |node: &mut PrintNode, val: i32| -> Result<i32, Error> {
+            |node: &mut PrintNode, val: i32| -> Result<i32, NodeError> {
                 node.count = val;
                 Ok(val)
             }

@@ -19,10 +19,15 @@ impl<T> ZMQSend<T>
 where
     T: Serialize + Clone,
 {
-    pub fn send(&mut self, data: &mut T) -> Result<(), Error> {
-        let buffer: Vec<u8> = serialize(&data)?;
-        self.socket.send(&buffer, self.flags)?;
-        Ok(())
+    pub fn send(&mut self, data: &mut T) -> Result<(), NodeError> {
+        let buffer: Vec<u8> = match serialize(&data) {
+            Ok(b) => b,
+            Err(_) => return Err(NodeError::DataError),
+        };
+        match self.socket.send(&buffer, self.flags) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(NodeError::CommError),
+        }
     }
 }
 
@@ -71,9 +76,15 @@ impl<T> ZMQRecv<T>
 where
     T: DeserializeOwned + Clone,
 {
-    pub fn recv(&mut self) -> Result<T, Error> {
-        let bytes = self.socket.recv_bytes(self.flags)?;
-        let res: T = deserialize(&bytes)?;
+    pub fn recv(&mut self) -> Result<T, NodeError> {
+        let bytes = match self.socket.recv_bytes(self.flags) {
+            Ok(b) => b,
+            Err(_) => return Err(NodeError::CommError),
+        };
+        let res: T = match deserialize(&bytes) {
+            Ok(r) => r,
+            Err(_) => return Err(NodeError::DataError),
+        };
         Ok(res)
     }
 }
@@ -128,7 +139,7 @@ mod test {
             DataGen: Vec<u32>,
             [],
             [],
-            |_| -> Result<Vec<u32>, Error> { Ok(vec![1, 2, 3, 4, 5]) }
+            |_| -> Result<Vec<u32>, NodeError> { Ok(vec![1, 2, 3, 4, 5]) }
         );
         let mut data_node = DataGen::new();
         let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
@@ -145,7 +156,7 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<u32>],
-            |_, data: Vec<u32>| -> Result<(), Error> {
+            |_, data: Vec<u32>| -> Result<(), NodeError> {
                 assert_eq!(&data, &[1, 2, 3, 4, 5]);
                 Ok(())
             }
