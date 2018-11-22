@@ -1,3 +1,13 @@
+//! Node for a finite impulse response (FIR) filter.
+//!
+//! This node implements a finite impulse response (FIR) filter.  These are
+//! general purpose filters used everywhere in communications and DSP systems.
+//! Some example use cases include low pass filters for anti aliasing, band
+//! pass filters for band selection, and pulse shaping.
+//!
+//! Assume initial state of 0's. Takes in Complex<T> samples, outputs
+//! Complex<T>.  Constructor takes Vec<Complex<T>> for filter taps.
+
 use prelude::*;
 
 use num::complex::Complex;
@@ -121,7 +131,7 @@ where
 mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
-    use fir::fir_node;
+    use filter::fir_node;
     use node::Node;
     use num::Complex;
     use num::Zero;

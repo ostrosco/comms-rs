@@ -1,5 +1,4 @@
-//! ========
-//! This node implements a basic mixer.  It provides a sample by sample and
-//! batch based mixer, and versions of each with and inital phase value.
+//! Node for sample and batch-based mixers.
+//!
 
 pub mod mixer_node;
