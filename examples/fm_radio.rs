@@ -12,6 +12,17 @@ use num::Zero;
 use std::thread;
 
 fn main() {
+    let radio_mhz = std::env::args()
+        .nth(1)
+        .and_then(|s| str::parse::<f32>(&s).ok());
+    let radio_freq = match radio_mhz {
+        Some(f) => (f * 1e6) as u32,
+        None => {
+            println!("No frequency specified, defaulting to 88.7.");
+            88.7e6 as u32
+        }
+    };
+
     #[cfg_attr(rustfmt, rustfmt_skip)]
     let taps = [
 	   -5.94491898e-05, -6.29398695e-05,  1.36535572e-04,  2.23759914e-04,
@@ -61,7 +72,7 @@ fn main() {
         taps_audio.iter().map(|&x| Complex::new(x, 0.0)).collect();
 
     let mut rtlsdr = hardware::rtlsdr_radio::rtlsdr(0).unwrap();
-    rtlsdr.init_radio(88.7e6 as u32, 1140000, 496).unwrap();
+    rtlsdr.init_radio(radio_freq, 1140000, 496).unwrap();
     rtlsdr.set_agc(true).unwrap();
 
     // Since we don't have anything fancy yet for type conversion, we're
@@ -122,7 +133,7 @@ fn main() {
     let mut filt2: BatchFirNode<f32> = batch_fir(taps_audio);
     let mut convert3 = Convert3Node::new();
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
-    let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.3);
+    let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
 
     connect_nodes!(sdr, convert, recv);
     connect_nodes!(convert, filt1, input);
