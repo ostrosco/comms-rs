@@ -22,8 +22,8 @@ where
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
 
         for samp in samples {
-            let conj = prev.conj() * samp;
-            demod_queue.push(conj.arg());
+            let theta = samp * prev.conj();
+            demod_queue.push(theta.arg());
             prev = samp;
         }
         self.prev = prev;
