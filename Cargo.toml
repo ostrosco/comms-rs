@@ -32,3 +32,10 @@ features = ["serde"]
 [features]
 rtlsdr_node = ["rtlsdr"]
 zmq_node = ["zmq"]
+
+[[example]]
+name = "fm_radio"
+required-features = ["rtlsdr_node"]
+
+[[example]]
+name = "play_audio"

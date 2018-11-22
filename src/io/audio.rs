@@ -1,14 +1,16 @@
 use crossbeam::{Receiver, Sender};
 use node::Node;
 use rodio::buffer;
+use rodio::queue::{queue, SourcesQueueInput};
 use rodio::{self, Sample, Sink};
+use std::sync::Arc;
 
 create_node!(
     #[doc = "A node that can play received samples out on audio. "]
     #[doc = "Currently this only uses the default output device "]
     #[doc = "on the system."]
     AudioNode<T>: (),
-    [sink: Sink, channels: u16, sample_rate: u32],
+    [sink: Sink, in_queue: Arc<SourcesQueueInput<T>>, channels: u16, sample_rate: u32],
     [recv: Vec<T>],
     |node: &mut AudioNode<T>, samples: Vec<T>| {
         node.play(samples);
@@ -27,7 +29,7 @@ where
             self.sample_rate,
             samples,
         );
-        self.sink.append(samplebuffer);
+        self.in_queue.append(samplebuffer);
     }
 }
 
@@ -38,6 +40,8 @@ where
 {
     let device = rodio::default_output_device().unwrap();
     let mut sink = Sink::new(&device);
+    let (in_queue, out_queue) = queue::<T>(true);
     sink.set_volume(volume);
-    AudioNode::new(sink, channels, sample_rate)
+    sink.append(out_queue);
+    AudioNode::new(sink, in_queue, channels, sample_rate)
 }
