@@ -2,7 +2,7 @@
 extern crate comms_rs;
 extern crate num;
 
-use comms_rs::fir::fir_node::{batch_fir, BatchFirNode};
+use comms_rs::filter::fir_node::{batch_fir, BatchFirNode};
 use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
 use comms_rs::modulation::fm;

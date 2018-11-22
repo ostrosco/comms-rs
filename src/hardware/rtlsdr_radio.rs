@@ -69,7 +69,7 @@ mod test {
     use std::thread;
 
     #[test]
-    #[cfg_attr(not(feature = "rtlsdr_support"), ignore)]
+    #[cfg_attr(not(feature = "rtlsdr_node"), ignore)]
     // A quick test to check if we can read samples off the RTLSDR.
     fn test_get_samples() {
         let num_samples = 262144;
