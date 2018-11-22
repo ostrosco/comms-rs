@@ -1,5 +1,4 @@
-use crossbeam::{Receiver, Sender};
-use node::Node;
+use prelude::*;
 use num::Complex;
 use num::Float;
 
@@ -17,7 +16,7 @@ impl<T> FMDemodNode<T>
 where
     T: Float,
 {
-    pub fn demod(&mut self, samples: Vec<Complex<T>>) -> Vec<T> {
+    pub fn demod(&mut self, samples: Vec<Complex<T>>) -> Result<Vec<T>, NodeError> {
         let mut prev = self.prev;
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
 
@@ -28,6 +27,6 @@ where
         }
         self.prev = prev;
 
-        demod_queue
+        Ok(demod_queue)
     }
 }
