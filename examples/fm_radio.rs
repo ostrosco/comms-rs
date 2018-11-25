@@ -50,35 +50,9 @@ fn main() {
         0.008526175375849215, 0.005009212152225975, 0.0008677368918448623,
         -0.002648852132912597, -0.004656920885448867, -0.01801270027742274,
     ];
-    let taps_samples: Vec<Complex<f32>> =
+    let taps: Vec<Complex<f32>> =
         taps.iter().map(|&x| Complex::new(x, 0.0)).collect();
 
-    // The taps for the second low pass filter after FM demodulation.
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    let taps_audio = [
-       -7.80759301e-19, -4.70562469e-04, -7.18601045e-04, -5.64787938e-04,
-        1.00048451e-18,  7.40711911e-04,  1.22010776e-03,  1.00943714e-03,
-       -1.63815191e-18, -1.38305804e-03, -2.28165286e-03, -1.87515712e-03,
-        2.63134217e-18,  2.50157079e-03,  4.06019205e-03,  3.28157003e-03,
-       -3.88283490e-18, -4.23970064e-03, -6.78167143e-03, -5.40871357e-03,
-        5.27012528e-18,  6.83437728e-03,  1.08374410e-02,  8.58370816e-03,
-       -6.65741567e-18, -1.07597935e-02, -1.70504083e-02, -1.35302879e-02,
-        7.90890840e-18,  1.71869634e-02,  2.75821124e-02,  2.22845949e-02,
-       -8.90209866e-18, -3.00178183e-02, -5.04645076e-02, -4.35022473e-02,
-        9.53976606e-18,  7.41796666e-02,  1.58481935e-01,  2.25084217e-01,
-        2.50360725e-01,  2.25084217e-01,  1.58481935e-01,  7.41796666e-02,
-        9.53976606e-18, -4.35022473e-02, -5.04645076e-02, -3.00178183e-02,
-       -8.90209866e-18,  2.22845949e-02,  2.75821124e-02,  1.71869634e-02,
-        7.90890840e-18, -1.35302879e-02, -1.70504083e-02, -1.07597935e-02,
-       -6.65741567e-18,  8.58370816e-03,  1.08374410e-02,  6.83437728e-03,
-        5.27012528e-18, -5.40871357e-03, -6.78167143e-03, -4.23970064e-03,
-       -3.88283490e-18,  3.28157003e-03,  4.06019205e-03,  2.50157079e-03,
-        2.63134217e-18, -1.87515712e-03, -2.28165286e-03, -1.38305804e-03,
-       -1.63815191e-18,  1.00943714e-03,  1.22010776e-03,  7.40711911e-04,
-        1.00048451e-18, -5.64787938e-04, -7.18601045e-04, -4.70562469e-04,
-       -7.80759301e-19];
-    let taps_audio: Vec<Complex<f32>> =
-        taps_audio.iter().map(|&x| Complex::new(x, 0.0)).collect();
 
     let mut rtlsdr = hardware::rtlsdr_radio::rtlsdr(0).unwrap();
     rtlsdr.init_radio(radio_freq, 1140000, 496).unwrap();
@@ -143,10 +117,10 @@ fn main() {
     let mut sdr = radio::RadioRxNode::new(rtlsdr, 0, 262144);
     let mut convert = ConvertNode::new();
     let mut dec1: DecimateNode<Complex<f32>> = DecimateNode::new(5);
-    let mut filt1: BatchFirNode<f32> = batch_fir(taps_samples);
+    let mut filt1: BatchFirNode<f32> = batch_fir(taps.clone());
     let mut fm = fm::FMDemodNode::new(Complex::zero());
     let mut convert2 = Convert2Node::new();
-    let mut filt2: BatchFirNode<f32> = batch_fir(taps_audio);
+    let mut filt2: BatchFirNode<f32> = batch_fir(taps);
     let mut convert3 = Convert3Node::new();
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
     let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
