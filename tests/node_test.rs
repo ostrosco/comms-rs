@@ -7,12 +7,13 @@ use std::time::Duration;
 
 #[test]
 fn simple_nodes() {
-    fn gen_stuff() -> u32 {
-        1
+    fn gen_stuff() -> Result<u32, NodeError> {
+        Ok(1)
     }
 
-    fn do_thingies(x: u32) -> () {
+    fn do_thingies(x: u32) -> Result<(), NodeError> {
         assert_eq!(x, 1);
+        Ok(())
     }
 
     create_node!(SourceNode: u32, [], [], { |_| gen_stuff() });

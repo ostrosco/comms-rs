@@ -1,8 +1,7 @@
 //! This node implements a basic mixer.  It provides a sample by sample and
 //! batch based mixer, and versions of each with and inital phase value.
 
-use crossbeam::{Receiver, Sender};
-use node::Node;
+use prelude::*;
 use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
@@ -26,14 +25,14 @@ impl<T> MixerNode<T>
 where
     T: NumCast + Clone + Num,
 {
-    fn run(&mut self, input: &Complex<T>) -> Complex<T> {
+    fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
         let inp: Complex<f64> = math::cast_complex(input).unwrap();
         let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
         self.phase += self.dphase;
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
         }
-        math::cast_complex(&res).unwrap()
+        Ok(math::cast_complex(&res).unwrap())
     }
 }
 
@@ -86,6 +85,7 @@ mod test {
     use node::Node;
     use num::complex::Complex;
     use num::Zero;
+    use prelude::*;
     use std::thread;
     use std::time::Instant;
 
@@ -96,10 +96,12 @@ mod test {
             SomeSamples: Complex<f64>,
             [samples: Vec<Complex<f64>>],
             [],
-            |node: &mut Self| if node.samples.len() == 0 {
-                Complex::zero()
-            } else {
-                node.samples.remove(0)
+            |node: &mut Self| -> Result<Complex<f64>, NodeError> {
+                if node.samples.len() == 0 {
+                    Ok(Complex::zero())
+                } else {
+                    Ok(node.samples.remove(0))
+                }
             }
         );
 
@@ -117,20 +119,23 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<f64>>],
             [recv: Complex<f64>],
-            |node: &mut CheckNode, x| if node.state.len() == 5 {
-                let truth = vec![
-                    Complex::new(1.0, 2.0),
-                    Complex::new(2.486574736, 4.337850399),
-                    Complex::new(3.388313374, 7.036997405),
-                    Complex::new(3.643356072, 9.986288426),
-                    Complex::new(7.932508585, 4.251506503),
-                ];
-                for i in 0..node.state.len() {
-                    assert_approx_eq!(node.state[i].re, truth[i].re);
-                    assert_approx_eq!(node.state[i].im, truth[i].im);
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
+                if node.state.len() == 5 {
+                    let truth = vec![
+                        Complex::new(1.0, 2.0),
+                        Complex::new(2.486574736, 4.337850399),
+                        Complex::new(3.388313374, 7.036997405),
+                        Complex::new(3.643356072, 9.986288426),
+                        Complex::new(7.932508585, 4.251506503),
+                    ];
+                    for i in 0..node.state.len() {
+                        assert_approx_eq!(node.state[i].re, truth[i].re);
+                        assert_approx_eq!(node.state[i].im, truth[i].im);
+                    }
+                } else {
+                    node.state.push(x);
                 }
-            } else {
-                node.state.push(x);
+                Ok(())
             }
         );
 
@@ -142,7 +147,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().subsec_millis() > 10 {
                     break;
                 }
@@ -158,10 +163,12 @@ mod test {
             SomeSamples: Complex<f64>,
             [samples: Vec<Complex<f64>>],
             [],
-            |node: &mut Self| if node.samples.len() == 0 {
-                Complex::zero()
-            } else {
-                node.samples.remove(0)
+            |node: &mut Self| -> Result<Complex<f64>, NodeError> {
+                if node.samples.len() == 0 {
+                    Ok(Complex::zero())
+                } else {
+                    Ok(node.samples.remove(0))
+                }
             }
         );
 
@@ -179,20 +186,23 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<f64>>],
             [recv: Complex<f64>],
-            |node: &mut CheckNode, x| if node.state.len() == 5 {
-                let truth = vec![
-                    Complex::new(0.795337332, 2.089841747),
-                    Complex::new(2.041089794, 4.564422467),
-                    Complex::new(2.668858427, 7.340108630),
-                    Complex::new(2.628189174, 10.300127265),
-                    Complex::new(7.468436663, 5.022196114),
-                ];
-                for i in 0..node.state.len() {
-                    assert_approx_eq!(node.state[i].re, truth[i].re);
-                    assert_approx_eq!(node.state[i].im, truth[i].im);
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
+                if node.state.len() == 5 {
+                    let truth = vec![
+                        Complex::new(0.795337332, 2.089841747),
+                        Complex::new(2.041089794, 4.564422467),
+                        Complex::new(2.668858427, 7.340108630),
+                        Complex::new(2.628189174, 10.300127265),
+                        Complex::new(7.468436663, 5.022196114),
+                    ];
+                    for i in 0..node.state.len() {
+                        assert_approx_eq!(node.state[i].re, truth[i].re);
+                        assert_approx_eq!(node.state[i].im, truth[i].im);
+                    }
+                } else {
+                    node.state.push(x);
                 }
-            } else {
-                node.state.push(x);
+                Ok(())
             }
         );
 
@@ -204,7 +214,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().subsec_millis() > 10 {
                     break;
                 }

@@ -10,7 +10,7 @@ create_node!(
     [socket: zmq::Socket, flags: i32],
     [recv: T],
     |node: &mut ZMQSend<T>, mut data: T| {
-        node.send(&mut data);
+        node.send(&mut data)
     },
     T: Serialize + Clone,
 );
@@ -19,9 +19,15 @@ impl<T> ZMQSend<T>
 where
     T: Serialize + Clone,
 {
-    pub fn send(&mut self, data: &mut T) {
-        let buffer: Vec<u8> = serialize(&data).unwrap();
-        self.socket.send(&buffer, self.flags).unwrap();
+    pub fn send(&mut self, data: &mut T) -> Result<(), NodeError> {
+        let buffer: Vec<u8> = match serialize(&data) {
+            Ok(b) => b,
+            Err(_) => return Err(NodeError::DataError),
+        };
+        match self.socket.send(&buffer, self.flags) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(NodeError::CommError),
+        }
     }
 }
 
@@ -70,10 +76,16 @@ impl<T> ZMQRecv<T>
 where
     T: DeserializeOwned + Clone,
 {
-    pub fn recv(&mut self) -> T {
-        let bytes = self.socket.recv_bytes(self.flags).unwrap();
-        let res: T = deserialize(&bytes).unwrap();
-        res
+    pub fn recv(&mut self) -> Result<T, NodeError> {
+        let bytes = match self.socket.recv_bytes(self.flags) {
+            Ok(b) => b,
+            Err(_) => return Err(NodeError::CommError),
+        };
+        let res: T = match deserialize(&bytes) {
+            Ok(r) => r,
+            Err(_) => return Err(NodeError::DataError),
+        };
+        Ok(res)
     }
 }
 
@@ -123,7 +135,12 @@ mod test {
 
     #[test]
     fn test_zmq() {
-        create_node!(DataGen: Vec<u32>, [], [], |_| vec![1, 2, 3, 4, 5],);
+        create_node!(
+            DataGen: Vec<u32>,
+            [],
+            [],
+            |_| -> Result<Vec<u32>, NodeError> { Ok(vec![1, 2, 3, 4, 5]) }
+        );
         let mut data_node = DataGen::new();
         let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
             "tcp://*:5556",
@@ -139,8 +156,9 @@ mod test {
             CheckNode: (),
             [],
             [recv: Vec<u32>],
-            |_, data: Vec<u32>| {
+            |_, data: Vec<u32>| -> Result<(), NodeError> {
                 assert_eq!(&data, &[1, 2, 3, 4, 5]);
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new();
@@ -149,7 +167,7 @@ mod test {
         start_nodes!(data_node, zmq_send, zmq_recv);
 
         let handle = thread::spawn(move || {
-            check_node.call();
+            check_node.call().unwrap();
         });
 
         assert!(handle.join().is_ok());

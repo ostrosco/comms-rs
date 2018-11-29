@@ -9,8 +9,8 @@ create_node!(
     UniformNode<T>: T,
     [rng: StdRng, dist: Uniform<T>],
     [],
-    |node: &mut UniformNode<T>| {
-        node.rng.sample(&node.dist)
+    |node: &mut UniformNode<T>| -> Result<T, NodeError> {
+        Ok(node.rng.sample(&node.dist))
     },
     T: SampleUniform + Clone,
 );
@@ -20,7 +20,9 @@ create_node!(
     NormalNode: f64,
     [rng: StdRng, dist: Normal],
     [],
-    |node: &mut NormalNode| node.rng.sample(&node.dist)
+    |node: &mut NormalNode| -> Result<f64, NodeError> {
+        Ok(node.rng.sample(&node.dist))
+    }
 );
 
 /// Builds a closure for generating random numbers with a Normal distribution.
@@ -57,7 +59,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                norm_node.call();
+                norm_node.call().unwrap();
                 if now.elapsed().as_secs() > 1 {
                     break;
                 }
@@ -71,16 +73,22 @@ mod test {
     // correctly and generates numbers within the correct range.
     fn test_uniform() {
         let mut uniform_node = rand_node::uniform(1.0, 2.0);
-        create_node!(CheckNode: (), [], [recv: f64], |_, x| assert!(
-            x >= 1.0 && x <= 2.0
-        ));
+        create_node!(
+            CheckNode: (),
+            [],
+            [recv: f64],
+            |_, x| -> Result<(), NodeError> {
+                assert!(x >= 1.0 && x <= 2.0);
+                Ok(())
+            }
+        );
         let mut check_node = CheckNode::new();
         connect_nodes!(uniform_node, check_node, recv);
         start_nodes!(uniform_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() > 1 {
                     break;
                 }
@@ -94,16 +102,22 @@ mod test {
     // correctly and generates only 0s and 1s.
     fn test_random_bit() {
         let mut bit_node = rand_node::random_bit();
-        create_node!(CheckNode: (), [], [recv: u8], |_, x| assert!(
-            x == 0u8 || x == 1u8
-        ));
+        create_node!(
+            CheckNode: (),
+            [],
+            [recv: u8],
+            |_, x| -> Result<(), NodeError> {
+                assert!(x == 0u8 || x == 1u8);
+                Ok(())
+            }
+        );
         let mut check_node = CheckNode::new();
         connect_nodes!(bit_node, check_node, recv);
         start_nodes!(bit_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() > 1 {
                     break;
                 }

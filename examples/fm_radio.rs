@@ -64,12 +64,12 @@ fn main() {
         ConvertNode: Vec<Complex<f32>>,
         [],
         [recv: Vec<u8>],
-        |_, samples: Vec<u8>| samples
+        |_, samples: Vec<u8>| Ok(samples
             .chunks(2)
             .map(|x| Complex::new(
                 (x[0] as f32 - 127.5) / 127.5,
                 (x[1] as f32 - 127.5) / 127.5
-            )).collect()
+            )).collect())
     );
 
     // A simple node to decimate the input by dec_rate. Once decimation makes
@@ -86,7 +86,7 @@ fn main() {
                 signal_dec.push(signal[ix]);
                 ix += node.dec_rate;
             }
-            signal_dec
+            Ok(signal_dec)
         },
         T: Copy,
     );
@@ -98,8 +98,8 @@ fn main() {
         Convert2Node: Vec<Complex<f32>>,
         [],
         [recv: Vec<f32>],
-        |_, samples: Vec<f32>| -> Vec<Complex<f32>> {
-            samples.iter().map(|&x| Complex::new(x, 0.0)).collect()
+        |_, samples: Vec<f32>| -> Result<Vec<Complex<f32>>, NodeError> {
+            Ok(samples.iter().map(|&x| Complex::new(x, 0.0)).collect())
         },
     );
 
@@ -109,8 +109,8 @@ fn main() {
         Convert3Node: Vec<f32>,
         [],
         [recv: Vec<Complex<f32>>],
-        |_, samples: Vec<Complex<f32>>| -> Vec<f32> {
-            samples.iter().map(|&x| x.re).collect()
+        |_, samples: Vec<Complex<f32>>| -> Result<Vec<f32>, NodeError> {
+            Ok(samples.iter().map(|&x| x.re).collect())
         },
     );
 

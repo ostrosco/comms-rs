@@ -81,8 +81,9 @@ mod test {
             CheckNode: (),
             [num_samples: usize],
             [recv: Vec<u8>],
-            |node: &mut CheckNode, samples: Vec<u8>| {
+            |node: &mut CheckNode, samples: Vec<u8>| -> Result<(), NodeError> {
                 assert_eq!(samples.len(), node.num_samples);
+                Ok(())
             }
         );
         let mut check_node = CheckNode::new(num_samples);
@@ -91,7 +92,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }

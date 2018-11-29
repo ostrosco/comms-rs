@@ -27,7 +27,7 @@ create_node!(
 );
 
 impl<R: Read> IQInput<R> {
-    fn run(&mut self) -> IQSample {
+    fn run(&mut self) -> Result<IQSample, NodeError> {
         let re_res = self.reader.read_i16::<NativeEndian>();
         let im_res = self.reader.read_i16::<NativeEndian>();
 
@@ -51,7 +51,7 @@ impl<R: Read> IQInput<R> {
             }
         };
 
-        Complex::new(re, im)
+        Ok(Complex::new(re, im))
     }
 }
 
@@ -80,7 +80,7 @@ create_node!(
 /// reader. Will only send vectors completely filled to size of buf_size.
 /// Panics upon reaching end of file.
 impl<R: Read> IQBatchInput<R> {
-    fn run(&mut self) -> Vec<IQSample> {
+    fn run(&mut self) -> Result<Vec<IQSample>, NodeError> {
         let mut buf = Vec::with_capacity(self.batch_size);
         for _ in 0..self.batch_size {
             let re_res = self.reader.read_i16::<NativeEndian>();
@@ -108,7 +108,7 @@ impl<R: Read> IQBatchInput<R> {
             buf.push(Complex::new(re, im));
         }
 
-        buf
+        Ok(buf)
     }
 }
 
@@ -138,13 +138,14 @@ create_node!(
 );
 
 impl<W: Write> IQOutput<W> {
-    fn run(&mut self, samp: IQSample) {
+    fn run(&mut self, samp: IQSample) -> Result<(), NodeError> {
         self.writer
             .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
         self.writer
             .write_i16::<NativeEndian>(samp.im)
             .expect("failed to write sample to writer");
+        Ok(())
     }
 }
 
@@ -172,7 +173,7 @@ create_node!(
 );
 
 impl<W: Write> IQBatchOutput<W> {
-    fn run(&mut self, samples: &[IQSample]) {
+    fn run(&mut self, samples: &[IQSample]) -> Result<(), NodeError> {
         samples.iter().for_each(|samp| {
             self.writer
                 .write_i16::<NativeEndian>(samp.re)
@@ -181,6 +182,7 @@ impl<W: Write> IQBatchOutput<W> {
                 .write_i16::<NativeEndian>(samp.im)
                 .expect("failed to write sample to writer");
         });
+        Ok(())
     }
 }
 
@@ -227,7 +229,7 @@ mod test {
         {
             let mut node = IQInput::new(Cursor::new(input));
             for _ in 0..iterations {
-                out.push(node.run());
+                out.push(node.run().unwrap());
             }
         }
 
@@ -263,7 +265,7 @@ mod test {
         {
             let mut node = IQBatchInput::new(Cursor::new(input), iterations);
             for _ in 0..iterations {
-                out.push(node.run());
+                out.push(node.run().unwrap());
             }
         }
 
@@ -287,7 +289,7 @@ mod test {
         {
             let mut node = IQOutput::new(&mut out);
             for item in expected.iter() {
-                node.run(*item);
+                node.run(*item).unwrap();
             }
         }
 
@@ -311,7 +313,7 @@ mod test {
         {
             let mut node = IQBatchOutput::new(&mut out);
             for _ in 0..iterations {
-                node.run(&expected.clone());
+                node.run(&expected.clone()).unwrap();
             }
         }
 

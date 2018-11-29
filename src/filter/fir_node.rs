@@ -38,14 +38,16 @@ impl<T> FirNode<T>
 where
     T: Num + Copy,
 {
-    fn run(&mut self, input: Complex<T>) -> Complex<T> {
+    fn run(&mut self, input: Complex<T>) -> Result<Complex<T>, NodeError> {
         self.state.rotate_right(1);
         self.state[0] = input;
-        self.taps
+        let sum = self
+            .taps
             .iter()
             .zip(self.state.iter())
             .map(|(x, y)| *x * *y)
-            .sum()
+            .sum();
+        Ok(sum)
     }
 }
 
@@ -54,7 +56,10 @@ impl<T> BatchFirNode<T>
 where
     T: Num + Copy,
 {
-    fn run(&mut self, input: Vec<Complex<T>>) -> Vec<Complex<T>> {
+    fn run(
+        &mut self,
+        input: Vec<Complex<T>>,
+    ) -> Result<Vec<Complex<T>>, NodeError> {
         let mut output = Vec::new();
         for sample in input {
             self.state.rotate_right(1);
@@ -67,7 +72,7 @@ where
                     .sum(),
             );
         }
-        output
+        Ok(output)
     }
 }
 
@@ -135,6 +140,7 @@ mod test {
     use node::Node;
     use num::Complex;
     use num::Zero;
+    use prelude::*;
     use std::thread;
     use std::time::Instant;
 
@@ -145,10 +151,12 @@ mod test {
             SomeSamples: Complex<i16>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| if node.samples.len() == 0 {
-                Complex::zero()
-            } else {
-                node.samples.remove(0)
+            |node: &mut Self| -> Result<Complex<i16>, NodeError> {
+                if node.samples.len() == 0 {
+                    Ok(Complex::zero())
+                } else {
+                    Ok(node.samples.remove(0))
+                }
             }
         );
 
@@ -177,23 +185,26 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Complex<i16>],
-            |node: &mut CheckNode, x| if node.state.len() == 9 {
-                assert_eq!(
-                    node.state,
-                    vec![
-                        Complex::new(9, 18),
-                        Complex::new(21, 59),
-                        Complex::new(37, 124),
-                        Complex::new(57, 205),
-                        Complex::new(81, 204),
-                        Complex::new(78, 196),
-                        Complex::new(62, 115),
-                        Complex::new(42, 50),
-                        Complex::new(18, 9)
-                    ]
-                );
-            } else {
-                node.state.push(x);
+            |node: &mut CheckNode, x| -> Result<(), NodeError> {
+                if node.state.len() == 9 {
+                    assert_eq!(
+                        node.state,
+                        vec![
+                            Complex::new(9, 18),
+                            Complex::new(21, 59),
+                            Complex::new(37, 124),
+                            Complex::new(57, 205),
+                            Complex::new(81, 204),
+                            Complex::new(78, 196),
+                            Complex::new(62, 115),
+                            Complex::new(42, 50),
+                            Complex::new(18, 9)
+                        ]
+                    );
+                } else {
+                    node.state.push(x);
+                }
+                Ok(())
             }
         );
 
@@ -205,7 +216,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().subsec_millis() > 10 {
                     break;
                 }
@@ -221,12 +232,14 @@ mod test {
             SomeSamples: Vec<Complex<i16>>,
             [samples: Vec<Complex<i16>>],
             [],
-            |node: &mut Self| if node.samples.len() == 0 {
-                vec![Complex::zero(), Complex::zero()]
-            } else {
-                let s1 = node.samples.remove(0);
-                let s2 = node.samples.remove(0);
-                vec![s1, s2]
+            |node: &mut Self| -> Result<Vec<Complex<i16>>, NodeError> {
+                if node.samples.len() == 0 {
+                    Ok(vec![Complex::zero(), Complex::zero()])
+                } else {
+                    let s1 = node.samples.remove(0);
+                    let s2 = node.samples.remove(0);
+                    Ok(vec![s1, s2])
+                }
             }
         );
 
@@ -258,24 +271,27 @@ mod test {
             CheckNode: (),
             [state: Vec<Complex<i16>>],
             [recv: Vec<Complex<i16>>],
-            |node: &mut CheckNode, mut x| if node.state.len() == 10 {
-                assert_eq!(
-                    node.state,
-                    vec![
-                        Complex::new(9, 18),
-                        Complex::new(21, 59),
-                        Complex::new(37, 124),
-                        Complex::new(57, 205),
-                        Complex::new(81, 204),
-                        Complex::new(78, 196),
-                        Complex::new(62, 115),
-                        Complex::new(42, 50),
-                        Complex::new(18, 9),
-                        Complex::new(0, 0)
-                    ]
-                );
-            } else {
-                node.state.append(&mut x);
+            |node: &mut CheckNode, mut x| -> Result<(), NodeError> {
+                if node.state.len() == 10 {
+                    assert_eq!(
+                        node.state,
+                        vec![
+                            Complex::new(9, 18),
+                            Complex::new(21, 59),
+                            Complex::new(37, 124),
+                            Complex::new(57, 205),
+                            Complex::new(81, 204),
+                            Complex::new(78, 196),
+                            Complex::new(62, 115),
+                            Complex::new(42, 50),
+                            Complex::new(18, 9),
+                            Complex::new(0, 0)
+                        ]
+                    );
+                } else {
+                    node.state.append(&mut x);
+                }
+                Ok(())
             }
         );
 
@@ -287,7 +303,7 @@ mod test {
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().subsec_millis() > 10 {
                     break;
                 }
