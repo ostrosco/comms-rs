@@ -135,12 +135,12 @@ mod test {
 
     #[test]
     fn test_zmq() {
-        create_node!(
-            DataGen: Vec<u32>,
-            [],
-            [],
-            |_| -> Result<Vec<u32>, NodeError> { Ok(vec![1, 2, 3, 4, 5]) }
-        );
+        create_node!(DataGen: Vec<u32>, [], [], |_| -> Result<
+            Vec<u32>,
+            NodeError,
+        > {
+            Ok(vec![1, 2, 3, 4, 5])
+        });
         let mut data_node = DataGen::new();
         let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
             "tcp://*:5556",
@@ -152,15 +152,15 @@ mod test {
             zmq::SocketType::SUB,
             0,
         );
-        create_node!(
-            CheckNode: (),
-            [],
-            [recv: Vec<u32>],
-            |_, data: Vec<u32>| -> Result<(), NodeError> {
-                assert_eq!(&data, &[1, 2, 3, 4, 5]);
-                Ok(())
-            }
-        );
+        create_node!(CheckNode: (), [], [recv: Vec<u32>], |_,
+                                                           data: Vec<u32>|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert_eq!(&data, &[1, 2, 3, 4, 5]);
+            Ok(())
+        });
         let mut check_node = CheckNode::new();
         connect_nodes!(data_node, zmq_send, recv);
         connect_nodes!(zmq_recv, check_node, recv);

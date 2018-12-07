@@ -1,6 +1,6 @@
-use prelude::*;
 use num::Complex;
 use num::Float;
+use prelude::*;
 
 create_node!(
     FMDemodNode<T>: Vec<T>,
@@ -16,7 +16,10 @@ impl<T> FMDemodNode<T>
 where
     T: Float,
 {
-    pub fn demod(&mut self, samples: Vec<Complex<T>>) -> Result<Vec<T>, NodeError> {
+    pub fn demod(
+        &mut self,
+        samples: Vec<Complex<T>>,
+    ) -> Result<Vec<T>, NodeError> {
         let mut prev = self.prev;
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
 

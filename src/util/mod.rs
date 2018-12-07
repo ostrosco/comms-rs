@@ -3,3 +3,4 @@
 
 pub mod math;
 pub mod rand_node;
+pub mod resample_node;

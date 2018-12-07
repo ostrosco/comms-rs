@@ -611,15 +611,15 @@ mod test {
         create_node!(Node1: u32, [], [], |_| -> Result<u32, NodeError> {
             Ok(1)
         });
-        create_node!(
-            Node2: (),
-            [],
-            [recv1: u32],
-            |_, x| -> Result<(), NodeError> {
-                assert_eq!(x, 1);
-                Ok(())
-            }
-        );
+        create_node!(Node2: (), [], [recv1: u32], |_,
+                                                   x|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert_eq!(x, 1);
+            Ok(())
+        });
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
@@ -673,15 +673,17 @@ mod test {
                 Ok(Some(y))
             }
         );
-        create_node!(
-            Node3: (),
-            [],
-            [recv2: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| -> Result<(), NodeError> {
-                assert_eq!(*x, vec![2, 2]);
-                Ok(())
-            }
-        );
+        create_node!(Node3: (), [], [recv2: Arc<Vec<u32>>], |_,
+                                                             x: Arc<
+            Vec<u32>,
+        >|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert_eq!(*x, vec![2, 2]);
+            Ok(())
+        });
 
         let mut node1 = Node1::new(Vec::new());
         let mut node2 = Node2::new();
@@ -708,16 +710,14 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_throughput() {
-        create_node!(
-            Node1: Arc<Vec<i16>>,
-            [],
-            [],
-            |_| -> Result<Arc<Vec<i16>>, NodeError> {
-                let mut random = vec![0i16; 10000];
-                thread_rng().fill(random.as_mut_slice());
-                Ok(Arc::new(random))
-            }
-        );
+        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| -> Result<
+            Arc<Vec<i16>>,
+            NodeError,
+        > {
+            let mut random = vec![0i16; 10000];
+            thread_rng().fill(random.as_mut_slice());
+            Ok(Arc::new(random))
+        });
         create_node!(
             Node2: Arc<Vec<i16>>,
             [],
@@ -761,16 +761,14 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_threadpool_throughput() {
-        create_node!(
-            Node1: Arc<Vec<i16>>,
-            [],
-            [],
-            |_| -> Result<Arc<Vec<i16>>, NodeError> {
-                let mut random = vec![0i16; 10000];
-                thread_rng().fill(random.as_mut_slice());
-                Ok(Arc::new(random))
-            }
-        );
+        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| -> Result<
+            Arc<Vec<i16>>,
+            NodeError,
+        > {
+            let mut random = vec![0i16; 10000];
+            thread_rng().fill(random.as_mut_slice());
+            Ok(Arc::new(random))
+        });
         create_node!(
             Node2: Arc<Vec<i16>>,
             [],
@@ -839,15 +837,15 @@ mod test {
         );
 
         // Create a node to check the value.
-        create_node!(
-            CheckNode: (),
-            [],
-            [recv: f32],
-            |_, x: f32| -> Result<(), NodeError> {
-                assert_eq!(x, 3.0, "Node didn't work!");
-                Ok(())
-            }
-        );
+        create_node!(CheckNode: (), [], [recv: f32], |_,
+                                                      x: f32|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert_eq!(x, 3.0, "Node didn't work!");
+            Ok(())
+        });
 
         // Now, you can instantiate your nodes as usual.
         let mut node1 = NoInputNode::new();
