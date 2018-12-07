@@ -24,9 +24,9 @@ Initial Goals:
 - [X] Decimation
 - [ ] Upsampling
 - [ ] Pulse shaping
-- [ ] Mixer
+- [X] Mixer
 - [x] BPSK modulation
-- [ ] Write/read to/from file
+- [X] Write/read to/from file
 - [ ] Hardware support for HackRF
 - [X] Hardware support for rtl-sdr
 - [ ] Hardware support for BladeRF
