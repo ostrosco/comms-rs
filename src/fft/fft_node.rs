@@ -34,7 +34,8 @@ where
             .iter()
             .map(|x| {
                 FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
-            }).collect();
+            })
+            .collect();
         let mut output: Vec<FFTComplex<f64>> =
             vec![FFTComplex::zero(); self.fft_size];
         self.fft.process(&mut input[..], &mut output[..]);
@@ -44,7 +45,8 @@ where
             .iter()
             .map(|x| {
                 Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
-            }).collect();
+            })
+            .collect();
         Ok(res)
     }
 }
@@ -107,7 +109,8 @@ where
             .iter()
             .map(|x| {
                 FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
-            }).collect();
+            })
+            .collect();
         let mut output: Vec<FFTComplex<f64>> =
             vec![FFTComplex::zero(); self.fft_size];
         self.fft.process(&mut input[..], &mut output[..]);
@@ -117,7 +120,8 @@ where
             .iter()
             .map(|x| {
                 Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
-            }).collect();
+            })
+            .collect();
         res
     }
 }
@@ -161,26 +165,24 @@ mod test {
 
     #[test]
     fn test_fft_batch() {
-        create_node!(
-            SendNode: Vec<Complex<f32>>,
-            [],
-            [],
-            |_| -> Result<Vec<Complex<f32>>, NodeError> {
-                let input = vec![
-                    Complex::new(0.1, 0.1),
-                    Complex::new(0.2, 0.2),
-                    Complex::new(0.3, 0.3),
-                    Complex::new(0.4, 0.4),
-                    Complex::new(0.5, 0.5),
-                    Complex::new(0.6, 0.6),
-                    Complex::new(0.7, 0.7),
-                    Complex::new(0.8, 0.8),
-                    Complex::new(0.9, 0.9),
-                    Complex::new(1.0, 1.0),
-                ];
-                Ok(input)
-            }
-        );
+        create_node!(SendNode: Vec<Complex<f32>>, [], [], |_| -> Result<
+            Vec<Complex<f32>>,
+            NodeError,
+        > {
+            let input = vec![
+                Complex::new(0.1, 0.1),
+                Complex::new(0.2, 0.2),
+                Complex::new(0.3, 0.3),
+                Complex::new(0.4, 0.4),
+                Complex::new(0.5, 0.5),
+                Complex::new(0.6, 0.6),
+                Complex::new(0.7, 0.7),
+                Complex::new(0.8, 0.8),
+                Complex::new(0.9, 0.9),
+                Complex::new(1.0, 1.0),
+            ];
+            Ok(input)
+        });
         let mut send_node = SendNode::new();
 
         let mut fft_node = fft_node::fft_batch_node(10, false);

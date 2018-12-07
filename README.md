@@ -21,12 +21,12 @@ Initial Goals:
 - [x] Node based architecture
 - [x] FFT/IFFT
 - [x] FIR filter
-- [ ] Decimation
+- [X] Decimation
 - [ ] Upsampling
 - [ ] Pulse shaping
 - [ ] Mixer
 - [x] BPSK modulation
 - [ ] Write/read to/from file
 - [ ] Hardware support for HackRF
-- [ ] Hardware support for rtl-sdr
+- [X] Hardware support for rtl-sdr
 - [ ] Hardware support for BladeRF

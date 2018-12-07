@@ -17,7 +17,7 @@
 
 // Disabling this lint as it triggers in macros which is an issue being tracked
 // here: https://github.com/rust-lang-nursery/rust-clippy/issues/1553.
-#![cfg_attr(feature = "cargo-clippy", allow(redundant_closure_call))]
+#![allow(clippy::redundant_closure_call)]
 
 extern crate bincode;
 extern crate byteorder;

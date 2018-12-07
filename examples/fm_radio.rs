@@ -7,6 +7,7 @@ use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
 use comms_rs::modulation::fm;
 use comms_rs::prelude::*;
+use comms_rs::util::resample_node::DecimateNode;
 use num::Complex;
 use num::Zero;
 use std::thread;
@@ -53,7 +54,6 @@ fn main() {
     let taps: Vec<Complex<f32>> =
         taps.iter().map(|&x| Complex::new(x, 0.0)).collect();
 
-
     let mut rtlsdr = hardware::rtlsdr_radio::rtlsdr(0).unwrap();
     rtlsdr.init_radio(radio_freq, 1140000, 496).unwrap();
     rtlsdr.set_agc(true).unwrap();
@@ -69,26 +69,8 @@ fn main() {
             .map(|x| Complex::new(
                 (x[0] as f32 - 127.5) / 127.5,
                 (x[1] as f32 - 127.5) / 127.5
-            )).collect())
-    );
-
-    // A simple node to decimate the input by dec_rate. Once decimation makes
-    // it to the standard libary, this node should go away.
-    create_node!(
-        DecimateNode<T>: Vec<T>,
-        [dec_rate: usize],
-        [recv: Vec<T>],
-        |node: &mut DecimateNode<T>, signal: Vec<T>| {
-            let mut ix = 0;
-            let new_size = (signal.len() / node.dec_rate + 1) as usize;
-            let mut signal_dec = Vec::<T>::with_capacity(new_size);
-            while ix < signal.len() {
-                signal_dec.push(signal[ix]);
-                ix += node.dec_rate;
-            }
-            Ok(signal_dec)
-        },
-        T: Copy,
+            ))
+            .collect())
     );
 
     // Since the FIR filter currently only supports Complex samples, we need

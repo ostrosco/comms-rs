@@ -73,15 +73,15 @@ mod test {
     // correctly and generates numbers within the correct range.
     fn test_uniform() {
         let mut uniform_node = rand_node::uniform(1.0, 2.0);
-        create_node!(
-            CheckNode: (),
-            [],
-            [recv: f64],
-            |_, x| -> Result<(), NodeError> {
-                assert!(x >= 1.0 && x <= 2.0);
-                Ok(())
-            }
-        );
+        create_node!(CheckNode: (), [], [recv: f64], |_,
+                                                      x|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert!(x >= 1.0 && x <= 2.0);
+            Ok(())
+        });
         let mut check_node = CheckNode::new();
         connect_nodes!(uniform_node, check_node, recv);
         start_nodes!(uniform_node);
@@ -102,15 +102,15 @@ mod test {
     // correctly and generates only 0s and 1s.
     fn test_random_bit() {
         let mut bit_node = rand_node::random_bit();
-        create_node!(
-            CheckNode: (),
-            [],
-            [recv: u8],
-            |_, x| -> Result<(), NodeError> {
-                assert!(x == 0u8 || x == 1u8);
-                Ok(())
-            }
-        );
+        create_node!(CheckNode: (), [], [recv: u8], |_,
+                                                     x|
+         -> Result<
+            (),
+            NodeError,
+        > {
+            assert!(x == 0u8 || x == 1u8);
+            Ok(())
+        });
         let mut check_node = CheckNode::new();
         connect_nodes!(bit_node, check_node, recv);
         start_nodes!(bit_node);
