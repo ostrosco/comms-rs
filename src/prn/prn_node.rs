@@ -22,8 +22,8 @@ use prelude::*;
 
 extern crate num; // 0.2.0
 
-use prn::PrnGen;
 use num::PrimInt;
+use prn::PrnGen;
 
 /// A node that implements a generic LFSR based PRNS generator.
 create_node!(

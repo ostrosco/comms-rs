@@ -30,3 +30,12 @@ where
         demod_queue
     }
 }
+
+impl<T> Default for FM<T>
+where
+    T: Float + Zero,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}

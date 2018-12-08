@@ -12,10 +12,7 @@ pub struct PrnGen<T> {
 /// Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnGen<T> {
     pub fn new(poly_mask: T, state: T) -> PrnGen<T> {
-        PrnGen {
-            poly_mask,
-            state,
-        }
+        PrnGen { poly_mask, state }
     }
 
     pub fn next_byte(&mut self) -> u8 {
