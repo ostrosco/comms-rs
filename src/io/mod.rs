@@ -3,8 +3,13 @@
 #[cfg(feature = "zmq_node")]
 extern crate zmq;
 
+#[cfg(feature = "audio_node")]
+extern crate rodio;
+
+#[cfg(feature = "audio_node")]
 pub mod audio;
-pub mod raw_iq;
 
 #[cfg(feature = "zmq_node")]
 pub mod zmq_node;
+
+pub mod raw_iq;

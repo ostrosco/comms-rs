@@ -18,7 +18,7 @@ crossbeam = "0.4"
 crossbeam-channel = "0.2"
 rand = "0.5"
 rayon = "1"
-rodio = "0.8"
+rodio = {version = "0.8", optional = true}
 rustfft = "2.1"
 rtlsdr = {version = "0.1", optional = true}
 serde = "1"
@@ -32,10 +32,12 @@ features = ["serde"]
 [features]
 rtlsdr_node = ["rtlsdr"]
 zmq_node = ["zmq"]
+audio_node = ["rodio"]
 
 [[example]]
 name = "fm_radio"
-required-features = ["rtlsdr_node"]
+required-features = ["rtlsdr_node", "audio_node"]
 
 [[example]]
 name = "play_audio"
+required-features = ["audio_node"]
