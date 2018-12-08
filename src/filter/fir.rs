@@ -22,8 +22,7 @@ where
 {
     state.rotate_right(1);
     state[0] = input;
-    let sum = taps.iter().zip(state.iter()).map(|(x, y)| *x * *y).sum();
-    sum
+    taps.iter().zip(state.iter()).map(|(x, y)| *x * *y).sum()
 }
 
 /// Implementation of run for the BatchFirNode.

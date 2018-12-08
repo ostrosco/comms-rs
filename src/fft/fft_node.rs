@@ -1,4 +1,4 @@
-use fft::fft::{BatchFFT, SampleFFT};
+use fft::{BatchFFT, SampleFFT};
 use num::Complex;
 use num::NumCast;
 use prelude::*;
