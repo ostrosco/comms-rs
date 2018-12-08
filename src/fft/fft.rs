@@ -13,17 +13,13 @@ pub struct BatchFFT {
 
 impl BatchFFT {
     pub fn new(fft: Arc<FFT<f64>>, fft_size: usize) -> BatchFFT {
-        BatchFFT {
-            fft,
-            fft_size,
-        }
+        BatchFFT { fft, fft_size }
     }
 
-    pub fn run_fft<T>(
-        &mut self,
-        data: &[Complex<T>],
-    ) -> Vec<Complex<T>> where 
-    T: NumCast + Clone + Num, {
+    pub fn run_fft<T>(&mut self, data: &[Complex<T>]) -> Vec<Complex<T>>
+    where
+        T: NumCast + Clone + Num,
+    {
         // Convert the input type from interleaved values to Complex<f32>.
         let mut input: Vec<FFTComplex<f64>> = data
             .iter()
@@ -86,5 +82,3 @@ where
         res
     }
 }
-
-

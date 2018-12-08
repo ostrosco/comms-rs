@@ -1,9 +1,9 @@
 use fft::fft::{BatchFFT, SampleFFT};
 use num::Complex;
 use num::NumCast;
+use prelude::*;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
-use prelude::*;
 
 create_node!(
     #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
