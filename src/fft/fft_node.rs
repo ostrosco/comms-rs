@@ -1,11 +1,8 @@
+use fft::fft::{BatchFFT, SampleFFT};
 use num::Complex;
 use num::NumCast;
-use rustfft::num_complex::Complex as FFTComplex;
 use rustfft::num_traits::Num;
-use rustfft::num_traits::Zero;
-use rustfft::{FFTplanner, FFT};
-use std::sync::Arc;
-
+use rustfft::FFTplanner;
 use prelude::*;
 
 create_node!(
@@ -13,43 +10,13 @@ create_node!(
     #[doc="node expects that input data matching the specified FFT size is "]
     #[doc="provided."]
     FFTBatchNode<T>: Vec<Complex<T>>,
-    [fft: Arc<FFT<f64>>, fft_size: usize],
+    [batch_fft: BatchFFT],
     [recv: Vec<Complex<T>>],
     |node: &mut FFTBatchNode<T>, data: Vec<Complex<T>>| {
-        node.run_fft(&data)
+        Ok(node.batch_fft.run_fft(&data))
     },
     T: NumCast + Clone + Num,
 );
-
-impl<T> FFTBatchNode<T>
-where
-    T: NumCast + Clone + Num,
-{
-    fn run_fft(
-        &mut self,
-        data: &[Complex<T>],
-    ) -> Result<Vec<Complex<T>>, NodeError> {
-        // Convert the input type from interleaved values to Complex<f32>.
-        let mut input: Vec<FFTComplex<f64>> = data
-            .iter()
-            .map(|x| {
-                FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
-            })
-            .collect();
-        let mut output: Vec<FFTComplex<f64>> =
-            vec![FFTComplex::zero(); self.fft_size];
-        self.fft.process(&mut input[..], &mut output[..]);
-
-        // After the FFT, convert back to interleaved values.
-        let res: Vec<Complex<T>> = output
-            .iter()
-            .map(|x| {
-                Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
-            })
-            .collect();
-        Ok(res)
-    }
-}
 
 /// Constructs a node that performs FFT or IFFTs in batches.
 ///
@@ -76,7 +43,8 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
 ) -> FFTBatchNode<T> {
     let mut planner = FFTplanner::new(ifft);
     let fft = planner.plan_fft(fft_size);
-    FFTBatchNode::new(fft, fft_size)
+    let batch_fft = BatchFFT::new(fft, fft_size);
+    FFTBatchNode::new(batch_fft)
 }
 
 create_node!(
@@ -84,13 +52,13 @@ create_node!(
     #[doc="provided sample by sample and will only perform the FFT once it "]
     #[doc="has received enough samples specified by fft_size."]
     FFTSampleNode<T>: Option<Vec<Complex<T>>>,
-    [fft: Arc<FFT<f64>>, fft_size: usize, samples: Vec<Complex<T>>],
+    [sample_fft: SampleFFT<T>],
     [recv: Complex<T>],
     |node: &mut FFTSampleNode<T>, sample: Complex<T>| -> Result<Option<Vec<Complex<T>>>, NodeError> {
-        node.samples.push(sample);
-        if node.samples.len() == node.fft_size {
-            let results = node.run_fft();
-            node.samples = vec![];
+        node.sample_fft.samples.push(sample);
+        if node.sample_fft.samples.len() == node.sample_fft.fft_size {
+            let results = node.sample_fft.run_fft();
+            node.sample_fft.samples = vec![];
             Ok(Some(results))
         } else {
             Ok(None)
@@ -98,33 +66,6 @@ create_node!(
     },
     T: NumCast + Clone + Num,
 );
-
-impl<T> FFTSampleNode<T>
-where
-    T: NumCast + Clone + Num,
-{
-    fn run_fft(&mut self) -> Vec<Complex<T>> {
-        let mut input: Vec<FFTComplex<f64>> = self
-            .samples
-            .iter()
-            .map(|x| {
-                FFTComplex::new(x.re.to_f64().unwrap(), x.im.to_f64().unwrap())
-            })
-            .collect();
-        let mut output: Vec<FFTComplex<f64>> =
-            vec![FFTComplex::zero(); self.fft_size];
-        self.fft.process(&mut input[..], &mut output[..]);
-
-        // After the FFT, convert back to interleaved values.
-        let res: Vec<Complex<T>> = output
-            .iter()
-            .map(|x| {
-                Complex::new(T::from(x.re).unwrap(), T::from(x.im).unwrap())
-            })
-            .collect();
-        res
-    }
-}
 
 /// Constructs a node that performs FFT or IFFTs, but only receives a sample
 /// at a time versus a batch of samples.
@@ -151,7 +92,8 @@ pub fn fft_sample_node<T: NumCast + Clone + Num>(
 ) -> FFTSampleNode<T> {
     let mut planner = FFTplanner::new(ifft);
     let fft = planner.plan_fft(fft_size);
-    FFTSampleNode::new(fft, fft_size, vec![])
+    let sample_fft = SampleFFT::new(fft, fft_size);
+    FFTSampleNode::new(sample_fft)
 }
 
 #[cfg(test)]
