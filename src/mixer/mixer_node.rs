@@ -2,39 +2,22 @@
 //! batch based mixer, and versions of each with and inital phase value.
 
 use prelude::*;
-use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
 
+use mixer::Mixer;
 use num::complex::Complex;
 use num::Num;
 use num_traits::NumCast;
-use util::math;
 
 /// A node that implements a generic mixer.
 create_node!(
     MixerNode<T>: Complex<T>,
-    [phase: f64, dphase: f64],
+    [mixer: Mixer],
     [input: Complex<T>],
-    |node: &mut MixerNode<T>, input: Complex<T>| node.run(&input),
+    |node: &mut MixerNode<T>, input: Complex<T>| Ok(node.mixer.mix(&input)),
     T: Clone + Num + NumCast,
 );
-
-/// Implementation of run for the MixerNode.
-impl<T> MixerNode<T>
-where
-    T: NumCast + Clone + Num,
-{
-    fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
-        let inp: Complex<f64> = math::cast_complex(input).unwrap();
-        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
-        self.phase += self.dphase;
-        if self.phase > 2.0 * PI {
-            self.phase -= 2.0 * PI;
-        }
-        Ok(math::cast_complex(&res).unwrap())
-    }
-}
 
 /// Constructs a new `MixerNode<T>`.  Assumes 0 initial phase in the local
 /// oscillator.  Any frequency above Nyquist will not be supported, ie, dphase
@@ -43,17 +26,11 @@ where
 /// Arguments:
 ///     dphase - The change in phase (radians) per sampling period. This should
 ///              be dphase = 2 * PI * freq(Hz) * Ts.
-pub fn mixer<T>(mut dphase: f64) -> MixerNode<T>
+pub fn mixer_node<T>(dphase: f64) -> MixerNode<T>
 where
     T: NumCast + Clone + Num,
 {
-    while dphase >= 2.0 * PI {
-        dphase -= 2.0 * PI;
-    }
-    while dphase < 0.0 {
-        dphase += 2.0 * PI;
-    }
-    MixerNode::new(0.0, dphase)
+    MixerNode::new(Mixer::new(0.0, dphase))
 }
 
 /// Constructs a new `MixerNode<T>`.  User defined initial phase in the local
@@ -64,17 +41,11 @@ where
 ///     dphase - The change in phase (radians) per sampling period. This should
 ///              be dphase = 2 * PI * freq(Hz) * Ts.
 ///     phase  - The initial phase of the oscillator.
-pub fn mixer_with_phase<T>(mut dphase: f64, phase: f64) -> MixerNode<T>
+pub fn mixer_node_with_phase<T>(dphase: f64, phase: f64) -> MixerNode<T>
 where
     T: NumCast + Clone + Num,
 {
-    while dphase >= 2.0 * PI {
-        dphase -= 2.0 * PI;
-    }
-    while dphase < 0.0 {
-        dphase += 2.0 * PI;
-    }
-    MixerNode::new(phase, dphase)
+    MixerNode::new(Mixer::new(phase, dphase))
 }
 
 #[cfg(test)]
@@ -113,7 +84,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::mixer::<f64>(0.123);
+        let mut mixer = mixer_node::mixer_node::<f64>(0.123);
 
         create_node!(
             CheckNode: (),
@@ -180,7 +151,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::mixer_with_phase::<f64>(0.123, 0.1);
+        let mut mixer = mixer_node::mixer_node_with_phase::<f64>(0.123, 0.1);
 
         create_node!(
             CheckNode: (),

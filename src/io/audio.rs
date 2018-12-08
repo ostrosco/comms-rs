@@ -1,7 +1,7 @@
-use prelude::*;
 use io::rodio::buffer;
 use io::rodio::queue::{queue, SourcesQueueInput};
 use io::rodio::{self, Sample, Sink};
+use prelude::*;
 use std::sync::Arc;
 
 create_node!(
