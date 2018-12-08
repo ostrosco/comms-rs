@@ -1,15 +1,6 @@
-//! Node for a finite impulse response (FIR) filter.
-//!
-//! This node implements a finite impulse response (FIR) filter.  These are
-//! general purpose filters used everywhere in communications and DSP systems.
-//! Some example use cases include low pass filters for anti aliasing, band
-//! pass filters for band selection, and pulse shaping.
-//!
-//! Assume initial state of 0's. Takes in Complex<T> samples, outputs
-//! Complex<T>.  Constructor takes Vec<Complex<T>> for filter taps.
-
 use prelude::*;
 
+use filter::fir::*;
 use num::complex::Complex;
 use num::Zero;
 use num_traits::Num;
@@ -19,7 +10,9 @@ create_node!(
     FirNode<T>: Complex<T>,
     [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
     [input: Complex<T>],
-    |node: &mut FirNode<T>, input: Complex<T>| node.run(input),
+    |node: &mut FirNode<T>, input: Complex<T>| {
+        Ok(fir(input, &node.taps, &mut node.state))
+    },
     T: Num + Copy,
 );
 
@@ -29,59 +22,18 @@ create_node!(
     BatchFirNode<T>: Vec<Complex<T>>,
     [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
     [input: Vec<Complex<T>>],
-    |node: &mut BatchFirNode<T>, input: Vec<Complex<T>>| node.run(input),
+    |node: &mut BatchFirNode<T>, input: Vec<Complex<T>>| {
+        Ok(batch_fir(input, &node.taps, &mut node.state))
+    },
     T: Num + Copy,
 );
-
-/// Implementation of run for the FirNode.
-impl<T> FirNode<T>
-where
-    T: Num + Copy,
-{
-    fn run(&mut self, input: Complex<T>) -> Result<Complex<T>, NodeError> {
-        self.state.rotate_right(1);
-        self.state[0] = input;
-        let sum = self
-            .taps
-            .iter()
-            .zip(self.state.iter())
-            .map(|(x, y)| *x * *y)
-            .sum();
-        Ok(sum)
-    }
-}
-
-/// Implementation of run for the BatchFirNode.
-impl<T> BatchFirNode<T>
-where
-    T: Num + Copy,
-{
-    fn run(
-        &mut self,
-        input: Vec<Complex<T>>,
-    ) -> Result<Vec<Complex<T>>, NodeError> {
-        let mut output = Vec::new();
-        for sample in input {
-            self.state.rotate_right(1);
-            self.state[0] = sample;
-            output.push(
-                self.taps
-                    .iter()
-                    .zip(self.state.iter())
-                    .map(|(x, y)| *x * *y)
-                    .sum(),
-            );
-        }
-        Ok(output)
-    }
-}
 
 /// Constructs a new `FirNode<T>` with initial state set to zeros.
 ///
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn fir<T>(taps: Vec<Complex<T>>) -> FirNode<T>
+pub fn fir_node<T>(taps: Vec<Complex<T>>) -> FirNode<T>
 where
     T: Num + Copy,
 {
@@ -94,7 +46,7 @@ where
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn fir_with_state<T>(
+pub fn fir_node_with_state<T>(
     taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
 ) -> FirNode<T>
@@ -109,7 +61,7 @@ where
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn batch_fir<T>(taps: Vec<Complex<T>>) -> BatchFirNode<T>
+pub fn batch_fir_node<T>(taps: Vec<Complex<T>>) -> BatchFirNode<T>
 where
     T: Num + Copy,
 {
@@ -122,7 +74,7 @@ where
 /// Arguments:
 ///     taps  - FIR filter tap Vec[Complex<T>].
 ///     state - Initial state for the internal filter state and memory.
-pub fn batch_fir_with_state<T>(
+pub fn batch_fir_node_with_state<T>(
     taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
 ) -> BatchFirNode<T>
@@ -173,7 +125,7 @@ mod test {
             Complex::zero(),
         ]);
 
-        let mut mynode = fir_node::fir(vec![
+        let mut mynode = fir_node::fir_node(vec![
             Complex::new(9, 0),
             Complex::new(8, 7),
             Complex::new(6, 5),
@@ -256,7 +208,7 @@ mod test {
             Complex::zero(),
         ]);
 
-        let mut mynode = fir_node::batch_fir_with_state(
+        let mut mynode = fir_node::batch_fir_node_with_state(
             vec![
                 Complex::new(9, 0),
                 Complex::new(8, 7),
