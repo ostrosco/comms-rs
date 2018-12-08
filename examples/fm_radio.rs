@@ -2,7 +2,7 @@
 extern crate comms_rs;
 extern crate num;
 
-use comms_rs::filter::fir_node::{batch_fir, BatchFirNode};
+use comms_rs::filter::fir_node::{batch_fir_node, BatchFirNode};
 use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
 use comms_rs::modulation::fm;
@@ -99,10 +99,10 @@ fn main() {
     let mut sdr = radio::RadioRxNode::new(rtlsdr, 0, 262144);
     let mut convert = ConvertNode::new();
     let mut dec1: DecimateNode<Complex<f32>> = DecimateNode::new(5);
-    let mut filt1: BatchFirNode<f32> = batch_fir(taps.clone());
+    let mut filt1: BatchFirNode<f32> = batch_fir_node(taps.clone());
     let mut fm = fm::FMDemodNode::new(Complex::zero());
     let mut convert2 = Convert2Node::new();
-    let mut filt2: BatchFirNode<f32> = batch_fir(taps);
+    let mut filt2: BatchFirNode<f32> = batch_fir_node(taps);
     let mut convert3 = Convert3Node::new();
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
     let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
