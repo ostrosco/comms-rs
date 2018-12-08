@@ -22,29 +22,17 @@ use prelude::*;
 
 extern crate num; // 0.2.0
 
+use prn::PrnGen;
 use num::PrimInt;
-use std::mem::size_of;
 
 /// A node that implements a generic LFSR based PRNS generator.
 create_node!(
     PrnsNode<T>: u8,
-    [poly_mask: T, state: T],
+    [prngen: PrnGen<T>],
     [],
-    |node: &mut PrnsNode<T>| node.run(),
+    |node: &mut PrnsNode<T>| Ok(node.prngen.next_byte()),
     T: PrimInt,
 );
-
-/// Implementation of run for the PrnsNode.
-impl<T: PrimInt> PrnsNode<T> {
-    fn run(&mut self) -> Result<u8, NodeError> {
-        let fb_bit =
-            T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
-        let output = self.state >> (size_of::<T>() * 8 - 1);
-        self.state = self.state << 1;
-        self.state = self.state | fb_bit;
-        Ok(output.to_u8().unwrap())
-    }
-}
 
 /// Constructs a new `PrnsNode<T: PrimInt>`.
 ///
@@ -53,8 +41,8 @@ impl<T: PrimInt> PrnsNode<T> {
 ///              1 designates that the state bit present should be part of the
 ///              xor operation when creating the next bit in the sequence.
 ///  state     - Initial state of the LFSR.
-pub fn prns<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
-    PrnsNode::new(poly_mask, state)
+pub fn prns_node<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
+    PrnsNode::new(PrnGen::new(poly_mask, state))
 }
 
 #[cfg(test)]
@@ -115,7 +103,7 @@ mod test {
     #[test]
     // A test to verify the PrnsNode matches the PRBS7 output.
     fn test_prns_node() {
-        let mut mynode = prn_node::prns(0xC0 as u8, 0x01);
+        let mut mynode = prn_node::prns_node(0xC0 as u8, 0x01);
         create_node!(
             CheckNode: (),
             [state: Vec<u8>],

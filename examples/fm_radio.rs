@@ -5,11 +5,10 @@ extern crate num;
 use comms_rs::filter::fir_node::{batch_fir_node, BatchFirNode};
 use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
-use comms_rs::modulation::fm;
+use comms_rs::modulation::analog_node;
 use comms_rs::prelude::*;
 use comms_rs::util::resample_node::DecimateNode;
 use num::Complex;
-use num::Zero;
 use std::thread;
 
 fn main() {
@@ -100,7 +99,7 @@ fn main() {
     let mut convert = ConvertNode::new();
     let mut dec1: DecimateNode<Complex<f32>> = DecimateNode::new(5);
     let mut filt1: BatchFirNode<f32> = batch_fir_node(taps.clone());
-    let mut fm = fm::FMDemodNode::new(Complex::zero());
+    let mut fm = analog_node::fm_demod_node();
     let mut convert2 = Convert2Node::new();
     let mut filt2: BatchFirNode<f32> = batch_fir_node(taps);
     let mut convert3 = Convert3Node::new();
