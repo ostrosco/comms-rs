@@ -1,6 +1,6 @@
-use prelude::*;
+use crate::prelude::*;
 
-use filter::fir::*;
+use crate::filter::fir::*;
 use num::complex::Complex;
 use num::Zero;
 use num_traits::Num;
@@ -88,11 +88,10 @@ where
 mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
-    use filter::fir_node;
-    use node::Node;
+    use crate::filter::fir_node;
     use num::Complex;
     use num::Zero;
-    use prelude::*;
+    use crate::prelude::*;
     use std::thread;
     use std::time::Instant;
 

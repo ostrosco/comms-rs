@@ -1,4 +1,4 @@
-use prelude::*;
+use crate::prelude::*;
 
 // A simple node to decimate the input.
 create_node!(

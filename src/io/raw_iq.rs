@@ -7,7 +7,7 @@
 use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use num::Complex;
 
-use prelude::*;
+use crate::prelude::*;
 
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
@@ -204,7 +204,7 @@ pub fn iq_batch_file_out<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use byteorder::{ByteOrder, NativeEndian};
-    use io::raw_iq::*;
+    use crate::io::raw_iq::*;
     use std::io::Cursor;
     use std::mem;
 

@@ -18,12 +18,12 @@
 //! what you want.  Doing `let mut node = prns(0xC0 as u8, 1);` indicates to the
 //! node internals that you want an 8 bit LSFR implementation.
 
-use prelude::*;
+use crate::prelude::*;
 
 extern crate num; // 0.2.0
 
 use num::PrimInt;
-use prn::PrnGen;
+use crate::prn::PrnGen;
 
 /// A node that implements a generic LFSR based PRNS generator.
 create_node!(
@@ -48,8 +48,8 @@ pub fn prns_node<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
 #[cfg(test)]
 mod test {
     use num::PrimInt;
-    use prelude::*;
-    use prn::prn_node;
+    use crate::prelude::*;
+    use crate::prn::prn_node;
     use std::collections::HashMap;
     use std::hash::Hash;
     use std::mem::size_of;

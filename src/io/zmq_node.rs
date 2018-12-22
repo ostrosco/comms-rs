@@ -1,6 +1,6 @@
 use bincode::{deserialize, serialize};
-use io::zmq;
-use prelude::*;
+use crate::io::zmq;
+use crate::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -128,9 +128,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use io::zmq;
-    use io::zmq_node;
-    use prelude::*;
+    use crate::io::zmq;
+    use crate::io::zmq_node;
+    use crate::prelude::*;
     use std::thread;
 
     #[test]

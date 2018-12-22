@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 use num::complex::Complex;
 use num::Num;
 use num_traits::NumCast;
-use util::math;
+use crate::util::math;
 
 pub struct Mixer {
     phase: f64,
