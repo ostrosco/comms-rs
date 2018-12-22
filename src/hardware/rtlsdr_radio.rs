@@ -1,5 +1,5 @@
-use hardware::radio::RadioRx;
-use hardware::rtlsdr::{self, RTLSDRDevice, RTLSDRError};
+use crate::hardware::radio::RadioRx;
+use crate::hardware::rtlsdr::{self, RTLSDRDevice, RTLSDRError};
 
 pub struct RTLSDR {
     rtlsdr: RTLSDRDevice,
@@ -62,10 +62,10 @@ pub fn rtlsdr(index: i32) -> Result<RTLSDR, RTLSDRError> {
 
 #[cfg(test)]
 mod test {
-    use hardware::{radio, rtlsdr_radio};
+    use crate::hardware::{radio, rtlsdr_radio};
     use std::time::Instant;
 
-    use prelude::*;
+    use crate::prelude::*;
     use std::thread;
 
     #[test]

@@ -2,7 +2,7 @@ use rand::distributions::uniform::SampleUniform;
 use rand::distributions::{Normal, Uniform};
 use rand::{FromEntropy, Rng, StdRng};
 
-use prelude::*;
+use crate::prelude::*;
 
 create_node!(
     #[doc="A node that will generate uniformly-distributed random numbers."]
@@ -48,9 +48,9 @@ pub fn random_bit() -> UniformNode<u8> {
 mod test {
     use std::thread;
     use std::time::Instant;
-    use util::rand_node;
+    use crate::util::rand_node;
 
-    use prelude::*;
+    use crate::prelude::*;
 
     #[test]
     // A basic test that just makes sure the node doesn't crash.

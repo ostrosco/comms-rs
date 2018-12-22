@@ -16,7 +16,7 @@ where
 #[cfg(test)]
 mod test {
     use num::Complex;
-    use util::math;
+    use crate::util::math;
 
     #[test]
     fn test_cast_complex() {

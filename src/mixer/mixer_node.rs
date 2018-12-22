@@ -1,11 +1,11 @@
 //! This node implements a basic mixer.  It provides a sample by sample and
 //! batch based mixer, and versions of each with and inital phase value.
 
-use prelude::*;
+use crate::prelude::*;
 
 extern crate num; // 0.2.0
 
-use mixer::Mixer;
+use crate::mixer::Mixer;
 use num::complex::Complex;
 use num::Num;
 use num_traits::NumCast;
@@ -52,11 +52,10 @@ where
 mod test {
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
-    use mixer::mixer_node;
-    use node::Node;
+    use crate::mixer::mixer_node;
     use num::complex::Complex;
     use num::Zero;
-    use prelude::*;
+    use crate::prelude::*;
     use std::thread;
     use std::time::Instant;
 

@@ -602,7 +602,7 @@ mod test {
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use prelude::*;
+    use crate::prelude::*;
     use rayon;
 
     #[test]
@@ -813,7 +813,7 @@ mod test {
     /// This serves to make sure that fan-in operation works as we expect
     /// it to.
     fn test_fan_in() {
-        use prelude::*;
+        use crate::prelude::*;
         use std::thread;
         use std::time::Duration;
 

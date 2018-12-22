@@ -1,7 +1,7 @@
-use fft::{BatchFFT, SampleFFT};
+use crate::fft::{BatchFFT, SampleFFT};
 use num::Complex;
 use num::NumCast;
-use prelude::*;
+use crate::prelude::*;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
 
@@ -98,12 +98,12 @@ pub fn fft_sample_node<T: NumCast + Clone + Num>(
 
 #[cfg(test)]
 mod test {
-    use fft::fft_node;
+    use crate::fft::fft_node;
     use num::Complex;
     use std::thread;
     use std::time::Instant;
 
-    use prelude::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_fft_batch() {
