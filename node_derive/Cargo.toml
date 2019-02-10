@@ -12,6 +12,5 @@ quote = "0.6"
 syn = "0.15"
 
 [dev-dependencies]
-comms-rs = {path = ".."}
 crossbeam = "0.4"
 crossbeam-channel = "0.2"
