@@ -1,7 +1,7 @@
 use crate::fft::{BatchFFT, SampleFFT};
+use crate::prelude::*;
 use num::Complex;
 use num::NumCast;
-use crate::prelude::*;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
 

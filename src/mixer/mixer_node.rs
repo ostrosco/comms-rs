@@ -50,12 +50,12 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::mixer::mixer_node;
+    use crate::prelude::*;
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
-    use crate::mixer::mixer_node;
     use num::complex::Complex;
     use num::Zero;
-    use crate::prelude::*;
     use std::thread;
     use std::time::Instant;
 

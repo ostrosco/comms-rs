@@ -203,8 +203,8 @@ pub fn iq_batch_file_out<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod test {
-    use byteorder::{ByteOrder, NativeEndian};
     use crate::io::raw_iq::*;
+    use byteorder::{ByteOrder, NativeEndian};
     use std::io::Cursor;
     use std::mem;
 

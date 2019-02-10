@@ -1,6 +1,6 @@
-use bincode::{deserialize, serialize};
 use crate::io::zmq;
 use crate::prelude::*;
+use bincode::{deserialize, serialize};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 

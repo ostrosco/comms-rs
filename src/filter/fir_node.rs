@@ -86,12 +86,12 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::filter::fir_node;
+    use crate::prelude::*;
     use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
-    use crate::filter::fir_node;
     use num::Complex;
     use num::Zero;
-    use crate::prelude::*;
     use std::thread;
     use std::time::Instant;
 
