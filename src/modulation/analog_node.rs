@@ -1,8 +1,8 @@
 use crate::modulation::analog;
+use crate::prelude::*;
 use num::Complex;
 use num::Float;
 use num::Zero;
-use crate::prelude::*;
 
 create_node!(
     FMDemodNode<T>: Vec<T>,

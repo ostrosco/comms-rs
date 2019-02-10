@@ -22,8 +22,8 @@ use crate::prelude::*;
 
 extern crate num; // 0.2.0
 
-use num::PrimInt;
 use crate::prn::PrnGen;
+use num::PrimInt;
 
 /// A node that implements a generic LFSR based PRNS generator.
 create_node!(
@@ -47,9 +47,9 @@ pub fn prns_node<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
 
 #[cfg(test)]
 mod test {
-    use num::PrimInt;
     use crate::prelude::*;
     use crate::prn::prn_node;
+    use num::PrimInt;
     use std::collections::HashMap;
     use std::hash::Hash;
     use std::mem::size_of;

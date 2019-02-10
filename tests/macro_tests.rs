@@ -1,0 +1,49 @@
+#[macro_use]
+extern crate node_derive;
+#[macro_use]
+extern crate comms_rs;
+
+use comms_rs::prelude::*;
+use std::thread;
+
+#[test]
+fn test_macro() {
+    #[derive(Node)]
+    struct Node1 {
+        #[send] sender: Vec<(Sender<u32>, Option<u32>)>,
+    }
+
+    impl Node1 {
+        fn run(&mut self) -> u32 {
+            1
+        }
+    }
+            
+
+    let mut node1 = Node1 {
+        sender: vec![],
+    };
+
+    #[derive(Node)]
+    struct Node2 {
+        #[recv] input: Option<Receiver<u32>>,
+    }
+
+    impl Node2 {
+        fn run(&mut self, x: u32) -> () {
+            assert_eq!(x, 1);
+        }
+    }
+
+    let mut node2 = Node2 {
+        input: None,
+    };
+
+    connect_nodes!(node1, node2, input);
+
+    thread::spawn(move || {
+        node1.call();
+    });
+
+    node2.call();
+}

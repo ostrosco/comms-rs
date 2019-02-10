@@ -10,7 +10,7 @@ enum FieldType {
     State,
 }
 
-#[proc_macro_derive(Node)]
+#[proc_macro_derive(Node, attributes(recv, send))]
 pub fn node_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
@@ -24,10 +24,10 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
             syn::Fields::Named(fields) => {
                 for field in &fields.named {
                     match parse_type(&field) {
-                        Some(FieldType::Input) => {
+                        FieldType::Input => {
                             recv_fields.push(field.ident.clone().unwrap())
                         }
-                        Some(FieldType::Output) => {
+                        FieldType::Output => {
                             send_fields.push(field.ident.clone().unwrap())
                         }
                         _ => (),
@@ -53,7 +53,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                         None => return Err(NodeError::PermanentError),
                     };
                 )*
-                let res = (self.func)(#(#recv_idents2),*);
+                let res = self.run(#(#recv_idents2),*);
                 #(
                     for (send, _) in &self.#send_fields {
                         send.send(res.clone());
@@ -66,19 +66,18 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     macro_out.into()
 }
 
-fn parse_type(field: &syn::Field) -> Option<FieldType> {
-    let field_type = &field.ty;
-    match field_type {
-        syn::Type::Verbatim(ty) => {
-            let field_str = ty.tts.to_string();
-            if field_str.starts_with("Option<Receiver<") {
-                Some(FieldType::Input)
-            } else if field_str.starts_with("Option<Sender<") {
-                Some(FieldType::Output)
-            } else {
-                Some(FieldType::State)
+fn parse_type(field: &syn::Field) -> FieldType {
+    for attr in field.attrs.iter() {
+        let meta = attr.parse_meta().unwrap();
+        match meta {
+            syn::Meta::Word(ref ident) if ident == "recv" => {
+                return FieldType::Input;
             }
+            syn::Meta::Word(ref ident) if ident == "send" => {
+                return FieldType::Output;
+            }
+            _ => panic!("Unsupported attribute on structure.")
         }
-        _ => None,
     }
+    FieldType::State
 }

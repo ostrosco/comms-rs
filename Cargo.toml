@@ -25,6 +25,7 @@ rtlsdr = {version = "0.1", optional = true}
 serde = "1"
 bincode = "1"
 zmq = {version = "0.8", optional = true}
+node_derive = {path = "node_derive"}
 
 [dependencies.num]
 version = "0.2"

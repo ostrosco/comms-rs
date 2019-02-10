@@ -46,9 +46,9 @@ pub fn random_bit() -> UniformNode<u8> {
 
 #[cfg(test)]
 mod test {
+    use crate::util::rand_node;
     use std::thread;
     use std::time::Instant;
-    use crate::util::rand_node;
 
     use crate::prelude::*;
 
