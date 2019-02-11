@@ -9,7 +9,7 @@ proc-macro = true
 
 [dependencies]
 quote = "0.6"
-syn = "0.15"
+syn = {version = "0.15", features=["extra-traits", "full"]}
 
 [dev-dependencies]
 crossbeam = "0.4"

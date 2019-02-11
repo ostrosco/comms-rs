@@ -8,7 +8,7 @@ use std::thread;
 
 node_derive!(
     pub struct Node1 {
-        sender: Vec<(Sender<u32>, Option<u32>)>,
+        sender: u32,
     }
 );
 
@@ -20,27 +20,49 @@ impl Node1 {
 
 node_derive!(
     pub struct Node2 {
-        recv_u32: Option<Receiver<u32>>,
+        recv_input: u32,
+        stuff: u32,
+        sender: u32,
     }
 );
 
 impl Node2 {
-    fn run(&mut self, x: u32) -> () {
+    fn run(&mut self, x: u32) -> u32 {
         assert_eq!(x, 1);
+        x + self.stuff
+    }
+}
+
+node_derive!(
+    pub struct Node3 {
+        recv_input: u32,
+    }
+);
+
+impl Node3 {
+    fn run(&mut self, x: u32) -> () {
+        assert_eq!(x, 6);
     }
 }
 
 #[test]
 fn test_macro() {
-    let mut node1 = Node1 { sender: vec![] };
+    let mut node1 = Node1::new();
 
-    let mut node2 = Node2 { recv_u32: None };
+    let mut node2 = Node2::new(5);
 
-    connect_nodes!(node1, node2, recv_u32);
+    let mut node3 = Node3::new();
+
+    connect_nodes!(node1, node2, recv_input);
+    connect_nodes!(node2, node3, recv_input);
 
     thread::spawn(move || {
-        node1.call();
+        node1.call().unwrap();
     });
 
-    node2.call();
+    thread::spawn(move || {
+        node2.call().unwrap();
+    });
+
+    node3.call().unwrap();
 }
