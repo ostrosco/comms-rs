@@ -108,7 +108,7 @@ where
 ///     zmq::SocketType::SUB,
 ///     0);
 /// let mut fft: FFTBatchNode<u32> = fft_node::fft_batch_node(1024, false);
-/// connect_nodes!(recv, sender, fft, recv);
+/// connect_nodes!(recv, sender, fft, input);
 /// start_nodes!(recv, fft);
 /// # }
 pub fn zmq_recv<T>(

@@ -18,16 +18,14 @@ type IQSample = Complex<i16>;
 
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Panics upon reaching end of file.
-create_node!(
-    IQInput<R>: IQSample,
-    [reader: R],
-    [],
-    |node: &mut IQInput<R>| node.run(),
-    R: Read,
-);
+#[derive(Node)]
+pub struct IQInput<R> where R: Read {
+    reader: R,
+    pub sender: NodeSender<IQSample>,
+}
 
 impl<R: Read> IQInput<R> {
-    fn run(&mut self) -> Result<IQSample, NodeError> {
+    pub fn run(&mut self) -> Result<IQSample, NodeError> {
         let re_res = self.reader.read_i16::<NativeEndian>();
         let im_res = self.reader.read_i16::<NativeEndian>();
 
@@ -68,19 +66,18 @@ pub fn iq_file_in<P: AsRef<Path>>(path: P) -> io::Result<IQInput<impl Read>> {
     Ok(IQInput::new(BufReader::new(File::open(path)?)))
 }
 
-create_node!(
-    IQBatchInput<R>: Vec<IQSample>,
-    [reader: R, batch_size: usize],
-    [],
-    |node: &mut Self| node.run(),
-    R: Read,
-);
+#[derive(Node)]
+pub struct IQBatchInput<R> where R: Read {
+    reader: R,
+    batch_size: usize,
+    pub sender: NodeSender<Vec<IQSample>>,
+}
 
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Will only send vectors completely filled to size of buf_size.
 /// Panics upon reaching end of file.
 impl<R: Read> IQBatchInput<R> {
-    fn run(&mut self) -> Result<Vec<IQSample>, NodeError> {
+    pub fn run(&mut self) -> Result<Vec<IQSample>, NodeError> {
         let mut buf = Vec::with_capacity(self.batch_size);
         for _ in 0..self.batch_size {
             let re_res = self.reader.read_i16::<NativeEndian>();
@@ -129,16 +126,14 @@ pub fn iq_batch_file_in<P: AsRef<Path>>(
 }
 
 /// Will send samples as interleaved 16-bit values in host byte-order to writer.
-create_node!(
-    IQOutput<W>: (),
-    [writer: W],
-    [sample: IQSample],
-    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample),
-    W: Write,
-);
+#[derive(Node)]
+pub struct IQOutput<W> where W: Write {
+    pub input: NodeReceiver<IQSample>,
+    writer: W,
+}
 
 impl<W: Write> IQOutput<W> {
-    fn run(&mut self, samp: IQSample) -> Result<(), NodeError> {
+    pub fn run(&mut self, samp: &IQSample) -> Result<(), NodeError> {
         self.writer
             .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
@@ -164,16 +159,14 @@ pub fn iq_file_out<P: AsRef<Path>>(
     Ok(IQOutput::new(BufWriter::new(File::create(path)?)))
 }
 
-create_node!(
-    IQBatchOutput<W>: (),
-    [writer: W],
-    [samples: Vec<IQSample>],
-    |node: &mut Self, samples: Vec<IQSample>| node.run(&samples),
-    W: Write,
-);
+#[derive(Node)]
+pub struct IQBatchOutput<W> where W: Write {
+    pub input: NodeReceiver<Vec<IQSample>>,
+    writer: W,
+}
 
 impl<W: Write> IQBatchOutput<W> {
-    fn run(&mut self, samples: &[IQSample]) -> Result<(), NodeError> {
+    pub fn run(&mut self, samples: &[IQSample]) -> Result<(), NodeError> {
         samples.iter().for_each(|samp| {
             self.writer
                 .write_i16::<NativeEndian>(samp.re)
@@ -289,7 +282,7 @@ mod test {
         {
             let mut node = IQOutput::new(&mut out);
             for item in expected.iter() {
-                node.run(*item).unwrap();
+                node.run(&*item).unwrap();
             }
         }
 
@@ -313,7 +306,7 @@ mod test {
         {
             let mut node = IQBatchOutput::new(&mut out);
             for _ in 0..iterations {
-                node.run(&expected.clone()).unwrap();
+                node.run(&expected).unwrap();
             }
         }
 

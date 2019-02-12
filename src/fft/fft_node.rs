@@ -9,14 +9,14 @@ use rustfft::FFTplanner;
 /// expects that input data matching the specified FFT size is provided.
 #[derive(Node)]
 pub struct FFTBatchNode<T> where T: NumCast + Clone + Num {
-    input: NodeReceiver<Vec<Complex<T>>>,
+    pub input: NodeReceiver<Vec<Complex<T>>>,
     batch_fft: BatchFFT,
-    sender: NodeSender<Vec<Complex<T>>>,
+    pub sender: NodeSender<Vec<Complex<T>>>,
 }
 
 impl <T> FFTBatchNode<T> where T: NumCast + Clone + Num {
-    pub fn run(&mut self, data: Vec<Complex<T>>) -> Vec<Complex<T>> {
-        self.batch_fft.run_fft(&data)
+    pub fn run(&mut self, data: &[Complex<T>]) -> Result<Vec<Complex<T>>, NodeError> {
+        Ok(self.batch_fft.run_fft(data))
     }
 }
 
@@ -55,20 +55,20 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
 #[derive(Node)]
 #[aggregate]
 pub struct FFTSampleNode<T> where T: NumCast + Clone + Num {
-    input: NodeReceiver<Complex<T>>,
+    pub input: NodeReceiver<Complex<T>>,
     sample_fft: SampleFFT<T>,
-    sender: NodeSender<Vec<Complex<T>>>,
+    pub sender: NodeSender<Vec<Complex<T>>>,
 }
 
 impl <T> FFTSampleNode<T> where T: NumCast + Clone + Num {
-    pub fn run(&mut self, sample: Complex<T>) -> Option<Vec<Complex<T>>> {
-        self.sample_fft.samples.push(sample);
+    pub fn run(&mut self, sample: &Complex<T>) -> Result<Option<Vec<Complex<T>>>, NodeError> {
+        self.sample_fft.samples.push(sample.clone());
         if self.sample_fft.samples.len() == self.sample_fft.fft_size {
             let results = self.sample_fft.run_fft();
             self.sample_fft.samples = vec![];
-            Some(results)
+            Ok(Some(results))
         } else {
-            None
+            Ok(None)
         }
     }
 }

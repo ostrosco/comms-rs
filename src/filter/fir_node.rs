@@ -6,27 +6,36 @@ use num::Zero;
 use num_traits::Num;
 
 /// A node that implements a generic FIR filter.
-create_node!(
-    FirNode<T>: Complex<T>,
-    [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
-    [input: Complex<T>],
-    |node: &mut FirNode<T>, input: Complex<T>| {
-        Ok(fir(input, &node.taps, &mut node.state))
-    },
-    T: Num + Copy,
-);
+#[derive(Node)]
+pub struct FirNode<T> where T: Num + Copy {
+    pub input: NodeReceiver<Complex<T>>,
+    taps: Vec<Complex<T>>,
+    state: Vec<Complex<T>>,
+    pub sender: NodeSender<Complex<T>>,
+}
+
+impl <T> FirNode<T> where T: Num + Copy {
+    pub fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
+        Ok(fir(input, &self.taps, &mut self.state))
+    }
+}
+
 
 /// A node that implements a generic FIR filter.  Operates on a batch of
 /// samples at a time.
-create_node!(
-    BatchFirNode<T>: Vec<Complex<T>>,
-    [taps: Vec<Complex<T>>, state: Vec<Complex<T>>],
-    [input: Vec<Complex<T>>],
-    |node: &mut BatchFirNode<T>, input: Vec<Complex<T>>| {
-        Ok(batch_fir(input, &node.taps, &mut node.state))
-    },
-    T: Num + Copy,
-);
+#[derive(Node)]
+pub struct BatchFirNode<T> where T: Num + Copy {
+    pub input: NodeReceiver<Vec<Complex<T>>>,
+    taps: Vec<Complex<T>>, 
+    state: Vec<Complex<T>>,
+    pub sender: NodeSender<Vec<Complex<T>>>,
+}
+
+impl <T> BatchFirNode<T> where T: Num + Copy {
+    pub fn run(&mut self, input: &[Complex<T>]) -> Result<Vec<Complex<T>>, NodeError> {
+        Ok(batch_fir(input, &self.taps, &mut self.state))
+    }
+}
 
 /// Constructs a new `FirNode<T>` with initial state set to zeros.
 ///

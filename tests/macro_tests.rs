@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate node_derive;
 #[macro_use]
 extern crate comms_rs;
@@ -12,8 +11,8 @@ pub struct Node1 {
 }
 
 impl Node1 {
-    fn run(&mut self) -> u32 {
-        1
+    fn run(&mut self) -> Result<u32, NodeError> {
+        Ok(1)
     }
 }
 
@@ -25,9 +24,9 @@ pub struct Node2 {
 }
 
 impl Node2 {
-    fn run(&mut self, x: u32) -> u32 {
-        assert_eq!(x, 1);
-        x + self.stuff
+    fn run(&mut self, x: &u32) -> Result<u32, NodeError> {
+        assert_eq!(x, &1);
+        Ok(x + self.stuff)
     }
 }
 
@@ -37,8 +36,9 @@ pub struct Node3 {
 }
 
 impl Node3 {
-    fn run(&mut self, x: u32) -> () {
-        assert_eq!(x, 6);
+    fn run(&mut self, x: &u32) -> Result<(), NodeError> {
+        assert_eq!(x, &6);
+        Ok(())
     }
 }
 

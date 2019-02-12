@@ -129,7 +129,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                     }
                 )*
                 loop {
-                    if let Err(_) = self.call() {
+                    if self.call().is_err() {
                         break;
                     }
                 }
@@ -147,16 +147,13 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                             None => return Err(NodeError::PermanentError),
                         };
                     )*
-                    let res = self.run(#(#recv_idents3),*);
-                    match res {
-                        Some(res) => {
+                    let res = self.run(#(&#recv_idents3),*)?;
+                    if let Some(res) = res {
                         #(
                             for (send, _) in &self.#send_idents1 {
                                 send.send(res.clone());
                             }
                         )*
-                        },
-                        None => (),
                     }
                     Ok(())
                 }
@@ -172,7 +169,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                             None => return Err(NodeError::PermanentError),
                         };
                     )*
-                    let res = self.run(#(#recv_idents3),*);
+                    let res = self.run(#(&#recv_idents3),*)?;
                     #(
                         for (send, _) in &self.#send_idents1 {
                             send.send(res.clone());
