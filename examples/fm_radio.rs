@@ -59,41 +59,63 @@ fn main() {
 
     // Since we don't have anything fancy yet for type conversion, we're
     // gonna make a node to do it for us.
-    create_node!(
-        ConvertNode: Vec<Complex<f32>>,
-        [],
-        [recv: Vec<u8>],
-        |_, samples: Vec<u8>| Ok(samples
-            .chunks(2)
-            .map(|x| Complex::new(
-                (x[0] as f32 - 127.5) / 127.5,
-                (x[1] as f32 - 127.5) / 127.5
-            ))
-            .collect())
-    );
+    #[derive(Node)]
+    struct ConvertNode {
+        pub input: NodeReceiver<Vec<u8>>,
+        pub sender: NodeSender<Vec<Complex<f32>>>,
+    }
+
+    impl ConvertNode {
+        pub fn run(
+            &mut self,
+            samples: &[u8],
+        ) -> Result<Vec<Complex<f32>>, NodeError> {
+            Ok(samples
+                .chunks(2)
+                .map(|x| {
+                    Complex::new(
+                        (x[0] as f32 - 127.5) / 127.5,
+                        (x[1] as f32 - 127.5) / 127.5,
+                    )
+                })
+                .collect())
+        }
+    }
 
     // Since the FIR filter currently only supports Complex samples, we need
     // to transform our real data after demodulation into Complex samples
     // so we can filter again.
-    create_node!(
-        Convert2Node: Vec<Complex<f32>>,
-        [],
-        [recv: Vec<f32>],
-        |_, samples: Vec<f32>| -> Result<Vec<Complex<f32>>, NodeError> {
+    #[derive(Node)]
+    struct Convert2Node {
+        pub input: NodeReceiver<Vec<f32>>,
+        pub sender: NodeSender<Vec<Complex<f32>>>,
+    }
+
+    impl Convert2Node {
+        pub fn run(
+            &mut self,
+            samples: &[f32],
+        ) -> Result<Vec<Complex<f32>>, NodeError> {
             Ok(samples.iter().map(|&x| Complex::new(x, 0.0)).collect())
-        },
-    );
+        }
+    }
 
     // After the filter, we need to convert the data bact to real samples
     // to pass through decimation and to the audio sink.
-    create_node!(
-        Convert3Node: Vec<f32>,
-        [],
-        [recv: Vec<Complex<f32>>],
-        |_, samples: Vec<Complex<f32>>| -> Result<Vec<f32>, NodeError> {
+    #[derive(Node)]
+    struct Convert3Node {
+        pub input: NodeReceiver<Vec<Complex<f32>>>,
+        pub sender: NodeSender<Vec<f32>>,
+    }
+
+    impl Convert3Node {
+        pub fn run(
+            &mut self,
+            samples: &[Complex<f32>],
+        ) -> Result<Vec<f32>, NodeError> {
             Ok(samples.iter().map(|&x| x.re).collect())
-        },
-    );
+        }
+    }
 
     let mut sdr = radio::RadioRxNode::new(rtlsdr, 0, 262144);
     let mut convert = ConvertNode::new();
@@ -106,15 +128,15 @@ fn main() {
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
     let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
 
-    connect_nodes!(sdr, sender, convert, recv);
+    connect_nodes!(sdr, sender, convert, input);
     connect_nodes!(convert, sender, filt1, input);
-    connect_nodes!(filt1, sender, dec1, recv);
-    connect_nodes!(dec1, sender, fm, recv);
-    connect_nodes!(fm, sender, convert2, recv);
+    connect_nodes!(filt1, sender, dec1, input);
+    connect_nodes!(dec1, sender, fm, input);
+    connect_nodes!(fm, sender, convert2, input);
     connect_nodes!(convert2, sender, filt2, input);
-    connect_nodes!(filt2, sender, convert3, recv);
-    connect_nodes!(convert3, sender, dec2, recv);
-    connect_nodes!(dec2, sender, audio, recv);
+    connect_nodes!(filt2, sender, convert3, input);
+    connect_nodes!(convert3, sender, dec2, input);
+    connect_nodes!(dec2, sender, audio, input);
     start_nodes!(
         sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio
     );

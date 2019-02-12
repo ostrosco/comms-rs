@@ -15,13 +15,21 @@ pub trait RadioRx<T> {
 /// A node that takes a generic hardware platform that supports transmitting
 /// samples.
 #[derive(Node)]
-pub struct RadioTxNode<T, U> where T: RadioTx<U>, U: Clone {
+pub struct RadioTxNode<T, U>
+where
+    T: RadioTx<U>,
+    U: Clone,
+{
     pub input: NodeReceiver<Vec<U>>,
     radio: T,
     output_idx: usize,
 }
 
-impl <T, U> RadioTxNode<T, U> where T: RadioTx<U>, U: Clone {
+impl<T, U> RadioTxNode<T, U>
+where
+    T: RadioTx<U>,
+    U: Clone,
+{
     pub fn run(&mut self, samples: &[U]) -> Result<(), NodeError> {
         self.radio.send_samples(samples, self.output_idx);
         Ok(())
@@ -31,14 +39,22 @@ impl <T, U> RadioTxNode<T, U> where T: RadioTx<U>, U: Clone {
 /// A node that takes a generic hardware platform that supports receiving
 /// samples.
 #[derive(Node)]
-pub struct RadioRxNode<T, U> where T: RadioRx<U>, U: Clone {
+pub struct RadioRxNode<T, U>
+where
+    T: RadioRx<U>,
+    U: Clone,
+{
     radio: T,
     input_idx: usize,
     num_samples: usize,
     pub sender: NodeSender<Vec<U>>,
 }
 
-impl <T, U> RadioRxNode<T, U> where T: RadioRx<U>, U: Clone {
+impl<T, U> RadioRxNode<T, U>
+where
+    T: RadioRx<U>,
+    U: Clone,
+{
     pub fn run(&mut self) -> Result<Vec<U>, NodeError> {
         Ok(self.radio.recv_samples(self.num_samples, self.input_idx))
     }

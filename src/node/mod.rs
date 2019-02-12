@@ -12,23 +12,28 @@
 //! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
 //! // inputs, the receivers must explicitly be named.
-//! create_node!(
-//!     Node1: u32,
-//!     [],
-//!     [],
-//!     |_| -> Result<u32, NodeError> {
+//! #[derive(Node)]
+//! struct Node1 {
+//!     pub sender: NodeSender<u32>,
+//! }
+//!
+//! impl Node1 {
+//!     pub fn run(&mut self) -> Result<u32, NodeError> {
 //!         Ok(1)
 //!     }
-//! );
-//! create_node!(
-//!     Node2: (),
-//!     [],
-//!     [recv: u32],
-//!     |_, x| -> Result<(), NodeError> {
-//!         assert_eq!(x, 1);
+//! }
+//!
+//! #[derive(Node)]
+//! struct Node2 {
+//!     pub input: NodeReceiver<u32>,
+//! }
+//!
+//! impl Node2 {
+//!     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
+//!         assert_eq!(x, &1);
 //!         Ok(())
 //!     }
-//! );
+//! }
 //!
 //! // Now that the structures are created, the user can now instantiate their
 //! // nodes and pass in closures for the nodes to execute.
@@ -37,7 +42,7 @@
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
 //! // receiving on the `recv` receiver in the Node2 structure.
-//! connect_nodes!(node1, sender, node2, recv);
+//! connect_nodes!(node1, sender, node2, input);
 //!
 //! // Spawn threads for node1 and node2 and have them executing indefinitely.
 //! start_nodes!(node1, node2);
@@ -67,8 +72,6 @@ impl fmt::Display for NodeError {
     }
 }
 
-
-
 impl error::Error for NodeError {
     fn cause(&self) -> Option<&error::Error> {
         None
@@ -79,7 +82,6 @@ impl error::Error for NodeError {
 pub trait Node {
     fn call(&mut self) -> Result<(), NodeError>;
 }
-
 
 /// Creates a structure with crossbeam senders and receivers automatically and
 /// auto-implements the Node trait.
@@ -493,29 +495,35 @@ macro_rules! connect_nodes_feedback {
 /// # use comms_rs::prelude::*;
 /// # use std::thread;
 /// # fn main() {
-/// # create_node!(
-/// #     Node1: u32,
-/// #     [],
-/// #     [],
-/// #     |_| -> Result<u32, NodeError> {
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     pub sender: NodeSender<u32>,
+/// # }
+///
+/// # impl Node1 {
+/// #     pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
-/// # );
-/// # create_node!(
-/// #     Node2: (),
-/// #     [],
-/// #     [recv: u32],
-/// #     |_, x| -> Result<(), NodeError> {
-/// #         assert_eq!(x, 1);
+/// # }
+///
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #     pub input: NodeReceiver<u32>,
+/// # }
+///
+/// # impl Node2 {
+/// #     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, &1);
 /// #         Ok(())
-/// #     }
-/// # );
+/// #    }
+/// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, sender, node2, recv);
+/// # connect_nodes!(node1, sender, node2, input);
+///
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
-/// // message on its receiver named `recv`.
+/// // message on its receiver named `input`.
 /// start_nodes!(node1, node2);
 /// # }
 /// ```
@@ -524,17 +532,7 @@ macro_rules! start_nodes {
     ($($node:ident),+) => {
         $(
             thread::spawn(move || {
-                for (send, val) in &$node.sender {
-                    match val {
-                        Some(v) => send.send(v.clone()),
-                        None => continue,
-                    }
-                }
-                loop {
-                    if let Err(_) = $node.call() {
-                        break;
-                    }
-                }
+                $node.start();
             });
         )*
     }
@@ -550,27 +548,33 @@ macro_rules! start_nodes {
 /// # extern crate rayon;
 /// # use comms_rs::prelude::*;
 /// # use std::thread;
-/// # create_node!(
-/// #     Node1: u32,
-/// #     [],
-/// #     [],
-/// #     |_| -> Result<u32, NodeError> {
+///
+/// # fn main() {
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     pub sender: NodeSender<u32>,
+/// # }
+///
+/// # impl Node1 {
+/// #     pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
-/// # );
-/// # create_node!(
-/// #     Node2: (),
-/// #     [],
-/// #     [recv: u32],
-/// #     |_, x| -> Result<(), NodeError> {
-/// #         assert_eq!(x, 1);
+/// # }
+///
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #     pub input: NodeReceiver<u32>,
+/// # }
+///
+/// # impl Node2 {
+/// #     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, &1);
 /// #         Ok(())
-/// #     }
-/// # );
-/// # fn main() {
+/// #    }
+/// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, sender, node2, recv);
+/// # connect_nodes!(node1, sender, node2, input);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -582,17 +586,7 @@ macro_rules! start_nodes_threadpool {
     ($($node:ident),+) => {
         $(
             rayon::spawn(move || {
-                for (send, val) in &$node.sender {
-                    match val {
-                        Some(v) => send.send(v.clone()),
-                        None => continue,
-                    }
-                }
-                loop {
-                    if let Err(_) = $node.call() {
-                        break;
-                    }
-                }
+                $node.start();
             });
         )*
     }
@@ -611,23 +605,33 @@ mod test {
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        create_node!(Node1: u32, [], [], |_| -> Result<u32, NodeError> {
-            Ok(1)
-        });
-        create_node!(Node2: (), [], [recv1: u32], |_,
-                                                   x|
-         -> Result<
-            (),
-            NodeError,
-        > {
-            assert_eq!(x, 1);
-            Ok(())
-        });
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<u32>,
+        }
+
+        impl Node1 {
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<u32>,
+        }
+
+        impl Node2 {
+            pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
+                assert_eq!(x, &1);
+                Ok(())
+            }
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
 
-        connect_nodes!(node1, sender, node2, recv1);
+        connect_nodes!(node1, sender, node2, input);
         start_nodes!(node1);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -649,51 +653,66 @@ mod test {
     /// used to pass around references through the channels much easier,
     /// saving on potential expensive copies.
     fn test_aggregate_nodes() {
-        create_node!(
-            Node1: Option<Arc<Vec<u32>>>,
-            [agg: Vec<u32>],
-            [],
-            |node: &mut Node1| -> Result<Option<Arc<Vec<u32>>>, NodeError> {
-                if node.agg.len() < 2 {
-                    node.agg.push(1);
+        #[derive(Node)]
+        #[aggregate]
+        struct Node1 {
+            agg: Vec<u32>,
+            pub sender: NodeSender<Arc<Vec<u32>>>,
+        }
+
+        impl Node1 {
+            pub fn run(&mut self) -> Result<Option<Arc<Vec<u32>>>, NodeError> {
+                if self.agg.len() < 2 {
+                    self.agg.push(1);
                     Ok(None)
                 } else {
-                    let val = node.agg.clone();
-                    node.agg = vec![];
+                    let val = self.agg.clone();
+                    self.agg = vec![];
                     Ok(Some(Arc::new(val)))
                 }
             }
-        );
-        create_node!(
-            Node2: Option<Arc<Vec<u32>>>,
-            [],
-            [recv1: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| -> Result<Option<Arc<Vec<u32>>>, NodeError> {
-                let mut y = Arc::clone(&x);
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<u32>>>,
+            pub sender: NodeSender<Arc<Vec<u32>>>,
+        }
+
+        impl Node2 {
+            pub fn run(
+                &mut self,
+                input: &Arc<Vec<u32>>,
+            ) -> Result<Arc<Vec<u32>>, NodeError> {
+                let mut y = Arc::clone(&input);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = *z + 1;
                 }
-                Ok(Some(y))
+                Ok(y)
             }
-        );
-        create_node!(Node3: (), [], [recv2: Arc<Vec<u32>>], |_,
-                                                             x: Arc<
-            Vec<u32>,
-        >|
-         -> Result<
-            (),
-            NodeError,
-        > {
-            assert_eq!(*x, vec![2, 2]);
-            Ok(())
-        });
+        }
+
+        #[derive(Node)]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<u32>>>,
+        }
+
+        impl Node3 {
+            pub fn run(
+                &mut self,
+                input: &Arc<Vec<u32>>,
+            ) -> Result<(), NodeError> {
+                assert_eq!(**input, vec![2, 2]);
+                Ok(())
+            }
+        }
 
         let mut node1 = Node1::new(Vec::new());
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, sender, node2, recv1);
-        connect_nodes!(node2, sender, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -713,47 +732,65 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_throughput() {
-        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| -> Result<
-            Arc<Vec<i16>>,
-            NodeError,
-        > {
-            let mut random = vec![0i16; 10000];
-            thread_rng().fill(random.as_mut_slice());
-            Ok(Arc::new(random))
-        });
-        create_node!(
-            Node2: Arc<Vec<i16>>,
-            [],
-            [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, NodeError> {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node1 {
+            pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
+                let mut random = vec![0i16; 10000];
+                thread_rng().fill(random.as_mut_slice());
+                Ok(Arc::new(random))
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node2 {
+            pub fn run(
+                &mut self,
+                x: &Arc<Vec<i16>>,
+            ) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
                 Ok(y)
             }
-        );
-        create_node!(
-            Node3: (),
-            [count: u32],
-            [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), NodeError> {
-                node.count = node.count + 1;
-                if node.count == 40000 {
+        }
+
+        #[derive(Node)]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            count: u32,
+        }
+
+        impl Node3 {
+            pub fn run(
+                &mut self,
+                _val: &Arc<Vec<i16>>,
+            ) -> Result<(), NodeError> {
+                self.count = self.count + 1;
+                if self.count == 40000 {
                     println!(
                         "test_throughput: Hit goal of 400 million i16 sent."
                     );
                 }
                 Ok(())
             }
-        );
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
         let mut node3 = Node3::new(0);
 
-        connect_nodes!(node1, sender, node2, recv1);
-        connect_nodes!(node2, sender, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node2, node3);
         thread::sleep(Duration::from_secs(1));
     }
@@ -764,53 +801,71 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_threadpool_throughput() {
-        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| -> Result<
-            Arc<Vec<i16>>,
-            NodeError,
-        > {
-            let mut random = vec![0i16; 10000];
-            thread_rng().fill(random.as_mut_slice());
-            Ok(Arc::new(random))
-        });
-        create_node!(
-            Node2: Arc<Vec<i16>>,
-            [],
-            [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| -> Result<Arc<Vec<i16>>, NodeError> {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node1 {
+            pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
+                let mut random = vec![0i16; 10000];
+                thread_rng().fill(random.as_mut_slice());
+                Ok(Arc::new(random))
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node2 {
+            pub fn run(
+                &mut self,
+                x: &Arc<Vec<i16>>,
+            ) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
                 Ok(y)
             }
-        );
-        create_node!(
-            Node3: (),
-            [count: u32],
-            [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| -> Result<(), NodeError> {
-                node.count = node.count + 1;
-                if node.count == 40000 {
+        }
+
+        #[derive(Node)]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            count: u32,
+        }
+
+        impl Node3 {
+            pub fn run(
+                &mut self,
+                _val: &Arc<Vec<i16>>,
+            ) -> Result<(), NodeError> {
+                self.count = self.count + 1;
+                if self.count == 40000 {
                     println!(
-                        "test_threadpool_throughput: Hit goal of 400 \
-                         million i16 sent."
+                        "test_threadpool_throughput: Hit goal of 400 million i16 sent."
                     );
                 }
                 Ok(())
             }
-        );
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
         let mut node3 = Node3::new(0);
 
-        connect_nodes!(node1, sender, node2, recv1);
-        connect_nodes!(node2, sender, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node3);
         start_nodes_threadpool!(node2);
         thread::sleep(Duration::from_secs(1));
     }
 
+    /*
     #[test]
     /// Constructs a network where a node receives from two different nodes.
     /// This serves to make sure that fan-in operation works as we expect
@@ -963,4 +1018,5 @@ mod test {
         });
         assert!(check.join().is_ok());
     }
+    */
 }

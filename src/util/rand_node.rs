@@ -4,26 +4,39 @@ use rand::{FromEntropy, Rng, StdRng};
 
 use crate::prelude::*;
 
-create_node!(
-    #[doc="A node that will generate uniformly-distributed random numbers."]
-    UniformNode<T>: T,
-    [rng: StdRng, dist: Uniform<T>],
-    [],
-    |node: &mut UniformNode<T>| -> Result<T, NodeError> {
-        Ok(node.rng.sample(&node.dist))
-    },
+/// A node that will generate uniformly-distributed random numbers.
+#[derive(Node)]
+pub struct UniformNode<T>
+where
     T: SampleUniform + Clone,
-);
+{
+    rng: StdRng,
+    dist: Uniform<T>,
+    pub sender: NodeSender<T>,
+}
 
-create_node!(
-    #[doc = "A node that will generate normally-distributed random numbers."]
-    NormalNode: f64,
-    [rng: StdRng, dist: Normal],
-    [],
-    |node: &mut NormalNode| -> Result<f64, NodeError> {
-        Ok(node.rng.sample(&node.dist))
+impl<T> UniformNode<T>
+where
+    T: SampleUniform + Clone,
+{
+    pub fn run(&mut self) -> Result<T, NodeError> {
+        Ok(self.rng.sample(&self.dist))
     }
-);
+}
+
+/// A node that will generate normally-distributed random numbers.
+#[derive(Node)]
+pub struct NormalNode {
+    rng: StdRng,
+    dist: Normal,
+    pub sender: NodeSender<f64>,
+}
+
+impl NormalNode {
+    pub fn run(&mut self) -> Result<f64, NodeError> {
+        Ok(self.rng.sample(&self.dist))
+    }
+}
 
 /// Builds a closure for generating random numbers with a Normal distribution.
 pub fn normal(mu: f64, std_dev: f64) -> NormalNode {

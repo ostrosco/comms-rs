@@ -18,7 +18,6 @@
 // Disabling this lint as it triggers in macros which is an issue being tracked
 // here: https://github.com/rust-lang-nursery/rust-clippy/issues/1553.
 #![allow(clippy::redundant_closure_call)]
-
 // As we're passing by reference in the macro since most of our data isn't
 // trivially small, we disable this lint for the (currently one) function where
 // doing a copy is cheaper than passing the reference.

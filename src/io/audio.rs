@@ -7,9 +7,12 @@ use std::sync::Arc;
 /// A node that can play received samples out on audio. Currently this only
 /// uses the default output device on the system.
 #[derive(Node)]
-pub struct AudioNode<T> where T: Sample + Send + 'static {
+pub struct AudioNode<T>
+where
+    T: Sample + Send + 'static,
+{
     pub input: NodeReceiver<Vec<T>>,
-    sink: Sink,
+    _sink: Sink,
     in_queue: Arc<SourcesQueueInput<T>>,
     channels: u16,
     sample_rate: u32,
@@ -20,7 +23,7 @@ where
     T: Sample + Send + 'static,
 {
     /// Tosses the received samples into the sink for output.
-    pub fn run(&mut self, samples: Vec<T>) -> Result<(), NodeError> {
+    pub fn run(&mut self, samples: &[T]) -> Result<(), NodeError> {
         let samplebuffer = buffer::SamplesBuffer::new(
             self.channels,
             self.sample_rate,
