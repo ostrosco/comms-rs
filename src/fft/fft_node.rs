@@ -5,34 +5,20 @@ use num::NumCast;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
 
-node_derive!(
-    pub struct FFTBatchNode<T> where T: NumCast + Clone + Num {
-        input: NodeReceiver<Vec<Complex<T>>>,
-        batch_fft: BatchFFT,
-        sender: NodeSender<Vec<Complex<T>>>,
-    }
-);
+/// A node that supports FFTs and IFFTs. FFTs are done in batch: the node
+/// expects that input data matching the specified FFT size is provided.
+#[derive(Node)]
+pub struct FFTBatchNode<T> where T: NumCast + Clone + Num {
+    input: NodeReceiver<Vec<Complex<T>>>,
+    batch_fft: BatchFFT,
+    sender: NodeSender<Vec<Complex<T>>>,
+}
 
 impl <T> FFTBatchNode<T> where T: NumCast + Clone + Num {
     pub fn run(&mut self, data: Vec<Complex<T>>) -> Vec<Complex<T>> {
         self.batch_fft.run_fft(&data)
     }
 }
-
-/*
-create_node!(
-    #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
-    #[doc="node expects that input data matching the specified FFT size is "]
-    #[doc="provided."]
-    FFTBatchNode<T>: Vec<Complex<T>>,
-    [batch_fft: BatchFFT],
-    [recv: Vec<Complex<T>>],
-    |node: &mut FFTBatchNode<T>, data: Vec<Complex<T>>| {
-        Ok(node.batch_fft.run_fft(&data))
-    },
-    T: NumCast + Clone + Num,
-);
-*/
 
 /// Constructs a node that performs FFT or IFFTs in batches.
 ///
@@ -63,25 +49,29 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
     FFTBatchNode::new(batch_fft)
 }
 
-create_node!(
-    #[doc="A node that supports FFTs and IFFTs. This node expects data to be "]
-    #[doc="provided sample by sample and will only perform the FFT once it "]
-    #[doc="has received enough samples specified by fft_size."]
-    FFTSampleNode<T>: Option<Vec<Complex<T>>>,
-    [sample_fft: SampleFFT<T>],
-    [recv: Complex<T>],
-    |node: &mut FFTSampleNode<T>, sample: Complex<T>| -> Result<Option<Vec<Complex<T>>>, NodeError> {
-        node.sample_fft.samples.push(sample);
-        if node.sample_fft.samples.len() == node.sample_fft.fft_size {
-            let results = node.sample_fft.run_fft();
-            node.sample_fft.samples = vec![];
-            Ok(Some(results))
+/// A node that supports FFTs and IFFTs. This node expects data to be
+/// provided sample by sample and will only perform the FFT once it
+/// has received enough samples specified by fft_size.
+#[derive(Node)]
+#[aggregate]
+pub struct FFTSampleNode<T> where T: NumCast + Clone + Num {
+    input: NodeReceiver<Complex<T>>,
+    sample_fft: SampleFFT<T>,
+    sender: NodeSender<Vec<Complex<T>>>,
+}
+
+impl <T> FFTSampleNode<T> where T: NumCast + Clone + Num {
+    pub fn run(&mut self, sample: Complex<T>) -> Option<Vec<Complex<T>>> {
+        self.sample_fft.samples.push(sample);
+        if self.sample_fft.samples.len() == self.sample_fft.fft_size {
+            let results = self.sample_fft.run_fft();
+            self.sample_fft.samples = vec![];
+            Some(results)
         } else {
-            Ok(None)
+            None
         }
-    },
-    T: NumCast + Clone + Num,
-);
+    }
+}
 
 /// Constructs a node that performs FFT or IFFTs, but only receives a sample
 /// at a time versus a batch of samples.
@@ -237,7 +227,7 @@ mod test {
         );
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(send_node, sender, fft_node, recv);
+        connect_nodes!(send_node, sender, fft_node, input);
         connect_nodes!(fft_node, sender, check_node, recv);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
