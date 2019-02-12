@@ -46,7 +46,7 @@ where
 /// let mut rand = rand_node::normal(0.0, 1.0);
 /// let mut send: ZMQSend<f64> = zmq_node::zmq_send("tcp://*:5556",
 ///     zmq::SocketType::PUB, 0);
-/// connect_nodes!(rand, send, recv);
+/// connect_nodes!(rand, sender, send, recv);
 /// start_nodes!(rand, send);
 /// # }
 pub fn zmq_send<T>(
@@ -108,7 +108,7 @@ where
 ///     zmq::SocketType::SUB,
 ///     0);
 /// let mut fft: FFTBatchNode<u32> = fft_node::fft_batch_node(1024, false);
-/// connect_nodes!(recv, fft, recv);
+/// connect_nodes!(recv, sender, fft, recv);
 /// start_nodes!(recv, fft);
 /// # }
 pub fn zmq_recv<T>(
@@ -162,8 +162,8 @@ mod test {
             Ok(())
         });
         let mut check_node = CheckNode::new();
-        connect_nodes!(data_node, zmq_send, recv);
-        connect_nodes!(zmq_recv, check_node, recv);
+        connect_nodes!(data_node, sender, zmq_send, recv);
+        connect_nodes!(zmq_recv, sender, check_node, recv);
         start_nodes!(data_node, zmq_send, zmq_recv);
 
         let handle = thread::spawn(move || {

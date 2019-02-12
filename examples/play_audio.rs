@@ -25,7 +25,7 @@ fn main() {
 
     let mut sine = SineNode::new(Box::new(source::SineWave::new(440)));
 
-    connect_nodes!(sine, audio, recv);
+    connect_nodes!(sine, sender, audio, recv);
     start_nodes!(sine, audio);
     loop {}
 }

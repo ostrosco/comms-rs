@@ -87,7 +87,7 @@ mod test {
             }
         );
         let mut check_node = CheckNode::new(num_samples);
-        connect_nodes!(sdr_node, check_node, recv);
+        connect_nodes!(sdr_node, sender, check_node, recv);
         start_nodes!(sdr_node);
         let check = thread::spawn(move || {
             let now = Instant::now();

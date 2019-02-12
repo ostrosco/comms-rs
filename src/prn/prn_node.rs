@@ -132,7 +132,7 @@ mod test {
 
         let mut check_node = CheckNode::new(Vec::new());
 
-        connect_nodes!(mynode, check_node, recv);
+        connect_nodes!(mynode, sender, check_node, recv);
         start_nodes!(mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();

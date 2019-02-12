@@ -21,7 +21,7 @@ fn simple_nodes() {
 
     let mut node = SourceNode::new();
     let mut node2 = SinkNode::new();
-    connect_nodes!(node, node2, recv1);
+    connect_nodes!(node, sender, node2, recv1);
     start_nodes!(node, node2);
     thread::sleep(Duration::from_secs(1));
 }
