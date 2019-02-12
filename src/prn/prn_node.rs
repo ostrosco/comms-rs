@@ -26,13 +26,23 @@ use crate::prn::PrnGen;
 use num::PrimInt;
 
 /// A node that implements a generic LFSR based PRNS generator.
-create_node!(
-    PrnsNode<T>: u8,
-    [prngen: PrnGen<T>],
-    [],
-    |node: &mut PrnsNode<T>| Ok(node.prngen.next_byte()),
+#[derive(Node)]
+pub struct PrnsNode<T>
+where
     T: PrimInt,
-);
+{
+    prngen: PrnGen<T>,
+    pub sender: NodeSender<u8>,
+}
+
+impl<T> PrnsNode<T>
+where
+    T: PrimInt,
+{
+    pub fn run(&mut self) -> Result<u8, NodeError> {
+        Ok(self.prngen.next_byte())
+    }
+}
 
 /// Constructs a new `PrnsNode<T: PrimInt>`.
 ///

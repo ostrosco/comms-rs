@@ -1,15 +1,24 @@
 use crate::prelude::*;
 
 // A simple node to decimate the input.
-create_node!(
-    DecimateNode<T>: Vec<T>,
-    [dec_rate: usize],
-    [recv: Vec<T>],
-    |node: &mut DecimateNode<T>, signal: Vec<T>| {
-        Ok(node.decimate(&signal))
-    },
+#[derive(Node)]
+pub struct DecimateNode<T>
+where
     T: Copy,
-);
+{
+    pub input: NodeReceiver<Vec<T>>,
+    dec_rate: usize,
+    pub sender: NodeSender<Vec<T>>,
+}
+
+impl<T> DecimateNode<T>
+where
+    T: Copy,
+{
+    pub fn run(&mut self, signal: &[T]) -> Result<Vec<T>, NodeError> {
+        Ok(self.decimate(signal))
+    }
+}
 
 impl<T> DecimateNode<T>
 where

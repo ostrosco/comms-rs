@@ -16,14 +16,14 @@ where
         }
     }
 
-    pub fn demod(&mut self, samples: Vec<Complex<T>>) -> Vec<T> {
+    pub fn demod(&mut self, samples: &[Complex<T>]) -> Vec<T> {
         let mut prev = self.prev;
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
 
         for samp in samples {
             let theta = samp * prev.conj();
             demod_queue.push(theta.arg());
-            prev = samp;
+            prev = *samp;
         }
         self.prev = prev;
 

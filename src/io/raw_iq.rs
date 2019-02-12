@@ -19,7 +19,10 @@ type IQSample = Complex<i16>;
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Panics upon reaching end of file.
 #[derive(Node)]
-pub struct IQInput<R> where R: Read {
+pub struct IQInput<R>
+where
+    R: Read,
+{
     reader: R,
     pub sender: NodeSender<IQSample>,
 }
@@ -67,7 +70,10 @@ pub fn iq_file_in<P: AsRef<Path>>(path: P) -> io::Result<IQInput<impl Read>> {
 }
 
 #[derive(Node)]
-pub struct IQBatchInput<R> where R: Read {
+pub struct IQBatchInput<R>
+where
+    R: Read,
+{
     reader: R,
     batch_size: usize,
     pub sender: NodeSender<Vec<IQSample>>,
@@ -127,7 +133,10 @@ pub fn iq_batch_file_in<P: AsRef<Path>>(
 
 /// Will send samples as interleaved 16-bit values in host byte-order to writer.
 #[derive(Node)]
-pub struct IQOutput<W> where W: Write {
+pub struct IQOutput<W>
+where
+    W: Write,
+{
     pub input: NodeReceiver<IQSample>,
     writer: W,
 }
@@ -160,7 +169,10 @@ pub fn iq_file_out<P: AsRef<Path>>(
 }
 
 #[derive(Node)]
-pub struct IQBatchOutput<W> where W: Write {
+pub struct IQBatchOutput<W>
+where
+    W: Write,
+{
     pub input: NodeReceiver<Vec<IQSample>>,
     writer: W,
 }

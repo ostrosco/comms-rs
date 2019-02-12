@@ -7,32 +7,46 @@ use num_traits::Num;
 
 /// A node that implements a generic FIR filter.
 #[derive(Node)]
-pub struct FirNode<T> where T: Num + Copy {
+pub struct FirNode<T>
+where
+    T: Num + Copy,
+{
     pub input: NodeReceiver<Complex<T>>,
     taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
     pub sender: NodeSender<Complex<T>>,
 }
 
-impl <T> FirNode<T> where T: Num + Copy {
+impl<T> FirNode<T>
+where
+    T: Num + Copy,
+{
     pub fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
         Ok(fir(input, &self.taps, &mut self.state))
     }
 }
 
-
 /// A node that implements a generic FIR filter.  Operates on a batch of
 /// samples at a time.
 #[derive(Node)]
-pub struct BatchFirNode<T> where T: Num + Copy {
+pub struct BatchFirNode<T>
+where
+    T: Num + Copy,
+{
     pub input: NodeReceiver<Vec<Complex<T>>>,
-    taps: Vec<Complex<T>>, 
+    taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
     pub sender: NodeSender<Vec<Complex<T>>>,
 }
 
-impl <T> BatchFirNode<T> where T: Num + Copy {
-    pub fn run(&mut self, input: &[Complex<T>]) -> Result<Vec<Complex<T>>, NodeError> {
+impl<T> BatchFirNode<T>
+where
+    T: Num + Copy,
+{
+    pub fn run(
+        &mut self,
+        input: &[Complex<T>],
+    ) -> Result<Vec<Complex<T>>, NodeError> {
         Ok(batch_fir(input, &self.taps, &mut self.state))
     }
 }
@@ -97,7 +111,6 @@ where
 mod test {
     use crate::filter::fir_node;
     use crate::prelude::*;
-    use crossbeam::{Receiver, Sender};
     use crossbeam_channel as channel;
     use num::Complex;
     use num::Zero;
@@ -107,18 +120,21 @@ mod test {
     #[test]
     // A test to verify the FirNode correctly implements an FIR filter.
     fn test_fir_node() {
-        create_node!(
-            SomeSamples: Complex<i16>,
-            [samples: Vec<Complex<i16>>],
-            [],
-            |node: &mut Self| -> Result<Complex<i16>, NodeError> {
-                if node.samples.len() == 0 {
+        #[derive(Node)]
+        struct SomeSamples {
+            samples: Vec<Complex<i16>>,
+            sender: NodeSender<Complex<i16>>,
+        }
+
+        impl SomeSamples {
+            pub fn run(&mut self) -> Result<Complex<i16>, NodeError> {
+                if self.samples.len() == 0 {
                     Ok(Complex::zero())
                 } else {
-                    Ok(node.samples.remove(0))
+                    Ok(self.samples.remove(0))
                 }
             }
-        );
+        }
 
         let mut source = SomeSamples::new(vec![
             Complex::new(1, 2),
@@ -141,14 +157,20 @@ mod test {
             Complex::new(2, 1),
         ]);
 
-        create_node!(
-            CheckNode: (),
-            [state: Vec<Complex<i16>>],
-            [recv: Complex<i16>],
-            |node: &mut CheckNode, x| -> Result<(), NodeError> {
-                if node.state.len() == 9 {
+        #[derive(Node)]
+        pub struct CheckNode {
+            pub input: NodeReceiver<Complex<i16>>,
+            state: Vec<Complex<i16>>,
+        }
+
+        impl CheckNode {
+            pub fn run(
+                &mut self,
+                input: &Complex<i16>,
+            ) -> Result<(), NodeError> {
+                if self.state.len() == 9 {
                     assert_eq!(
-                        node.state,
+                        self.state,
                         vec![
                             Complex::new(9, 18),
                             Complex::new(21, 59),
@@ -162,16 +184,16 @@ mod test {
                         ]
                     );
                 } else {
-                    node.state.push(x);
+                    self.state.push(*input);
                 }
                 Ok(())
             }
-        );
+        }
 
         let mut check_node = CheckNode::new(Vec::new());
 
         connect_nodes!(source, sender, mynode, input);
-        connect_nodes!(mynode, sender, check_node, recv);
+        connect_nodes!(mynode, sender, check_node, input);
         start_nodes!(source, mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -188,20 +210,23 @@ mod test {
     #[test]
     // A test to verify the BatchFirNode correctly implements an FIR filter.
     fn test_batch_fir_node() {
-        create_node!(
-            SomeSamples: Vec<Complex<i16>>,
-            [samples: Vec<Complex<i16>>],
-            [],
-            |node: &mut Self| -> Result<Vec<Complex<i16>>, NodeError> {
-                if node.samples.len() == 0 {
+        #[derive(Node)]
+        struct SomeSamples {
+            samples: Vec<Complex<i16>>,
+            pub sender: NodeSender<Vec<Complex<i16>>>,
+        }
+
+        impl SomeSamples {
+            pub fn run(&mut self) -> Result<Vec<Complex<i16>>, NodeError> {
+                if self.samples.len() == 0 {
                     Ok(vec![Complex::zero(), Complex::zero()])
                 } else {
-                    let s1 = node.samples.remove(0);
-                    let s2 = node.samples.remove(0);
+                    let s1 = self.samples.remove(0);
+                    let s2 = self.samples.remove(0);
                     Ok(vec![s1, s2])
                 }
             }
-        );
+        }
 
         let mut source = SomeSamples::new(vec![
             Complex::new(1, 2),
@@ -227,14 +252,20 @@ mod test {
             vec![Complex::zero(); 5],
         );
 
-        create_node!(
-            CheckNode: (),
-            [state: Vec<Complex<i16>>],
-            [recv: Vec<Complex<i16>>],
-            |node: &mut CheckNode, mut x| -> Result<(), NodeError> {
-                if node.state.len() == 10 {
+        #[derive(Node)]
+        pub struct CheckNode {
+            pub input: NodeReceiver<Vec<Complex<i16>>>,
+            state: Vec<Complex<i16>>,
+        }
+
+        impl CheckNode {
+            pub fn run(
+                &mut self,
+                input: &[Complex<i16>],
+            ) -> Result<(), NodeError> {
+                if self.state.len() == 9 {
                     assert_eq!(
-                        node.state,
+                        self.state,
                         vec![
                             Complex::new(9, 18),
                             Complex::new(21, 59),
@@ -245,20 +276,20 @@ mod test {
                             Complex::new(62, 115),
                             Complex::new(42, 50),
                             Complex::new(18, 9),
-                            Complex::new(0, 0)
+                            Complex::new(0, 0),
                         ]
                     );
                 } else {
-                    node.state.append(&mut x);
+                    self.state.append(&mut input.clone().to_vec());
                 }
                 Ok(())
             }
-        );
+        }
 
         let mut check_node = CheckNode::new(Vec::new());
 
         connect_nodes!(source, sender, mynode, input);
-        connect_nodes!(mynode, sender, check_node, recv);
+        connect_nodes!(mynode, sender, check_node, input);
         start_nodes!(source, mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();
