@@ -111,8 +111,8 @@ mod test {
 
         let mut check_node = CheckNode::new(Vec::new());
 
-        connect_nodes!(source, mixer, input);
-        connect_nodes!(mixer, check_node, recv);
+        connect_nodes!(source, sender, mixer, input);
+        connect_nodes!(mixer, sender, check_node, recv);
         start_nodes!(source, mixer);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -178,8 +178,8 @@ mod test {
 
         let mut check_node = CheckNode::new(Vec::new());
 
-        connect_nodes!(source, mixer, input);
-        connect_nodes!(mixer, check_node, recv);
+        connect_nodes!(source, sender, mixer, input);
+        connect_nodes!(mixer, sender, check_node, recv);
         start_nodes!(source, mixer);
         let check = thread::spawn(move || {
             let now = Instant::now();

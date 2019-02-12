@@ -106,15 +106,15 @@ fn main() {
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
     let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
 
-    connect_nodes!(sdr, convert, recv);
-    connect_nodes!(convert, filt1, input);
-    connect_nodes!(filt1, dec1, recv);
-    connect_nodes!(dec1, fm, recv);
-    connect_nodes!(fm, convert2, recv);
-    connect_nodes!(convert2, filt2, input);
-    connect_nodes!(filt2, convert3, recv);
-    connect_nodes!(convert3, dec2, recv);
-    connect_nodes!(dec2, audio, recv);
+    connect_nodes!(sdr, sender, convert, recv);
+    connect_nodes!(convert, sender, filt1, input);
+    connect_nodes!(filt1, sender, dec1, recv);
+    connect_nodes!(dec1, sender, fm, recv);
+    connect_nodes!(fm, sender, convert2, recv);
+    connect_nodes!(convert2, sender, filt2, input);
+    connect_nodes!(filt2, sender, convert3, recv);
+    connect_nodes!(convert3, sender, dec2, recv);
+    connect_nodes!(dec2, sender, audio, recv);
     start_nodes!(
         sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio
     );

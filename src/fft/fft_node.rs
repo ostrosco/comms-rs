@@ -5,6 +5,21 @@ use num::NumCast;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
 
+node_derive!(
+    pub struct FFTBatchNode<T> where T: NumCast + Clone + Num {
+        input: NodeReceiver<Vec<Complex<T>>>,
+        batch_fft: BatchFFT,
+        sender: NodeSender<Vec<Complex<T>>>,
+    }
+);
+
+impl <T> FFTBatchNode<T> where T: NumCast + Clone + Num {
+    pub fn run(&mut self, data: Vec<Complex<T>>) -> Vec<Complex<T>> {
+        self.batch_fft.run_fft(&data)
+    }
+}
+
+/*
 create_node!(
     #[doc="A node that supports FFTs and IFFTs. FFTs are done in batch: the "]
     #[doc="node expects that input data matching the specified FFT size is "]
@@ -17,6 +32,7 @@ create_node!(
     },
     T: NumCast + Clone + Num,
 );
+*/
 
 /// Constructs a node that performs FFT or IFFTs in batches.
 ///
@@ -154,8 +170,8 @@ mod test {
         );
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(send_node, fft_node, recv);
-        connect_nodes!(fft_node, check_node, recv);
+        connect_nodes!(send_node, sender, fft_node, input);
+        connect_nodes!(fft_node, sender, check_node, recv);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -221,8 +237,8 @@ mod test {
         );
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(send_node, fft_node, recv);
-        connect_nodes!(fft_node, check_node, recv);
+        connect_nodes!(send_node, sender, fft_node, recv);
+        connect_nodes!(fft_node, sender, check_node, recv);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
             check_node.call().unwrap();

@@ -37,7 +37,7 @@
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
 //! // receiving on the `recv` receiver in the Node2 structure.
-//! connect_nodes!(node1, node2, recv);
+//! connect_nodes!(node1, sender, node2, recv);
 //!
 //! // Spawn threads for node1 and node2 and have them executing indefinitely.
 //! start_nodes!(node1, node2);
@@ -67,6 +67,8 @@ impl fmt::Display for NodeError {
     }
 }
 
+
+
 impl error::Error for NodeError {
     fn cause(&self) -> Option<&error::Error> {
         None
@@ -77,6 +79,7 @@ impl error::Error for NodeError {
 pub trait Node {
     fn call(&mut self) -> Result<(), NodeError>;
 }
+
 
 /// Creates a structure with crossbeam senders and receivers automatically and
 /// auto-implements the Node trait.
@@ -421,15 +424,15 @@ macro_rules! generate_new {
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
-/// connect_nodes!(node1, node2, recv);
+/// connect_nodes!(node1, sender, node2, recv);
 /// # }
 /// ```
 ///
 #[macro_export]
 macro_rules! connect_nodes {
-    ($n1:ident, $n2:ident, $recv:ident) => {{
+    ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
         let (send, recv) = channel::bounded(0);
-        $n1.sender.push((send, None));
+        $n1.$send.push((send, None));
         $n2.$recv = Some(recv);
     }};
 }
@@ -467,15 +470,15 @@ macro_rules! connect_nodes {
 /// // message on its receiver named `recv`. When node1 starts, it will send
 /// // a 0 to node2 the first time it's run by start_nodes! and run a normal
 /// // loop afterwards.
-/// connect_nodes_feedback!(node1, node2, recv, 0);
+/// connect_nodes_feedback!(node1, sender, node2, recv, 0);
 /// # }
 /// ```
 ///
 #[macro_export]
 macro_rules! connect_nodes_feedback {
-    ($n1:ident, $n2:ident, $recv:ident, $default:tt) => {{
+    ($n1:ident, $send:ident, $n2:ident, $recv:ident, $default:tt) => {{
         let (send, recv) = channel::bounded(0);
-        $n1.sender.push((send, Some($default)));
+        $n1.$send.push((send, Some($default)));
         $n2.$recv = Some(recv);
     }};
 }
@@ -509,7 +512,7 @@ macro_rules! connect_nodes_feedback {
 /// # );
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, node2, recv);
+/// # connect_nodes!(node1, sender, node2, recv);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -567,7 +570,7 @@ macro_rules! start_nodes {
 /// # fn main() {
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, node2, recv);
+/// # connect_nodes!(node1, sender, node2, recv);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -624,7 +627,7 @@ mod test {
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
 
-        connect_nodes!(node1, node2, recv1);
+        connect_nodes!(node1, sender, node2, recv1);
         start_nodes!(node1);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -689,8 +692,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, recv1);
+        connect_nodes!(node2, sender, node3, recv2);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -749,8 +752,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new(0);
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, recv1);
+        connect_nodes!(node2, sender, node3, recv2);
         start_nodes!(node1, node2, node3);
         thread::sleep(Duration::from_secs(1));
     }
@@ -801,8 +804,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new(0);
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, recv1);
+        connect_nodes!(node2, sender, node3, recv2);
         start_nodes!(node1, node3);
         start_nodes_threadpool!(node2);
         thread::sleep(Duration::from_secs(1));
@@ -855,9 +858,9 @@ mod test {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        connect_nodes!(node1, node3, recv1);
-        connect_nodes!(node2, node3, recv2);
-        connect_nodes!(node3, node4, recv);
+        connect_nodes!(node1, sender, node3, recv1);
+        connect_nodes!(node2, sender, node3, recv2);
+        connect_nodes!(node3, sender, node4, recv);
 
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3);
@@ -901,7 +904,7 @@ mod test {
 
         let mut one_node = OneNode::new(0);
         let mut count_node = CounterNode::new(0);
-        connect_nodes!(one_node, count_node, recv);
+        connect_nodes!(one_node, sender, count_node, recv);
 
         thread::spawn(move || {
             for _ in 0..10 {
@@ -943,8 +946,8 @@ mod test {
 
         let mut add_node = AddNode::new(1);
         let mut print_node = PrintNode::new(0);
-        connect_nodes!(add_node, print_node, recv_sum);
-        connect_nodes_feedback!(print_node, add_node, recv_f, 0);
+        connect_nodes!(add_node, sender, print_node, recv_sum);
+        connect_nodes_feedback!(print_node, sender, add_node, recv_f, 0);
         start_nodes!(add_node);
         let check = thread::spawn(move || {
             for (print, val) in &print_node.sender {

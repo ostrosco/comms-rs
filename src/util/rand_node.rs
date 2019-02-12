@@ -83,7 +83,7 @@ mod test {
             Ok(())
         });
         let mut check_node = CheckNode::new();
-        connect_nodes!(uniform_node, check_node, recv);
+        connect_nodes!(uniform_node, sender, check_node, recv);
         start_nodes!(uniform_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -112,7 +112,7 @@ mod test {
             Ok(())
         });
         let mut check_node = CheckNode::new();
-        connect_nodes!(bit_node, check_node, recv);
+        connect_nodes!(bit_node, sender, check_node, recv);
         start_nodes!(bit_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
