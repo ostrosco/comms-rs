@@ -4,22 +4,20 @@ use bincode::{deserialize, serialize};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-create_node!(
-    #[doc = "A node that will send serialized data out a ZMQ socket."]
-    ZMQSend<T>: (),
-    [socket: zmq::Socket, flags: i32],
-    [recv: T],
-    |node: &mut ZMQSend<T>, mut data: T| {
-        node.send(&mut data)
-    },
-    T: Serialize + Clone,
-);
+/// A node that will send serialized data out of a ZMQ socket.
+#[derive(Node)]
+pub struct ZMQSend<T> where T: Serialize + Clone {
+    pub input: NodeReceiver<T>,
+    socket: zmq::Socket,
+    flags: i32,
+}
 
-impl<T> ZMQSend<T>
-where
-    T: Serialize + Clone,
-{
-    pub fn send(&mut self, data: &mut T) -> Result<(), NodeError> {
+impl <T> ZMQSend<T> where T: Serialize + Clone {
+    pub fn run(&mut self, data: &T) -> Result<(), NodeError> {
+        self.send(data)
+    }
+
+    pub fn send(&mut self, data: &T) -> Result<(), NodeError> {
         let buffer: Vec<u8> = match serialize(&data) {
             Ok(b) => b,
             Err(_) => return Err(NodeError::DataError),
@@ -46,7 +44,7 @@ where
 /// let mut rand = rand_node::normal(0.0, 1.0);
 /// let mut send: ZMQSend<f64> = zmq_node::zmq_send("tcp://*:5556",
 ///     zmq::SocketType::PUB, 0);
-/// connect_nodes!(rand, sender, send, recv);
+/// connect_nodes!(rand, sender, send, input);
 /// start_nodes!(rand, send);
 /// # }
 pub fn zmq_send<T>(
@@ -63,19 +61,19 @@ where
     ZMQSend::new(socket, flags)
 }
 
-create_node!(
-    #[doc = "A node that will receive serialized data from a ZMQ socket."]
-    ZMQRecv<T>: T,
-    [socket: zmq::Socket, flags: i32],
-    [],
-    |node: &mut ZMQRecv<T>| node.recv(),
-    T: DeserializeOwned + Clone,
-);
+/// A node that will receiver serialized data from a ZMQ socket.
+#[derive(Node)]
+pub struct ZMQRecv<T> where T: DeserializeOwned + Clone {
+    socket: zmq::Socket,
+    flags: i32,
+    pub sender: NodeSender<T>,
+}
 
-impl<T> ZMQRecv<T>
-where
-    T: DeserializeOwned + Clone,
-{
+impl <T> ZMQRecv<T> where T: DeserializeOwned + Clone {
+    pub fn run(&mut self) -> Result<T, NodeError> {
+        self.recv()
+    }
+
     pub fn recv(&mut self) -> Result<T, NodeError> {
         let bytes = match self.socket.recv_bytes(self.flags) {
             Ok(b) => b,
@@ -135,12 +133,16 @@ mod test {
 
     #[test]
     fn test_zmq() {
-        create_node!(DataGen: Vec<u32>, [], [], |_| -> Result<
-            Vec<u32>,
-            NodeError,
-        > {
-            Ok(vec![1, 2, 3, 4, 5])
-        });
+        #[derive(Node)]
+        struct DataGen {
+            pub sender: NodeSender<Vec<u32>>,
+        }
+        impl DataGen {
+            pub fn run(&mut self) -> Result<Vec<u32>, NodeError> {
+                Ok(vec![1, 2, 3, 4, 5])
+            }
+        }
+
         let mut data_node = DataGen::new();
         let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
             "tcp://*:5556",
@@ -152,18 +154,21 @@ mod test {
             zmq::SocketType::SUB,
             0,
         );
-        create_node!(CheckNode: (), [], [recv: Vec<u32>], |_,
-                                                           data: Vec<u32>|
-         -> Result<
-            (),
-            NodeError,
-        > {
-            assert_eq!(&data, &[1, 2, 3, 4, 5]);
-            Ok(())
-        });
+
+        #[derive(Node)]
+        struct CheckNode {
+            pub input: NodeReceiver<Vec<u32>>,
+        }
+
+        impl CheckNode {
+            pub fn run(&mut self, data: &[u32]) -> Result<(), NodeError> {
+                assert_eq!(&data, &[1, 2, 3, 4, 5]);
+                Ok(())
+            }
+        }
         let mut check_node = CheckNode::new();
-        connect_nodes!(data_node, sender, zmq_send, recv);
-        connect_nodes!(zmq_recv, sender, check_node, recv);
+        connect_nodes!(data_node, sender, zmq_send, input);
+        connect_nodes!(zmq_recv, sender, check_node, input);
         start_nodes!(data_node, zmq_send, zmq_recv);
 
         let handle = thread::spawn(move || {
