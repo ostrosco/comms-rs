@@ -4,25 +4,23 @@ use crate::io::rodio::{self, Sample, Sink};
 use crate::prelude::*;
 use std::sync::Arc;
 
-create_node!(
-    #[doc = "A node that can play received samples out on audio. "]
-    #[doc = "Currently this only uses the default output device "]
-    #[doc = "on the system."]
-    AudioNode<T>: (),
-    [sink: Sink, in_queue: Arc<SourcesQueueInput<T>>, channels: u16, sample_rate: u32],
-    [recv: Vec<T>],
-    |node: &mut AudioNode<T>, samples: Vec<T>| {
-        node.play(samples)
-    },
-    T: Sample + Send + 'static,
-);
+/// A node that can play received samples out on audio. Currently this only
+/// uses the default output device on the system.
+#[derive(Node)]
+pub struct AudioNode<T> where T: Sample + Send + 'static {
+    pub input: NodeReceiver<Vec<T>>,
+    sink: Sink,
+    in_queue: Arc<SourcesQueueInput<T>>,
+    channels: u16,
+    sample_rate: u32,
+}
 
 impl<T> AudioNode<T>
 where
     T: Sample + Send + 'static,
 {
     /// Tosses the received samples into the sink for output.
-    pub fn play(&mut self, samples: Vec<T>) -> Result<(), NodeError> {
+    pub fn run(&mut self, samples: Vec<T>) -> Result<(), NodeError> {
         let samplebuffer = buffer::SamplesBuffer::new(
             self.channels,
             self.sample_rate,

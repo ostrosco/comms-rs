@@ -13,7 +13,7 @@ use num_traits::Num;
 
 /// Implementation of run for the BatchFirNode.
 pub fn fir<T>(
-    input: Complex<T>,
+    input: &Complex<T>,
     taps: &[Complex<T>],
     state: &mut Vec<Complex<T>>,
 ) -> Complex<T>
@@ -21,13 +21,13 @@ where
     T: Num + Copy,
 {
     state.rotate_right(1);
-    state[0] = input;
+    state[0] = *input;
     taps.iter().zip(state.iter()).map(|(x, y)| *x * *y).sum()
 }
 
 /// Implementation of run for the BatchFirNode.
 pub fn batch_fir<T>(
-    input: Vec<Complex<T>>,
+    input: &[Complex<T>],
     taps: &[Complex<T>],
     state: &mut Vec<Complex<T>>,
 ) -> Vec<Complex<T>>
@@ -37,7 +37,7 @@ where
     let mut output = Vec::new();
     for sample in input {
         state.rotate_right(1);
-        state[0] = sample;
+        state[0] = *sample;
         output.push(taps.iter().zip(state.iter()).map(|(x, y)| *x * *y).sum());
     }
     output
