@@ -104,7 +104,7 @@ pub trait Node {
 /// # struct Node2 {
 /// #   recv: NodeReceiver<u32>,
 /// # }
-/// # 
+/// #
 /// # impl Node2 {
 /// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #       assert_eq!(x, 1);
@@ -153,7 +153,7 @@ macro_rules! connect_nodes {
 /// # struct Node2 {
 /// #   recv: NodeReceiver<u32>,
 /// # }
-/// # 
+/// #
 /// # impl Node2 {
 /// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #       assert_eq!(x, 1);
@@ -624,7 +624,7 @@ mod test {
                 Ok(())
             }
         }
-        
+
         // Now, you can instantiate your nodes as usual.
         let mut node1 = NoInputNode::new();
         let mut node2 = AnotherNode::new();
