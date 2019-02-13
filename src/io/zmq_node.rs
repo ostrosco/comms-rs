@@ -7,13 +7,19 @@ use serde::Serialize;
 /// A node that will send serialized data out of a ZMQ socket.
 #[derive(Node)]
 #[pass_by_ref]
-pub struct ZMQSend<T> where T: Serialize + Clone {
+pub struct ZMQSend<T>
+where
+    T: Serialize + Clone,
+{
     pub input: NodeReceiver<T>,
     socket: zmq::Socket,
     flags: i32,
 }
 
-impl <T> ZMQSend<T> where T: Serialize + Clone {
+impl<T> ZMQSend<T>
+where
+    T: Serialize + Clone,
+{
     pub fn run(&mut self, data: &T) -> Result<(), NodeError> {
         self.send(data)
     }
@@ -64,13 +70,19 @@ where
 
 /// A node that will receiver serialized data from a ZMQ socket.
 #[derive(Node)]
-pub struct ZMQRecv<T> where T: DeserializeOwned + Clone {
+pub struct ZMQRecv<T>
+where
+    T: DeserializeOwned + Clone,
+{
     socket: zmq::Socket,
     flags: i32,
     pub sender: NodeSender<T>,
 }
 
-impl <T> ZMQRecv<T> where T: DeserializeOwned + Clone {
+impl<T> ZMQRecv<T>
+where
+    T: DeserializeOwned + Clone,
+{
     pub fn run(&mut self) -> Result<T, NodeError> {
         self.recv()
     }

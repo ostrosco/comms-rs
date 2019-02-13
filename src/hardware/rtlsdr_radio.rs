@@ -77,7 +77,7 @@ mod test {
         sdr.init_radio(88.7e6 as u32, 2.4e6 as u32, 0).unwrap();
         sdr.set_agc(true).unwrap();
         let mut sdr_node = radio::RadioRxNode::new(sdr, 0, num_samples);
-        
+
         #[derive(Node)]
         #[pass_by_ref]
         struct CheckNode {
