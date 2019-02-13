@@ -123,21 +123,6 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                 }
             }
 
-            pub fn start(&mut self) {
-                #(
-                    for (send, val) in &self.#send_idents2 {
-                        match val {
-                            Some(v) => send.send(v.clone()),
-                            None => continue,
-                        }
-                    }
-                )*
-                loop {
-                    if self.call().is_err() {
-                        break;
-                    }
-                }
-            }
         }
     };
 
@@ -154,6 +139,22 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     let derive_node = if aggregate {
         quote! {
             impl #impl_generics Node for #name #ty_generics #where_clause {
+                fn start(&mut self) {
+                    #(
+                        for (send, val) in &self.#send_idents2 {
+                            match val {
+                                Some(v) => send.send(v.clone()),
+                                None => continue,
+                            }
+                        }
+                    )*
+                    loop {
+                        if self.call().is_err() {
+                            break;
+                        }
+                    }
+                }
+
                 fn call(&mut self) -> Result<(), NodeError> {
                     #(
                         let #recv_idents1 = match self.#recv_idents2 {
@@ -176,6 +177,22 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             impl #impl_generics Node for #name #ty_generics #where_clause {
+                fn start(&mut self) {
+                    #(
+                        for (send, val) in &self.#send_idents2 {
+                            match val {
+                                Some(v) => send.send(v.clone()),
+                                None => continue,
+                            }
+                        }
+                    )*
+                    loop {
+                        if self.call().is_err() {
+                            break;
+                        }
+                    }
+                }
+
                 fn call(&mut self) -> Result<(), NodeError> {
                     #(
                         let #recv_idents1 = match self.#recv_idents2 {
