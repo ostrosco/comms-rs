@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 // A simple node to decimate the input.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct DecimateNode<T>
 where
     T: Copy,

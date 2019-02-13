@@ -11,7 +11,7 @@ enum FieldType {
     State,
 }
 
-#[proc_macro_derive(Node, attributes(aggregate))]
+#[proc_macro_derive(Node, attributes(aggregate, pass_by_ref))]
 /// Creates a node derived from an input structure with a constructor and
 /// implements the Node trait.
 ///
@@ -53,10 +53,14 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let attributes = &input.attrs;
     let mut aggregate = false;
+    let mut pass_by_ref = false;
     for attr in attributes {
         match attr.parse_meta() {
             Ok(syn::Meta::Word(ref id)) if id.to_string() == "aggregate" => {
                 aggregate = true
+            }
+            Ok(syn::Meta::Word(ref id)) if id.to_string() == "pass_by_ref" => {
+                pass_by_ref = true
             }
             Ok(_) => continue,
             Err(e) => panic!("Invalid attribute {}", e),
@@ -137,6 +141,16 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         }
     };
 
+    let run_func = if pass_by_ref {
+        quote! {
+            let res = self.run(#(&#recv_idents3),*)?;
+        }
+    } else {
+        quote! {
+            let res = self.run(#(#recv_idents3),*)?;
+        }
+    };
+
     let derive_node = if aggregate {
         quote! {
             impl #impl_generics Node for #name #ty_generics #where_clause {
@@ -147,7 +161,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                             None => return Err(NodeError::PermanentError),
                         };
                     )*
-                    let res = self.run(#(&#recv_idents3),*)?;
+                    #run_func
                     if let Some(res) = res {
                         #(
                             for (send, _) in &self.#send_idents1 {
@@ -169,7 +183,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                             None => return Err(NodeError::PermanentError),
                         };
                     )*
-                    let res = self.run(#(&#recv_idents3),*)?;
+                    #run_func
                     #(
                         for (send, _) in &self.#send_idents1 {
                             send.send(res.clone());

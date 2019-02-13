@@ -7,6 +7,7 @@ use num_traits::Num;
 
 /// A node that implements a generic FIR filter.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct FirNode<T>
 where
     T: Num + Copy,
@@ -29,6 +30,7 @@ where
 /// A node that implements a generic FIR filter.  Operates on a batch of
 /// samples at a time.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct BatchFirNode<T>
 where
     T: Num + Copy,
@@ -128,7 +130,7 @@ mod test {
 
         impl SomeSamples {
             pub fn run(&mut self) -> Result<Complex<i16>, NodeError> {
-                if self.samples.len() == 0 {
+                if self.samples.is_empty() {
                     Ok(Complex::zero())
                 } else {
                     Ok(self.samples.remove(0))
@@ -166,7 +168,7 @@ mod test {
         impl CheckNode {
             pub fn run(
                 &mut self,
-                input: &Complex<i16>,
+                input: Complex<i16>,
             ) -> Result<(), NodeError> {
                 if self.state.len() == 9 {
                     assert_eq!(
@@ -184,7 +186,7 @@ mod test {
                         ]
                     );
                 } else {
-                    self.state.push(*input);
+                    self.state.push(input);
                 }
                 Ok(())
             }
@@ -218,7 +220,7 @@ mod test {
 
         impl SomeSamples {
             pub fn run(&mut self) -> Result<Vec<Complex<i16>>, NodeError> {
-                if self.samples.len() == 0 {
+                if self.samples.is_empty() {
                     Ok(vec![Complex::zero(), Complex::zero()])
                 } else {
                     let s1 = self.samples.remove(0);
@@ -253,6 +255,7 @@ mod test {
         );
 
         #[derive(Node)]
+        #[pass_by_ref]
         pub struct CheckNode {
             pub input: NodeReceiver<Vec<Complex<i16>>>,
             state: Vec<Complex<i16>>,
@@ -280,7 +283,7 @@ mod test {
                         ]
                     );
                 } else {
-                    self.state.append(&mut input.clone().to_vec());
+                    self.state.append(&mut (*input).to_vec());
                 }
                 Ok(())
             }

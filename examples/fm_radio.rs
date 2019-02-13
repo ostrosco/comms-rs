@@ -60,6 +60,7 @@ fn main() {
     // Since we don't have anything fancy yet for type conversion, we're
     // gonna make a node to do it for us.
     #[derive(Node)]
+    #[pass_by_ref]
     struct ConvertNode {
         pub input: NodeReceiver<Vec<u8>>,
         pub sender: NodeSender<Vec<Complex<f32>>>,
@@ -86,6 +87,7 @@ fn main() {
     // to transform our real data after demodulation into Complex samples
     // so we can filter again.
     #[derive(Node)]
+    #[pass_by_ref]
     struct Convert2Node {
         pub input: NodeReceiver<Vec<f32>>,
         pub sender: NodeSender<Vec<Complex<f32>>>,
@@ -103,6 +105,7 @@ fn main() {
     // After the filter, we need to convert the data bact to real samples
     // to pass through decimation and to the audio sink.
     #[derive(Node)]
+    #[pass_by_ref]
     struct Convert3Node {
         pub input: NodeReceiver<Vec<Complex<f32>>>,
         pub sender: NodeSender<Vec<f32>>,

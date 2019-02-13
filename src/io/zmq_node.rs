@@ -6,6 +6,7 @@ use serde::Serialize;
 
 /// A node that will send serialized data out of a ZMQ socket.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct ZMQSend<T> where T: Serialize + Clone {
     pub input: NodeReceiver<T>,
     socket: zmq::Socket,
@@ -156,6 +157,7 @@ mod test {
         );
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct CheckNode {
             pub input: NodeReceiver<Vec<u32>>,
         }

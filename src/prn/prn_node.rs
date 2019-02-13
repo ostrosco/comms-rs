@@ -76,6 +76,7 @@ mod test {
         }
 
         impl<T: PrimInt + Hash> TestPrnsGenerator<T> {
+            #[allow(clippy::map_entry)]
             fn run(&mut self) -> Option<u8> {
                 if self.statemap.contains_key(&self.state) {
                     println!("\nSize of <T>: {}", size_of::<T>());
@@ -102,11 +103,8 @@ mod test {
             statemap: HashMap::new(),
         };
 
-        loop {
-            match prngen.run() {
-                Some(x) => print!("{:x}", x),
-                None => break,
-            }
+        while let Some(x) = prngen.run() {
+            print!("{:x}", x);
         }
     }
 
@@ -114,14 +112,17 @@ mod test {
     // A test to verify the PrnsNode matches the PRBS7 output.
     fn test_prns_node() {
         let mut mynode = prn_node::prns_node(0xC0 as u8, 0x01);
-        create_node!(
-            CheckNode: (),
-            [state: Vec<u8>],
-            [recv: u8],
-            |node: &mut CheckNode, x| -> Result<(), NodeError> {
-                if node.state.len() == 128 {
+        #[derive(Node)]
+        struct CheckNode {
+            recv: NodeReceiver<u8>,
+            state: Vec<u8>,
+        }
+
+        impl CheckNode {
+            pub fn run(&mut self, x: u8) -> Result<(), NodeError> {
+                if self.state.len() == 128 {
                     assert_eq!(
-                        node.state,
+                        self.state,
                         vec![
                             0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0,
                             0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
@@ -134,11 +135,11 @@ mod test {
                         ]
                     );
                 } else {
-                    node.state.push(x);
+                    self.state.push(x);
                 }
                 Ok(())
             }
-        );
+        }
 
         let mut check_node = CheckNode::new(Vec::new());
 

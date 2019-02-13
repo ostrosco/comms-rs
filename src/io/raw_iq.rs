@@ -142,7 +142,7 @@ where
 }
 
 impl<W: Write> IQOutput<W> {
-    pub fn run(&mut self, samp: &IQSample) -> Result<(), NodeError> {
+    pub fn run(&mut self, samp: IQSample) -> Result<(), NodeError> {
         self.writer
             .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
@@ -169,6 +169,7 @@ pub fn iq_file_out<P: AsRef<Path>>(
 }
 
 #[derive(Node)]
+#[pass_by_ref]
 pub struct IQBatchOutput<W>
 where
     W: Write,
@@ -275,9 +276,9 @@ mod test {
         }
 
         assert_eq!(out.len(), iterations);
-        for i in 0..iterations {
+        for out in out.iter() {
             for j in 0..iterations {
-                assert_eq!(expected_out[j], out[i][j]);
+                assert_eq!(expected_out[j], out[j]);
             }
         }
     }
@@ -294,7 +295,7 @@ mod test {
         {
             let mut node = IQOutput::new(&mut out);
             for item in expected.iter() {
-                node.run(&*item).unwrap();
+                node.run(*item).unwrap();
             }
         }
 

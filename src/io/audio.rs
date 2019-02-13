@@ -7,6 +7,7 @@ use std::sync::Arc;
 /// A node that can play received samples out on audio. Currently this only
 /// uses the default output device on the system.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct AudioNode<T>
 where
     T: Sample + Send + 'static,

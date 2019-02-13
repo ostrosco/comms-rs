@@ -15,6 +15,7 @@ pub trait RadioRx<T> {
 /// A node that takes a generic hardware platform that supports transmitting
 /// samples.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct RadioTxNode<T, U>
 where
     T: RadioTx<U>,

@@ -5,6 +5,7 @@ use num::Float;
 use num::Zero;
 
 #[derive(Node)]
+#[pass_by_ref]
 pub struct FMDemodNode<T>
 where
     T: Float + Zero,
