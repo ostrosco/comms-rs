@@ -865,7 +865,6 @@ mod test {
         thread::sleep(Duration::from_secs(1));
     }
 
-    /*
     #[test]
     /// Constructs a network where a node receives from two different nodes.
     /// This serves to make sure that fan-in operation works as we expect
@@ -876,35 +875,55 @@ mod test {
         use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
-        create_node!(NoInputNode: u32, [], [], |_| -> Result<u32, NodeError> {
-            Ok(1)
-        });
-        create_node!(AnotherNode: f64, [], [], |_| -> Result<f64, NodeError> {
-            Ok(2.0)
-        });
+        #[derive(Node)]
+        struct NoInputNode {
+            output: NodeSender<u32>,
+        }
+
+        impl NoInputNode {
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct AnotherNode {
+            output: NodeSender<f64>,
+        }
+
+        impl AnotherNode {
+            pub fn run(&mut self) -> Result<f64, NodeError> {
+                Ok(2.0)
+            }
+        }
 
         // Creates a node that takes a u32 and a f64, returns a f32, and names
         // the receivers recv_u and recv_f.
-        create_node!(
-            DoubleInputNode: f32,
-            [],
-            [recv1: u32, recv2: f64],
-            |_, x: u32, y: f64| -> Result<f32, NodeError> {
-                Ok((x as f64 + y) as f32)
+        #[derive(Node)]
+        struct DoubleInputNode {
+            recv1: NodeReceiver<u32>,
+            recv2: NodeReceiver<f64>,
+            output: NodeSender<f32>,
+        }
+
+        impl DoubleInputNode {
+            pub fn run(&mut self, x: &u32, y: &f64) -> Result<f32, NodeError> {
+                Ok((*x as f64 + *y) as f32)
             }
-        );
+        }
 
-        // Create a node to check the value.
-        create_node!(CheckNode: (), [], [recv: f32], |_,
-                                                      x: f32|
-         -> Result<
-            (),
-            NodeError,
-        > {
-            assert_eq!(x, 3.0, "Node didn't work!");
-            Ok(())
-        });
+        #[derive(Node)]
+        struct CheckNode {
+            recv: NodeReceiver<f32>,
+        }
 
+        impl CheckNode {
+            pub fn run(&mut self, x: &f32) -> Result<(), NodeError> {
+                assert_eq!(*x, 3.0, "Fan-out failed.");
+                Ok(())
+            }
+        }
+        
         // Now, you can instantiate your nodes as usual.
         let mut node1 = NoInputNode::new();
         let mut node2 = AnotherNode::new();
@@ -913,9 +932,9 @@ mod test {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        connect_nodes!(node1, sender, node3, recv1);
-        connect_nodes!(node2, sender, node3, recv2);
-        connect_nodes!(node3, sender, node4, recv);
+        connect_nodes!(node1, output, node3, recv1);
+        connect_nodes!(node2, output, node3, recv2);
+        connect_nodes!(node3, output, node4, recv);
 
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3);
@@ -937,29 +956,36 @@ mod test {
     /// two nodes: one to send 1 to 10 and the other to add the number to a
     /// counter within the node.
     fn test_counter() {
-        create_node!(
-            OneNode: i32,
-            [count: i32],
-            [],
-            |node: &mut OneNode| -> Result<i32, NodeError> {
-                node.count += 1;
-                Ok(node.count)
-            }
-        );
+        #[derive(Node)]
+        struct OneNode {
+            count: i32,
+            output: NodeSender<i32>,
+        }
 
-        create_node!(
-            CounterNode: i32,
-            [count: i32],
-            [recv: i32],
-            |node: &mut CounterNode, val: i32| -> Result<i32, NodeError> {
-                node.count = node.count + val;
-                Ok(node.count)
+        impl OneNode {
+            pub fn run(&mut self) -> Result<i32, NodeError> {
+                self.count += 1;
+                Ok(self.count)
             }
-        );
+        }
+
+        #[derive(Node)]
+        struct CounterNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            sender: NodeSender<i32>,
+        }
+
+        impl CounterNode {
+            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
+                self.count += *val;
+                Ok(self.count)
+            }
+        }
 
         let mut one_node = OneNode::new(0);
         let mut count_node = CounterNode::new(0);
-        connect_nodes!(one_node, sender, count_node, recv);
+        connect_nodes!(one_node, output, count_node, recv);
 
         thread::spawn(move || {
             for _ in 0..10 {
@@ -980,32 +1006,41 @@ mod test {
     #[test]
     /// A test to verify that feedback will work.
     fn test_feedback() {
-        create_node!(
-            AddNode: i32,
-            [count: i32],
-            [recv_f: i32],
-            |node: &mut AddNode, val: i32| -> Result<i32, NodeError> {
-                node.count += val;
-                Ok(node.count)
+        #[derive(Node)]
+        struct AddNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            sender: NodeSender<i32>,
+        }
+
+        impl AddNode {
+            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
+                self.count += val;
+                Ok(self.count)
             }
-        );
-        create_node!(
-            PrintNode: i32,
-            [count: i32],
-            [recv_sum: i32],
-            |node: &mut PrintNode, val: i32| -> Result<i32, NodeError> {
-                node.count = val;
-                Ok(val)
+        }
+
+        #[derive(Node)]
+        struct PrintNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            output: NodeSender<i32>,
+        }
+
+        impl PrintNode {
+            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
+                self.count = *val;
+                Ok(*val)
             }
-        );
+        }
 
         let mut add_node = AddNode::new(1);
         let mut print_node = PrintNode::new(0);
-        connect_nodes!(add_node, sender, print_node, recv_sum);
-        connect_nodes_feedback!(print_node, sender, add_node, recv_f, 0);
+        connect_nodes!(add_node, sender, print_node, recv);
+        connect_nodes_feedback!(print_node, output, add_node, recv, 0);
         start_nodes!(add_node);
         let check = thread::spawn(move || {
-            for (print, val) in &print_node.sender {
+            for (print, val) in &print_node.output {
                 match val {
                     Some(v) => print.send(*v),
                     None => continue,
@@ -1018,5 +1053,4 @@ mod test {
         });
         assert!(check.join().is_ok());
     }
-    */
 }
