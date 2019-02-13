@@ -24,8 +24,8 @@ fn simple_nodes() {
     }
 
     impl SinkNode {
-        pub fn run(&mut self, input: &u32) -> Result<(), NodeError> {
-            assert_eq!(input, &1);
+        pub fn run(&mut self, input: u32) -> Result<(), NodeError> {
+            assert_eq!(input, 1);
             Ok(())
         }
     }

@@ -77,15 +77,21 @@ mod test {
         sdr.init_radio(88.7e6 as u32, 2.4e6 as u32, 0).unwrap();
         sdr.set_agc(true).unwrap();
         let mut sdr_node = radio::RadioRxNode::new(sdr, 0, num_samples);
-        create_node!(
-            CheckNode: (),
-            [num_samples: usize],
-            [recv: Vec<u8>],
-            |node: &mut CheckNode, samples: Vec<u8>| -> Result<(), NodeError> {
-                assert_eq!(samples.len(), node.num_samples);
+        
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct CheckNode {
+            recv: NodeReceiver<Vec<u8>>,
+            num_samples: usize,
+        }
+
+        impl CheckNode {
+            pub fn run(&mut self, samples: &[u8]) -> Result<(), NodeError> {
+                assert_eq!(samples.len(), self.num_samples);
                 Ok(())
             }
-        );
+        }
+
         let mut check_node = CheckNode::new(num_samples);
         connect_nodes!(sdr_node, sender, check_node, recv);
         start_nodes!(sdr_node);

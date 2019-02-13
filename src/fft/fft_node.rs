@@ -8,6 +8,7 @@ use rustfft::FFTplanner;
 /// A node that supports FFTs and IFFTs. FFTs are done in batch: the node
 /// expects that input data matching the specified FFT size is provided.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct FFTBatchNode<T>
 where
     T: NumCast + Clone + Num,
@@ -63,6 +64,7 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
 /// has received enough samples specified by fft_size.
 #[derive(Node)]
 #[aggregate]
+#[pass_by_ref]
 pub struct FFTSampleNode<T>
 where
     T: NumCast + Clone + Num,
@@ -158,6 +160,7 @@ mod test {
         let mut fft_node = fft_node::fft_batch_node(10, false);
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct CheckNode {
             pub input: NodeReceiver<Vec<Complex<f32>>>,
         }
@@ -212,7 +215,7 @@ mod test {
 
         impl SendNode {
             pub fn run(&mut self) -> Result<Complex<f32>, NodeError> {
-                Ok(self.state.pop().unwrap_or(Complex::new(0.0, 0.0)))
+                Ok(self.state.pop().unwrap_or_else(|| Complex::new(0.0, 0.0)))
             }
         }
 
@@ -232,6 +235,7 @@ mod test {
         let mut send_node = SendNode::new(input);
         let mut fft_node = fft_node::fft_sample_node(10, false);
         #[derive(Node)]
+        #[pass_by_ref]
         struct CheckNode {
             pub input: NodeReceiver<Vec<Complex<f32>>>,
         }

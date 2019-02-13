@@ -12,6 +12,7 @@ use num_traits::NumCast;
 
 /// A node that implements a generic mixer.
 #[derive(Node)]
+#[pass_by_ref]
 pub struct MixerNode<T>
 where
     T: Clone + Num + NumCast,
@@ -80,7 +81,7 @@ mod test {
 
         impl SomeSamples {
             pub fn run(&mut self) -> Result<Complex<f64>, NodeError> {
-                if self.samples.len() == 0 {
+                if self.samples.is_empty() {
                     Ok(Complex::zero())
                 } else {
                     Ok(self.samples.remove(0))
@@ -107,7 +108,7 @@ mod test {
         impl CheckNode {
             pub fn run(
                 &mut self,
-                input: &Complex<f64>,
+                input: Complex<f64>,
             ) -> Result<(), NodeError> {
                 if self.state.len() == 5 {
                     let truth = vec![
@@ -117,12 +118,12 @@ mod test {
                         Complex::new(3.643356072, 9.986288426),
                         Complex::new(7.932508585, 4.251506503),
                     ];
-                    for i in 0..self.state.len() {
-                        assert_approx_eq!(self.state[i].re, truth[i].re);
-                        assert_approx_eq!(self.state[i].im, truth[i].im);
+                    for (i, truth) in truth.iter().enumerate() {
+                        assert_approx_eq!(self.state[i].re, truth.re);
+                        assert_approx_eq!(self.state[i].im, truth.im);
                     }
                 } else {
-                    self.state.push(*input);
+                    self.state.push(input);
                 }
                 Ok(())
             }
@@ -156,7 +157,7 @@ mod test {
 
         impl SomeSamples {
             pub fn run(&mut self) -> Result<Complex<f64>, NodeError> {
-                if self.samples.len() == 0 {
+                if self.samples.is_empty() {
                     Ok(Complex::zero())
                 } else {
                     Ok(self.samples.remove(0))
@@ -183,7 +184,7 @@ mod test {
         impl CheckNode {
             pub fn run(
                 &mut self,
-                input: &Complex<f64>,
+                input: Complex<f64>,
             ) -> Result<(), NodeError> {
                 if self.state.len() == 5 {
                     let truth = vec![
@@ -193,12 +194,12 @@ mod test {
                         Complex::new(2.628189174, 10.300127265),
                         Complex::new(7.468436663, 5.022196114),
                     ];
-                    for i in 0..self.state.len() {
-                        assert_approx_eq!(self.state[i].re, truth[i].re);
-                        assert_approx_eq!(self.state[i].im, truth[i].im);
+                    for (i, truth) in truth.iter().enumerate() {
+                        assert_approx_eq!(self.state[i].re, truth.re);
+                        assert_approx_eq!(self.state[i].im, truth.im);
                     }
                 } else {
-                    self.state.push(*input);
+                    self.state.push(input);
                 }
                 Ok(())
             }

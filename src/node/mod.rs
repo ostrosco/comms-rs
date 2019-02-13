@@ -29,8 +29,8 @@
 //! }
 //!
 //! impl Node2 {
-//!     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
-//!         assert_eq!(x, &1);
+//!     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+//!         assert_eq!(x, 1);
 //!         Ok(())
 //!     }
 //! }
@@ -83,344 +83,34 @@ pub trait Node {
     fn call(&mut self) -> Result<(), NodeError>;
 }
 
-/// Creates a structure with crossbeam senders and receivers automatically and
-/// auto-implements the Node trait.
-///
-/// # Arguments
-///
-/// create_node!(name: out_type, [fields: field_type], [recv: recv_type], func);
-///
-/// - name: The name of the node to construct.
-/// - out_type: The type the node outputs, can be () if the node doesn't send
-///   anything to another node.
-/// - [fields: field_type]: A list of fields with their types to add to the
-///   structure. This is useful for maintaining state within the structure.
-/// - [recv: recv_type]: A list of receiver field names to add to the structure
-///   along with the type.
-/// - func: The function this node executes upon executing `call()`. The
-///   function must accept a mutable reference to the node being constructed as
-///   its first parameter, but if the function doesn't need to access state the
-///   parameter can be safely be ignored.
-///
-/// Generics can be passed along with the following format:
-///
-/// create_node!(name<generic>: out_type, [fields: field_type], [recv: recv_type], func, generic:
-/// Trait + ...);
-/// - generic: any generic variables to add to the structure
-/// - generic: Trait + ...,: a list of trait bounds for the structure,
-///   trait bounds are optional
-///
-/// # Examples
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::prelude::*;
-/// # fn main() {
-/// // Creates a node that takes no inputs and outputs a u32.
-/// create_node!(
-///     NoInputNode: u32,
-///     [],
-///     [],
-///     |_| -> Result<u32, NodeError> {
-///         Ok(1)
-///     }
-/// );
-///
-/// // Creates a node that outputs a f32 and receives a u32 and an f64.
-/// create_node!(
-///     DoubleInputNode: f32,
-///     [],
-///     [recv_u: u32, recv_v: f64],
-///     |_, x, y| -> Result<f32, NodeError> {
-///         Ok((x as f64 + y) as f32)
-///     }
-/// );
-///
-/// // Creates a node that takes one u32 input and outputs nothing.
-/// create_node!(
-///     NoOutputNode: (),
-///     [],
-///     [recv_u: u32],
-///     |_, x| -> Result<(), NodeError> {
-///         println!("{}", x);
-///         Ok(())
-///     }
-/// );
-///
-/// // Create a node named CounterNode that receives an i32 input on the
-/// // receiver named `recv`, and adds it to a `count` field in the structure.
-/// // The current count is outputted from the node.
-/// create_node!(CounterNode: i32,
-///     [count: i32],
-///     [recv: i32],
-///     |node: &mut CounterNode, val: i32| -> Result<i32, NodeError> {
-///         node.count += val;
-///         Ok(node.count)
-///     },
-/// );
-///
-/// // Create a node that takes a generic type parameter.
-/// create_node!(
-///     GenericNode<T>: T,
-///     [state: T],
-///     [recv: T],
-///     |node: &mut GenericNode<T>, new_val: T| -> Result<T, NodeError> {
-///         node.state = new_val.clone();
-///         Ok(node.state.clone())
-///     },
-///     T: Clone,
-/// );
-/// # }
-/// ```
-#[macro_export]
-macro_rules! create_node {
-    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl $name {
-            generate_new!($name, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl Node for $name
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
-     [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+> {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+> {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
-     $($bounds:tt)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+>
-        where $($bounds)*
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-    ($(#[$attr:meta])* $name:ident: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl $name {
-            generate_new!($name, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl Node for $name
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+> {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+> {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty,
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
-     $($bounds:tt)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+>
-        where $($bounds)*
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_call {
-    ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) -> Result<(), NodeError>  {
-            $(
-                let $recv = match self.$recv {
-                    Some(ref r) => r.recv().unwrap(),
-                    None => return Err(NodeError::PermanentError),
-                };
-            )*
-            let res: $out = ($func)(&mut *self, $($recv,)*)?;
-            for (send, _) in &self.sender {
-                send.send(res.clone());
-            }
-            Ok(())
-        }
-    }
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_aggregate_call {
-    ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) -> Result<(), NodeError>{
-            $(
-                let $recv = match self.$recv {
-                    Some(ref r) => r.recv().unwrap(),
-                    None => return Err(NodeError::PermanentError),
-                };
-            )*
-            let result: Option<$out> = ($func)(&mut *self, $($recv,)*)?;
-            if let Some(res) = result {
-                for (send, _) in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-            Ok(())
-        }
-    }
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_new {
-    ($name:ident, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
-        pub fn new($($state: $type,)*) -> $name {
-            $name {
-                $(
-                    $recv: None,
-                )*
-                $(
-                    $state,
-                )*
-                sender: vec![],
-            }
-        }
-    };
-    ($name:ident<$($gen:ident),*>, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
-        pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-            $name {
-                $(
-                    $recv: None,
-                )*
-                $(
-                    $state,
-                )*
-                sender: vec![],
-            }
-        }
-    }
-}
-
 /// Connects two nodes together with crossbeam channels.
 ///
 /// ```
 /// # #[macro_use] extern crate comms_rs;
 /// # use comms_rs::prelude::*;
 /// # fn main() {
-/// # create_node!(
-/// #     Node1: u32,
-/// #     [],
-/// #     [],
-/// #     |_| -> Result<u32, NodeError> {
-/// #         Ok(1)
-/// #     }
-/// # );
-/// # create_node!(
-/// #     Node2: (),
-/// #     [],
-/// #     [recv: u32],
-/// #     |_, x| -> Result<(), NodeError> {
-/// #         assert_eq!(x, 1);
-/// #         Ok(())
-/// #     }
-/// # );
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     sender: NodeSender<u32>,
+/// # }
+/// #
+/// # impl Node1 {
+/// #   pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #       Ok(1)
+/// #   }
+/// # }
+/// #
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #   recv: NodeReceiver<u32>,
+/// # }
+/// # 
+/// # impl Node2 {
+/// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #       assert_eq!(x, 1);
+/// #       Ok(())
+/// #   }
+/// # }
 /// let mut node1 = Node1::new();
 /// let mut node2 = Node2::new();
 ///
@@ -448,23 +138,28 @@ macro_rules! connect_nodes {
 /// # #[macro_use] extern crate comms_rs;
 /// # use comms_rs::prelude::*;
 /// # fn main() {
-/// # create_node!(
-/// #     Node1: u32,
-/// #     [],
-/// #     [],
-/// #     |_| -> Result<u32, NodeError> {
-/// #         Ok(1)
-/// #     }
-/// # );
-/// # create_node!(
-/// #     Node2: (),
-/// #     [],
-/// #     [recv: u32],
-/// #     |_, x| -> Result<(), NodeError> {
-/// #         assert_eq!(x, 1);
-/// #         Ok(())
-/// #     }
-/// # );
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     sender: NodeSender<u32>,
+/// # }
+/// #
+/// # impl Node1 {
+/// #   pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #       Ok(1)
+/// #   }
+/// # }
+/// #
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #   recv: NodeReceiver<u32>,
+/// # }
+/// # 
+/// # impl Node2 {
+/// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #       assert_eq!(x, 1);
+/// #       Ok(())
+/// #   }
+/// # }
 /// let mut node1 = Node1::new();
 /// let mut node2 = Node2::new();
 ///
@@ -512,8 +207,8 @@ macro_rules! connect_nodes_feedback {
 /// # }
 ///
 /// # impl Node2 {
-/// #     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
-/// #         assert_eq!(x, &1);
+/// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #    }
 /// # }
@@ -567,8 +262,8 @@ macro_rules! start_nodes {
 /// # }
 ///
 /// # impl Node2 {
-/// #     pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
-/// #         assert_eq!(x, &1);
+/// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, 1);
 /// #         Ok(())
 /// #    }
 /// # }
@@ -622,8 +317,8 @@ mod test {
         }
 
         impl Node2 {
-            pub fn run(&mut self, x: &u32) -> Result<(), NodeError> {
-                assert_eq!(x, &1);
+            pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+                assert_eq!(x, 1);
                 Ok(())
             }
         }
@@ -674,6 +369,7 @@ mod test {
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<u32>>>,
             pub sender: NodeSender<Arc<Vec<u32>>>,
@@ -686,13 +382,14 @@ mod test {
             ) -> Result<Arc<Vec<u32>>, NodeError> {
                 let mut y = Arc::clone(&input);
                 for z in Arc::make_mut(&mut y).iter_mut() {
-                    *z = *z + 1;
+                    *z += 1;
                 }
                 Ok(y)
             }
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node3 {
             pub input: NodeReceiver<Arc<Vec<u32>>>,
         }
@@ -746,6 +443,7 @@ mod test {
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
             pub sender: NodeSender<Arc<Vec<i16>>>,
@@ -765,6 +463,7 @@ mod test {
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node3 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
             count: u32,
@@ -775,7 +474,7 @@ mod test {
                 &mut self,
                 _val: &Arc<Vec<i16>>,
             ) -> Result<(), NodeError> {
-                self.count = self.count + 1;
+                self.count += 1;
                 if self.count == 40000 {
                     println!(
                         "test_throughput: Hit goal of 400 million i16 sent."
@@ -815,6 +514,7 @@ mod test {
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
             pub sender: NodeSender<Arc<Vec<i16>>>,
@@ -834,6 +534,7 @@ mod test {
         }
 
         #[derive(Node)]
+        #[pass_by_ref]
         struct Node3 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
             count: u32,
@@ -844,7 +545,7 @@ mod test {
                 &mut self,
                 _val: &Arc<Vec<i16>>,
             ) -> Result<(), NodeError> {
-                self.count = self.count + 1;
+                self.count += 1;
                 if self.count == 40000 {
                     println!(
                         "test_threadpool_throughput: Hit goal of 400 million i16 sent."
@@ -907,8 +608,8 @@ mod test {
         }
 
         impl DoubleInputNode {
-            pub fn run(&mut self, x: &u32, y: &f64) -> Result<f32, NodeError> {
-                Ok((*x as f64 + *y) as f32)
+            pub fn run(&mut self, x: u32, y: f64) -> Result<f32, NodeError> {
+                Ok((f64::from(x) + y) as f32)
             }
         }
 
@@ -918,8 +619,8 @@ mod test {
         }
 
         impl CheckNode {
-            pub fn run(&mut self, x: &f32) -> Result<(), NodeError> {
-                assert_eq!(*x, 3.0, "Fan-out failed.");
+            pub fn run(&mut self, x: f32) -> Result<(), NodeError> {
+                assert!(x - 3.0f32 < std::f32::EPSILON, "Fan-out failed.");
                 Ok(())
             }
         }
@@ -977,8 +678,8 @@ mod test {
         }
 
         impl CounterNode {
-            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
-                self.count += *val;
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
+                self.count += val;
                 Ok(self.count)
             }
         }
@@ -1014,7 +715,7 @@ mod test {
         }
 
         impl AddNode {
-            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
                 self.count += val;
                 Ok(self.count)
             }
@@ -1028,9 +729,9 @@ mod test {
         }
 
         impl PrintNode {
-            pub fn run(&mut self, val: &i32) -> Result<i32, NodeError> {
-                self.count = *val;
-                Ok(*val)
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
+                self.count = val;
+                Ok(val)
             }
         }
 
