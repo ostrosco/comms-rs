@@ -80,6 +80,7 @@ impl error::Error for NodeError {
 
 /// The trait that all nodes in the library implement.
 pub trait Node {
+    fn start(&mut self);
     fn call(&mut self) -> Result<(), NodeError>;
 }
 
