@@ -1,13 +1,12 @@
 use num::{Complex, Num};
-use num_traits::NumCast;
 use std::f64::consts::PI;
 
 /// Casts a Complex<T> to a Complex<U>. All of the normal caveats with using
 /// the `as` keyword apply here for the conversion.
 pub fn cast_complex<T, U>(input: &Complex<T>) -> Option<Complex<U>>
 where
-    T: Clone + Num + NumCast,
-    U: Clone + Num + NumCast,
+    T: Clone + Num + num_traits::NumCast,
+    U: Clone + Num + num_traits::NumCast,
 {
     let re = U::from(input.re.clone())?;
     let im = U::from(input.im.clone())?;
@@ -43,7 +42,7 @@ pub fn gaussian_taps(
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
+        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
         taps.push(Complex::new(f(t), 0.0));
     }
 
@@ -87,7 +86,7 @@ pub fn rc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
+        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
         if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
@@ -138,7 +137,7 @@ pub fn rrc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
+        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
         if t.abs() < std::f64::EPSILON {
             taps.push(Complex::new(fzero(), 0.0));
