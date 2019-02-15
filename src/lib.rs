@@ -38,6 +38,7 @@ pub mod io;
 pub mod mixer;
 pub mod modulation;
 pub mod prn;
+pub mod pulse;
 pub mod util;
 
 #[cfg(test)]
