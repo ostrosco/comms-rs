@@ -18,8 +18,13 @@ where
 ///
 /// Arguments:
 /// n_taps: Number of desired output taps
-pub fn rect_taps(n_taps: u32) -> Vec<Complex<f64>> {
-    vec![Complex::new(1.0, 0.0); n_taps as usize]
+pub fn rect_taps<T>(n_taps: usize) -> Option<Vec<Complex<T>>>
+where
+    T: Clone + Num + num_traits::NumCast,
+{
+    let re = T::from(1)?;
+    let im = T::from(0)?;
+    Some(vec![Complex::new(re, im); n_taps as usize])
 }
 
 /// Gaussian filter impulse response.  Use this to create the taps for an FIR
@@ -29,11 +34,14 @@ pub fn rect_taps(n_taps: u32) -> Vec<Complex<f64>> {
 /// n_taps: Number of desired output taps
 /// sam_per_sym: Samples per symbol
 /// beta: Shaping parameter of the RC function
-pub fn gaussian_taps(
+pub fn gaussian_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
     alpha: f64,
-) -> Vec<Complex<f64>> {
+) -> Option<Vec<Complex<T>>>
+where
+    T: Clone + Num + num_traits::NumCast,
+{
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -43,10 +51,12 @@ pub fn gaussian_taps(
     let mut taps = Vec::new();
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
-        taps.push(Complex::new(f(t), 0.0));
+        let value = T::from(f(t))?;
+        let im = T::from(0)?;
+        taps.push(Complex::new(value, im));
     }
 
-    taps
+    Some(taps)
 }
 
 /// Normalized sinc function implementation
@@ -67,7 +77,14 @@ pub fn sinc(x: f64) -> f64 {
 /// n_taps: Number of desired output taps
 /// sam_per_sym: Samples per symbol
 /// beta: Shaping parameter of the RC function
-pub fn rc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
+pub fn rc_taps<T>(
+    n_taps: u32,
+    sam_per_sym: f64,
+    beta: f64,
+) -> Option<Vec<Complex<T>>>
+where
+    T: Clone + Num + num_traits::NumCast,
+{
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -88,16 +105,19 @@ pub fn rc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
+        let im = T::from(0)?;
         if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            taps.push(Complex::new(fint(), 0.0));
+            let re = T::from(fint())?;
+            taps.push(Complex::new(re, im));
         } else {
-            taps.push(Complex::new(f(t), 0.0));
+            let re = T::from(f(t))?;
+            taps.push(Complex::new(re, im));
         }
     }
 
-    taps
+    Some(taps)
 }
 
 /// Root Raised Cosine (RRC) filter tap calculator.  Use this to create the
@@ -107,7 +127,14 @@ pub fn rc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
 /// n_taps: Number of desired output taps
 /// sam_per_sym: Samples per symbol
 /// beta: Shaping parameter of the RRC function
-pub fn rrc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
+pub fn rrc_taps<T>(
+    n_taps: u32,
+    sam_per_sym: f64,
+    beta: f64,
+) -> Option<Vec<Complex<T>>>
+where
+    T: Clone + Num + num_traits::NumCast,
+{
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -139,18 +166,22 @@ pub fn rrc_taps(n_taps: u32, sam_per_sym: f64, beta: f64) -> Vec<Complex<f64>> {
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
+        let im = T::from(0)?;
         if t.abs() < std::f64::EPSILON {
-            taps.push(Complex::new(fzero(), 0.0));
+            let re = T::from(fzero())?;
+            taps.push(Complex::new(re, im));
         } else if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            taps.push(Complex::new(fint(), 0.0));
+            let re = T::from(fint())?;
+            taps.push(Complex::new(re, im));
         } else {
-            taps.push(Complex::new(f(t), 0.0));
+            let re = T::from(f(t))?;
+            taps.push(Complex::new(re, im));
         }
     }
 
-    taps
+    Some(taps)
 }
 
 #[cfg(test)]
@@ -205,7 +236,7 @@ mod test {
             Complex::new(-0.00982617, 0.0),
         ];
 
-        let test = math::rrc_taps(33, 3.18, 0.234);
+        let test = math::rrc_taps(33, 3.18, 0.234).unwrap();
 
         let epsilon = 0.00000001;
         for i in 0..truth.len() {
@@ -251,7 +282,7 @@ mod test {
             Complex::new(-0.0011653229685676335, 0.0),
         ];
 
-        let test: Vec<_> = math::rc_taps(33, 3.18, 0.234);
+        let test: Vec<_> = math::rc_taps(33, 3.18, 0.234).unwrap();
         let epsilon = 0.00000001;
         for i in 0..truth.len() {
             assert!((truth[i] - test[i]).norm() < epsilon);
@@ -296,7 +327,7 @@ mod test {
             Complex::new(0.0007300494185482611, 0.0),
         ];
 
-        let test: Vec<_> = math::gaussian_taps(33, 3.18, 0.234);
+        let test: Vec<_> = math::gaussian_taps(33, 3.18, 0.234).unwrap();
         let epsilon = 0.00000001;
         for i in 0..truth.len() {
             assert!((truth[i] - test[i]).norm() < epsilon);
