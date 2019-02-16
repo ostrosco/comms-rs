@@ -1,3 +1,4 @@
+//! Module to provide pulse shaping features.
 use crate::filter::fir::*;
 use crate::prelude::*;
 
@@ -5,7 +6,36 @@ use num::complex::Complex;
 use num::Zero;
 use num_traits::Num;
 
-/// A node that implements a pulse shaping filter of some sort.
+/// A node that implements a pulse shaping filter of a specified sort.
+///
+/// This node type is really a combination of a couple of the other existing
+/// nodes.  Essentially the pulse shaping is accomplished by upsampling the
+/// input signal through the insertion of zero samples, and then running the
+/// upsampled signal through an FIR filter whose taps determine the pulse
+/// shape.
+///
+/// Several options for pulse shape tap generators are provided in the `util`
+/// module, including (but not limited to) root raised cosine, raised cosine,
+/// and rectangular window pulse shapings.
+///
+/// # Arguments
+///
+/// * `taps` - FIR filter taps to implement pulse shaping
+/// * `sam_per_sym` - The number of output samples per input symbol
+/// * `state` - The initial state for the internal FIR filter
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::pulse::PulseNode;
+/// use comms_rs::util::math::rect_taps;
+/// use num::{Zero, Complex};
+///
+/// let sam_per_sym = 4_usize;
+/// let taps: Vec<Complex<i16>> = rect_taps(sam_per_sym).unwrap();
+/// let state = vec![Complex::zero(); taps.len()];
+/// let node = PulseNode::new(taps, sam_per_sym, state);
+/// ```
 #[derive(Node)]
 #[pass_by_ref]
 pub struct PulseNode<T>
@@ -38,10 +68,23 @@ where
 
 /// Constructs a new `PulseNode<T>` with initial state set to zeros.
 ///
-/// Arguments:
-///     taps        - FIR filter tap Vec[Complex<T>].
-///     sam_per_sym - Number of samples per symbol in the output.
-///     state       - Initial state for the internal filter state and memory.
+/// # Arguments
+///
+/// * `taps` - FIR filter tap Vec[Complex<T>]
+/// * `sam_per_sym` - Number of samples per symbol in the output
+/// * `state` - Initial state for the internal filter state and memory
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::pulse::pulse_node;
+/// use comms_rs::util::math::rect_taps;
+/// use num::{Zero, Complex};
+///
+/// let sam_per_sym = 4_usize;
+/// let taps: Vec<Complex<i16>> = rect_taps(sam_per_sym).unwrap();
+/// let node = pulse_node(taps, sam_per_sym);
+/// ```
 pub fn pulse_node<T>(taps: Vec<Complex<T>>, sam_per_sym: usize) -> PulseNode<T>
 where
     T: Num + Copy,
@@ -53,7 +96,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::pulse::pulse_node::*;
+    use crate::pulse::*;
     use crate::util::math::*;
     use num::Complex;
     use std::thread;
