@@ -1,8 +1,20 @@
 use num::{Complex, Num};
 use std::f64::consts::PI;
 
-/// Casts a Complex<T> to a Complex<U>. All of the normal caveats with using
-/// the `as` keyword apply here for the conversion.
+/// Casts a `Complex<T>` to a `Complex<U>`.
+///
+/// All of the normal caveats with using the `as` keyword apply here for the
+/// conversion.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::cast_complex;
+/// use num::Complex;
+///
+/// let a_num = Complex::new(12_i16, -4_i16);
+/// let a_new_num: Complex<f64> = cast_complex(&a_num).unwrap();
+/// ```
 pub fn cast_complex<T, U>(input: &Complex<T>) -> Option<Complex<U>>
 where
     T: Clone + Num + num_traits::NumCast,
@@ -13,11 +25,24 @@ where
     Some(Complex::new(re, im))
 }
 
-/// Rectangle pulse shaping tap calculator.  Use this to create the taps for an
-/// FIR filter node and use that for the pulse shaping node.
+/// Rectangle pulse shaping tap calculator.
 ///
-/// Arguments:
-/// n_taps: Number of desired output taps
+/// Use this to create the taps for an FIR filter node and use that for the
+/// pulse shaping node.
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::rect_taps;
+/// use num::Complex;
+///
+/// let n_taps = 12_usize;
+/// let taps: Vec<Complex<f64>> = rect_taps(n_taps).unwrap();
+/// ```
 pub fn rect_taps<T>(n_taps: usize) -> Option<Vec<Complex<T>>>
 where
     T: Clone + Num + num_traits::NumCast,
@@ -27,13 +52,28 @@ where
     Some(vec![Complex::new(re, im); n_taps as usize])
 }
 
-/// Gaussian filter impulse response.  Use this to create the taps for an FIR
-/// filter node and use that for a pulse shaping node.
+/// Gaussian filter impulse response.
 ///
-/// Arguments:
-/// n_taps: Number of desired output taps
-/// sam_per_sym: Samples per symbol
-/// beta: Shaping parameter of the RC function
+/// Use this to create the taps for an FIR filter node and use that for a pulse
+/// shaping node.
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps
+/// * `sam_per_sym` - Samples per symbol
+/// * `beta` - Shaping parameter of the RC function
+///
+/// # Example
+///
+/// ```
+/// use comms_rs::util::math::gaussian_taps;
+/// use num::Complex;
+///
+/// let n_taps = 28_u32;
+/// let sams_per_sym = 4.0_f64;
+/// let alpha = 0.25_f64;
+/// let taps: Vec<Complex<f64>> = gaussian_taps(n_taps, sams_per_sym, alpha).unwrap();
+/// ```
 pub fn gaussian_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
@@ -59,9 +99,22 @@ where
     Some(taps)
 }
 
-/// Normalized sinc function implementation
-/// sinc(0) = 1
-/// sinc(x) = sin(pi * x) / (pi * x), x != 0
+/// Normalized sinc function implementation.
+///
+/// `sinc(0) = 1`
+///
+/// `sinc(x) = sin(pi * x) / (pi * x), x != 0`
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::sinc;
+///
+/// assert!((sinc(0.0) - 1.0).abs() < std::f64::EPSILON);
+/// assert!(sinc(1.0).abs() < std::f64::EPSILON);
+/// assert!(sinc(2.0).abs() < std::f64::EPSILON);
+/// assert!(sinc(3.0).abs() < std::f64::EPSILON);
+/// ```
 pub fn sinc(x: f64) -> f64 {
     if x != 0.0 {
         (PI * x).sin() / (PI * x)
@@ -70,13 +123,28 @@ pub fn sinc(x: f64) -> f64 {
     }
 }
 
-/// Raise Cosine (RC) filter tap calculator. Use this to create the taps for a
-/// FIR filter node and use that as your pulse shaping.
+/// Raise Cosine (RC) filter tap calculator.
 ///
-/// Arguments:
-/// n_taps: Number of desired output taps
-/// sam_per_sym: Samples per symbol
-/// beta: Shaping parameter of the RC function
+/// Use this to create the taps for a FIR filter node and use that as your
+/// pulse shaping.
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps
+/// * `sam_per_sym` - Samples per symbol
+/// * `beta` - Shaping parameter of the RC function
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::rc_taps;
+/// use num::Complex;
+///
+/// let n_taps = 28u32;
+/// let sams_per_sym = 4.0_f64;
+/// let beta = 0.25_f64;
+/// let taps: Vec<Complex<f64>> = rc_taps(n_taps, sams_per_sym, beta).unwrap();
+/// ```
 pub fn rc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
@@ -120,13 +188,28 @@ where
     Some(taps)
 }
 
-/// Root Raised Cosine (RRC) filter tap calculator.  Use this to create the
-/// taps for an FIR filter node and use that as your pulse shaping.
+/// Root Raised Cosine (RRC) filter tap calculator.
 ///
-/// Arguments:
-/// n_taps: Number of desired output taps
-/// sam_per_sym: Samples per symbol
-/// beta: Shaping parameter of the RRC function
+/// Use this to create the taps for an FIR filter node and use that as your
+/// pulse shaping.
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps
+/// * `sam_per_sym` - Samples per symbol
+/// * `beta` - Shaping parameter of the RRC function
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::rrc_taps;
+/// use num::Complex;
+///
+/// let n_taps = 28u32;
+/// let sams_per_sym = 4.0_f64;
+/// let beta = 0.25_f64;
+/// let taps: Vec<Complex<f64>> = rrc_taps(n_taps, sams_per_sym, beta).unwrap();
+/// ```
 pub fn rrc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,

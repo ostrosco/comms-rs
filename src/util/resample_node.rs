@@ -1,6 +1,9 @@
 use crate::prelude::*;
 
-// A simple node to decimate the input.
+/// A simple node to decimate the input signal.
+///
+/// This node will decimate the input stream by a factor of `dec_rate`, meaning
+/// that for every `dec_rate` input samples there will be 1 output sample.
 #[derive(Node)]
 #[pass_by_ref]
 pub struct DecimateNode<T>
@@ -25,7 +28,25 @@ impl<T> DecimateNode<T>
 where
     T: Copy,
 {
-    fn decimate(&self, data: &[T]) -> Vec<T> {
+    /// This is the decimation function.
+    ///
+    /// A slice of `data` will be reduced by a factor of `dec_rate`.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The input data to be reduced down
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::util::resample_node::DecimateNode;
+    ///
+    /// let node = DecimateNode::new(3);
+    ///
+    /// let data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    /// assert_eq!(node.decimate(&data), vec![1, 4, 7]);
+    /// ```
+    pub fn decimate(&self, data: &[T]) -> Vec<T> {
         let mut ix = 0;
         if self.dec_rate == 0 || self.dec_rate == 1 {
             return data.to_vec();

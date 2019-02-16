@@ -5,6 +5,28 @@ use rand::{FromEntropy, Rng, StdRng};
 use crate::prelude::*;
 
 /// A node that will generate uniformly-distributed random numbers.
+///
+/// This node can generate uniformly distributed random numbers over a given
+/// range of values, using a given random number generator.  It will produce a
+/// single value at a time.
+///
+/// # Arguments
+///
+/// * `rng` - Random number generator to use for sampling
+/// * `dist` - `Uniform` distribution to draw samples from
+///
+/// # Examples
+///
+/// ```
+/// use rand::rngs::StdRng;
+/// use rand::FromEntropy;
+/// use rand::distributions::Uniform;
+/// use comms_rs::util::rand_node::UniformNode;
+///
+/// let rng = StdRng::from_entropy();
+/// let dist = Uniform::new(0, 2);
+/// let node = UniformNode::new(rng, dist);
+/// ```
 #[derive(Node)]
 pub struct UniformNode<T>
 where
@@ -19,12 +41,38 @@ impl<T> UniformNode<T>
 where
     T: SampleUniform + Clone,
 {
+    /// Runs the `UniformNode`.  Produces either a new `f64` sample drawn from
+    /// the stored random number generator or produces a `NodeError`.
     pub fn run(&mut self) -> Result<T, NodeError> {
         Ok(self.rng.sample(&self.dist))
     }
 }
 
 /// A node that will generate normally-distributed random numbers.
+///
+/// This node can generate normally distributed random numbers using a passed
+/// Normal distribution parameter set using a given random number generator.
+/// It produces a single value at a time.
+///
+/// # Arguments
+///
+/// * `rng` - Random number generator to use for sampling
+/// * `dist` - `Normal` distribution to draw samples from
+///
+/// # Examples
+///
+/// ```
+/// use rand::rngs::StdRng;
+/// use rand::FromEntropy;
+/// use rand::distributions::Normal;
+/// use comms_rs::util::rand_node::NormalNode;
+///
+/// let rng = StdRng::from_entropy();
+/// let mean_value = 0.0;
+/// let standard_deviation = 1.0;
+/// let dist = Normal::new(mean_value, standard_deviation);
+/// let node = NormalNode::new(rng, dist);
+/// ```
 #[derive(Node)]
 pub struct NormalNode {
     rng: StdRng,
@@ -33,12 +81,32 @@ pub struct NormalNode {
 }
 
 impl NormalNode {
+    /// Runs the `NormalNode`.  Produces either a new `f64` sample drawn from
+    /// the stored random number generator or produces a `NodeError`.
     pub fn run(&mut self) -> Result<f64, NodeError> {
         Ok(self.rng.sample(&self.dist))
     }
 }
 
 /// Builds a closure for generating random numbers with a Normal distribution.
+///
+/// Provides a shorthand for getting a node that produces normally distributed
+/// random numbers with a given mean and standard deviation.
+///
+/// # Arguments
+///
+/// * `mu` - Mean value for `Normal` distribution
+/// * `std_dev` - Standard deviation for `Normal` distribution
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::rand_node::normal;
+///
+/// let mu = 0.0_f64;
+/// let std_dev = 1.0_f64;
+/// let node = normal(mu, std_dev);
+/// ```
 pub fn normal(mu: f64, std_dev: f64) -> NormalNode {
     let rng = StdRng::from_entropy();
     let norm = Normal::new(mu, std_dev);
@@ -46,6 +114,24 @@ pub fn normal(mu: f64, std_dev: f64) -> NormalNode {
 }
 
 /// Builds a closure for generating random numbers with a Uniform distribution.
+///
+/// Provides a shorthand for getting a node that produces uniformly distributed
+/// random numbers with a given start and end range.
+///
+/// # Arguments
+///
+/// * `start` - Lower bound (inclusive) of `Uniform` range
+/// * `end` - Upper bound (exclusive) of `Uniform` range
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::rand_node::uniform;
+///
+/// let start = 0.0_f64;
+/// let end = 1.0_f64;
+/// let node = uniform(start, end);
+/// ```
 pub fn uniform<T: SampleUniform + Clone>(start: T, end: T) -> UniformNode<T> {
     let rng = StdRng::from_entropy();
     let uniform = Uniform::new(start, end);
@@ -53,6 +139,14 @@ pub fn uniform<T: SampleUniform + Clone>(start: T, end: T) -> UniformNode<T> {
 }
 
 /// Builds a closure for generating 0 or 1 with a Uniform distrubition.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::rand_node::random_bit;
+///
+/// let node = random_bit();
+/// ```
 pub fn random_bit() -> UniformNode<u8> {
     uniform(0u8, 2u8)
 }
