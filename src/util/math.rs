@@ -238,9 +238,8 @@ mod test {
 
         let test = math::rrc_taps(33, 3.18, 0.234).unwrap();
 
-        let epsilon = 0.00000001;
         for i in 0..truth.len() {
-            assert!((truth[i] - test[i]).norm() < epsilon);
+            assert!((truth[i] - test[i]).norm() < std::f32::EPSILON);
         }
     }
 
@@ -283,9 +282,8 @@ mod test {
         ];
 
         let test: Vec<_> = math::rc_taps(33, 3.18, 0.234).unwrap();
-        let epsilon = 0.00000001;
         for i in 0..truth.len() {
-            assert!((truth[i] - test[i]).norm() < epsilon);
+            assert!((truth[i] - test[i]).norm() < std::f32::EPSILON);
         }
     }
 
@@ -328,9 +326,8 @@ mod test {
         ];
 
         let test: Vec<_> = math::gaussian_taps(33, 3.18, 0.234).unwrap();
-        let epsilon = 0.00000001;
         for i in 0..truth.len() {
-            assert!((truth[i] - test[i]).norm() < epsilon);
+            assert!((truth[i] - test[i]).norm() < std::f32::EPSILON);
         }
     }
 }
