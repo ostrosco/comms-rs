@@ -22,8 +22,8 @@ Initial Goals:
 - [x] FFT/IFFT
 - [x] FIR filter
 - [X] Decimation
-- [ ] Upsampling
-- [ ] Pulse shaping
+- [x] Upsampling
+- [x] Pulse shaping
 - [X] Mixer
 - [x] BPSK modulation
 - [X] Write/read to/from file
