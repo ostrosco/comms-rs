@@ -27,17 +27,40 @@ extern crate num; // 0.2.0
 use num::PrimInt;
 use std::mem::size_of;
 
+/// Implementation for a PRNS generator
+///
+/// This is the raw implementation for a PRNS generator.  It performs all the
+/// bit operations needed for the `PrnsNode` run method.
 pub struct PrnGen<T> {
     poly_mask: T,
     state: T,
 }
 
-/// Implementation of run for the PrnsNode.
 impl<T: PrimInt> PrnGen<T> {
+    /// Creates a new `PrnGen` structure using the given arguments to define
+    /// the internal LFSR.
+    ///
+    /// # Arguments
+    /// * `poly_mask` - Polynomial bit mask to define the feedback taps on the
+    /// LFSR. A 1 designates that the state bit present should be part of the
+    /// xor operation when creating the next bit in the sequence.
+    /// * `state` - Initial state of the LFSR.
     pub fn new(poly_mask: T, state: T) -> PrnGen<T> {
         PrnGen { poly_mask, state }
     }
 
+    /// Get the next byte of data from the PRNS
+    ///
+    /// # Examples
+    /// ```
+    /// use comms_rs::prn::PrnGen;
+    ///
+    /// let poly_mask = 0xC0_u8;
+    /// let state = 0xFF_u8;
+    /// let mut prn_gen = PrnGen::new(poly_mask, state);
+    ///
+    /// assert_eq!(prn_gen.next_byte(), 0x01_u8);
+    /// ```
     pub fn next_byte(&mut self) -> u8 {
         let fb_bit =
             T::from((self.state & self.poly_mask).count_ones() % 2).unwrap();
