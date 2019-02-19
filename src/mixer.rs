@@ -1,16 +1,95 @@
-//! This node implements a basic mixer.  It provides a sample by sample and
-//! batch based mixer, and versions of each with and inital phase value.
+//! This node implements a basic complex mixer.  It currently provides versions
+//! for sample by sample operation with and without a specified initial phase.
 
 use crate::prelude::*;
+use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
 
-use crate::mixer::Mixer;
 use num::complex::Complex;
 use num::Num;
 use num_traits::NumCast;
 
+use crate::util::math;
+
+/// Struct to implement a complex mixer.
+///
+/// This combines an input signal with a complex exponential for modulation or
+/// demodulation of carrier frequencies to passband or baseband signals.
+pub struct Mixer {
+    phase: f64,
+    dphase: f64,
+}
+
+impl Mixer {
+    /// Creates a new `Mixer` struct with parameters as specified.
+    ///
+    /// The `dphase` parameter is automatically adjusted to the interval
+    /// [0.0, 2 * PI).
+    ///
+    /// # Arguments
+    ///
+    /// * `phase` - Intial phase state in radians of complex exponential.
+    /// * `dphase` - Time derivative of phase in radians per sample.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::f64::consts::PI;
+    /// use comms_rs::mixer::Mixer;
+    ///
+    /// let phase = PI / 4.0;
+    /// let dphase = 0.1_f64;
+    /// let mixer = Mixer::new(phase, dphase);
+    /// ```
+    pub fn new(phase: f64, mut dphase: f64) -> Mixer {
+        while dphase >= 2.0 * PI {
+            dphase -= 2.0 * PI;
+        }
+        while dphase < 0.0 {
+            dphase += 2.0 * PI;
+        }
+        Mixer { phase, dphase }
+    }
+
+    /// Runs the input signal through the `Mixer`.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Signal with which to modulate the carrier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::f64::consts::PI;
+    /// use comms_rs::mixer::Mixer;
+    /// use num::Complex;
+    ///
+    /// let phase = PI / 4.0;
+    /// let dphase = 0.1_f64;
+    /// let mut mixer = Mixer::new(phase, dphase);
+    ///
+    /// let input: Complex<f64> = Complex::new(12.345_f64.cos(), 0.0);
+    /// let passband = mixer.mix(&input);
+    /// ```
+    pub fn mix<T>(&mut self, input: &Complex<T>) -> Complex<T>
+    where
+        T: NumCast + Clone + Num,
+    {
+        let inp: Complex<f64> = math::cast_complex(input).unwrap();
+        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
+        self.phase += self.dphase;
+        if self.phase > 2.0 * PI {
+            self.phase -= 2.0 * PI;
+        }
+        math::cast_complex(&res).unwrap()
+    }
+}
+
 /// A node that implements a generic mixer.
+///
+/// This node operates on a single sample at a time, as opposed to batch mode
+/// operation.
 #[derive(Node)]
 #[pass_by_ref]
 pub struct MixerNode<T>
@@ -26,18 +105,32 @@ impl<T> MixerNode<T>
 where
     T: Clone + Num + NumCast,
 {
+    /// Runs the `MixerNode<T>`.  Produces either the mixed `Complex<T>` sample
+    /// or a `NodeError`.
     pub fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
         Ok(self.mixer.mix(input))
     }
 }
 
-/// Constructs a new `MixerNode<T>`.  Assumes 0 initial phase in the local
-/// oscillator.  Any frequency above Nyquist will not be supported, ie, dphase
-/// will be limited to the range [0, 2*Pi).
+/// Constructs a new `MixerNode<T>` with an initial phase of 0.
 ///
-/// Arguments:
-///     dphase - The change in phase (radians) per sampling period. This should
-///              be dphase = 2 * PI * freq(Hz) * Ts.
+/// Any frequency above Nyquist will not be supported, ie, dphase will be
+/// limited to the range [0, 2*Pi).
+///
+/// # Arguments
+///
+/// * `dphase` - The change in phase (radians) per sampling period. This should
+/// be dphase = 2 * PI * freq(Hz) * Ts.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::mixer::*;
+/// use num::Complex;
+///
+/// let dphase = 0.1_f64;
+/// let node: MixerNode<Complex<f64>> = mixer_node(dphase);
+/// ```
 pub fn mixer_node<T>(dphase: f64) -> MixerNode<T>
 where
     T: NumCast + Clone + Num,
@@ -45,14 +138,28 @@ where
     MixerNode::new(Mixer::new(0.0, dphase))
 }
 
-/// Constructs a new `MixerNode<T>`.  User defined initial phase in the local
-/// oscillator.  Any frequency above Nyquist will not be supported, ie, dphase
-/// will be limited to the range [0, 2*Pi).
+/// Constructs a new `MixerNode<T>` with specified initial phase.
 ///
-/// Arguments:
-///     dphase - The change in phase (radians) per sampling period. This should
-///              be dphase = 2 * PI * freq(Hz) * Ts.
-///     phase  - The initial phase of the oscillator.
+/// Any frequency above Nyquist will not be supported, ie, dphase will be
+/// limited to the range [0, 2*Pi).
+///
+/// # Arguments
+///
+/// * `dphase` - The change in phase (radians) per sampling period. This should
+/// be dphase = 2 * PI * freq(Hz) * Ts.
+/// * `phase` - The initial phase of the oscillator.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::mixer::*;
+/// use std::f64::consts::PI;
+/// use num::Complex;
+///
+/// let dphase = 0.1_f64;
+/// let phase: f64 = PI / 4.0;
+/// let node: MixerNode<Complex<f64>> = mixer_node_with_phase(dphase, phase);
+/// ```
 pub fn mixer_node_with_phase<T>(dphase: f64, phase: f64) -> MixerNode<T>
 where
     T: NumCast + Clone + Num,
@@ -62,8 +169,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::mixer::mixer_node;
-    use crate::prelude::*;
+    use crate::mixer::*;
     use crossbeam_channel as channel;
     use num::complex::Complex;
     use num::Zero;
@@ -97,7 +203,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::mixer_node::<f64>(0.123);
+        let mut mixer = mixer_node::<f64>(0.123);
 
         #[derive(Node)]
         struct CheckNode {
@@ -173,7 +279,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::mixer_node_with_phase::<f64>(0.123, 0.1);
+        let mut mixer = mixer_node_with_phase::<f64>(0.123, 0.1);
 
         #[derive(Node)]
         struct CheckNode {
