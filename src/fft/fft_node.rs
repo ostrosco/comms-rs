@@ -1,3 +1,5 @@
+//! Provides nodes for executing forward and reverse FFTs.
+
 use crate::fft::{BatchFFT, SampleFFT};
 use crate::prelude::*;
 use num::Complex;
@@ -5,8 +7,29 @@ use num::NumCast;
 use rustfft::num_traits::Num;
 use rustfft::FFTplanner;
 
-/// A node that supports FFTs and IFFTs. FFTs are done in batch: the node
-/// expects that input data matching the specified FFT size is provided.
+/// A node that supports batch execution of FFTs and IFFTs.
+///
+/// The node expects that input data matching the specified FFT size is
+/// provided.
+///
+/// # Arguments
+///
+/// * `batch_fft` - FFT plan to be executed in this node.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::fft::*;
+/// use comms_rs::fft::fft_node::*;
+/// use rustfft::FFTplanner;
+///
+/// let fft_size = 1024;
+/// let mut planner = FFTplanner::new(false);
+/// let fft = planner.plan_fft(fft_size);
+/// let batch_fft = BatchFFT::new(fft, fft_size);
+///
+/// let node: FFTBatchNode<f64> = FFTBatchNode::new(batch_fft);
+/// ```
 #[derive(Node)]
 #[pass_by_ref]
 pub struct FFTBatchNode<T>
@@ -22,6 +45,8 @@ impl<T> FFTBatchNode<T>
 where
     T: NumCast + Clone + Num,
 {
+    /// Runs the `FFTBatchNode<T>` on passed batch of samples.  Produces either
+    /// a new `Vec<Complex<T>>` batch of samples or a `NodeError`.
     pub fn run(
         &mut self,
         data: &[Complex<T>],
@@ -32,12 +57,18 @@ where
 
 /// Constructs a node that performs FFT or IFFTs in batches.
 ///
-/// Example:
+/// # Arguments
+///
+/// * `fft_size` - The size of the FFT to be performed
+/// * `ifft` - `true` to perform an inverse FFT, `false` for a normal forward
+/// FFT.
+///
+/// # Examples
+///
 /// ```
 /// # extern crate comms_rs;
 /// # #[macro_use] use comms_rs::node::Node;
 /// # use comms_rs::prelude::*;
-/// # fn main() {
 /// use comms_rs::fft::fft_node::{self, FFTBatchNode};
 ///
 /// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
@@ -47,8 +78,7 @@ where
 /// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
 /// // an IFFT on those samples.
 /// let mut ifft_node: FFTBatchNode<f32> = fft_node::fft_batch_node(1024, true);
-/// # }
-///
+/// ```
 pub fn fft_batch_node<T: NumCast + Clone + Num>(
     fft_size: usize,
     ifft: bool,
@@ -59,9 +89,29 @@ pub fn fft_batch_node<T: NumCast + Clone + Num>(
     FFTBatchNode::new(batch_fft)
 }
 
-/// A node that supports FFTs and IFFTs. This node expects data to be
-/// provided sample by sample and will only perform the FFT once it
-/// has received enough samples specified by fft_size.
+/// A node that supports sample by sample execution of FFTs and IFFTs.
+///
+/// This node expects data to be provided sample by sample and will only
+/// perform the FFT once it has received enough samples specified by fft_size.
+///
+/// # Arguments
+///
+/// * `sample_fft` - `SampleFFT<T>` implementation to be executed in this node.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::fft::*;
+/// use comms_rs::fft::fft_node::*;
+/// use rustfft::FFTplanner;
+///
+/// let fft_size = 1024;
+/// let mut planner = FFTplanner::new(false);
+/// let fft = planner.plan_fft(fft_size);
+/// let sample_fft: SampleFFT<f64> = SampleFFT::new(fft, fft_size);
+///
+/// let node = FFTSampleNode::new(sample_fft);
+/// ```
 #[derive(Node)]
 #[aggregate]
 #[pass_by_ref]
@@ -78,6 +128,8 @@ impl<T> FFTSampleNode<T>
 where
     T: NumCast + Clone + Num,
 {
+    /// Runs the `FFTSampleNode<T>` on passed sample.  Produces either a new
+    /// `Complex<T>` sample or a `NodeError`.
     pub fn run(
         &mut self,
         sample: &Complex<T>,
@@ -93,15 +145,21 @@ where
     }
 }
 
-/// Constructs a node that performs FFT or IFFTs, but only receives a sample
-/// at a time versus a batch of samples.
+/// Constructs a node that performs FFT or IFFTs, receiving a sample at a time
+/// versus a batch of samples.
 ///
-/// Example:
+/// # Arguments
+///
+/// * `fft_size` - The size of the FFT to be performed.
+/// * `ifft` - `true` to perform an inverse FFT, `false` for a normal forward
+/// FFT.
+///
+/// # Example:
+///
 /// ```
 /// # extern crate comms_rs;
 /// # #[macro_use] use comms_rs::node::Node;
 /// # use comms_rs::prelude::*;
-/// # fn main() {
 /// use comms_rs::fft::fft_node::{self, FFTSampleNode};
 ///
 /// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
@@ -111,7 +169,7 @@ where
 /// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
 /// // an IFFT on those samples.
 /// let mut ifft_node: FFTSampleNode<f32> = fft_node::fft_sample_node(1024, true);
-/// # }
+/// ```
 pub fn fft_sample_node<T: NumCast + Clone + Num>(
     fft_size: usize,
     ifft: bool,
