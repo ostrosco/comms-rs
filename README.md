@@ -30,3 +30,35 @@ Initial Goals:
 - [ ] Hardware support for HackRF
 - [X] Hardware support for rtl-sdr
 - [ ] Hardware support for BladeRF
+
+# Creating Your Own Nodes
+
+The easiest way to create your own nodes is to derive the Node trait for your
+structure. The macro used to derive the Node trait is a bit magical, so there
+are certain assumptions it makes in order for the derivation to work properly.
+
+To derive the trait, there are a few requirements that much be met.
+
+* Any inputs to the node must be of the type NodeReceiver<T>.
+* Any outputs from the node must be of the type NodeSender<T>.
+* The structure must implement a method named run(). The signature of run() is
+  currently expected to take &mut self followed by every input type received
+  in order defined in the structure. It is expected to return a
+  Result<U, NodeError>.
+
+Example:
+
+```
+#[derive(Node)]
+pub struct ExampleNode {
+    input1: NodeReceiver<u32>,
+    input2: NodeReceiver<f64>,
+    output: NodeSender<u8>,
+}
+
+impl ExampleNode {
+    pub fn run(&mut self, input1: u32, input2: f64) -> Result<u8, NodeError> {
+        ...
+    }
+}
+```
