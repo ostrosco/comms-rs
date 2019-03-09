@@ -56,10 +56,10 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     let mut pass_by_ref = false;
     for attr in attributes {
         match attr.parse_meta() {
-            Ok(syn::Meta::Word(ref id)) if id.to_string() == "aggregate" => {
+            Ok(syn::Meta::Word(ref id)) if *id == "aggregate" => {
                 aggregate = true
             }
-            Ok(syn::Meta::Word(ref id)) if id.to_string() == "pass_by_ref" => {
+            Ok(syn::Meta::Word(ref id)) if *id == "pass_by_ref" => {
                 pass_by_ref = true
             }
             Ok(_) => continue,
@@ -97,11 +97,6 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         .map(|x| x.ident.clone().unwrap())
         .collect();
 
-    let state_idents: Vec<syn::Ident> = state_fields
-        .iter()
-        .map(|x| x.ident.clone().unwrap())
-        .collect();
-
     // In order to stop quote from moving any variables and from complaining
     // about duplicates bindings in the macros, we need to build references for
     // each field we need.
@@ -110,21 +105,6 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     let recv_idents3 = &recv_idents;
     let send_idents1 = &send_idents;
     let send_idents2 = &send_idents;
-    let state_fields1 = &state_fields;
-    let state_idents1 = &state_idents;
-
-    let new_impl = quote! {
-        impl #impl_generics #name #ty_generics #where_clause {
-            pub fn new(#(#state_fields1,)*) -> #name #ty_generics {
-                #name {
-                    #(#recv_idents1: None,)*
-                    #(#send_idents1: vec![],)*
-                    #(#state_idents1,)*
-                }
-            }
-
-        }
-    };
 
     let run_func = if pass_by_ref {
         quote! {
@@ -213,7 +193,6 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
     };
 
     let macro_out = quote! {
-        #new_impl
         #derive_node
     };
     macro_out.into()
