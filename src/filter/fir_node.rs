@@ -58,6 +58,59 @@ impl<T> FirNode<T>
 where
     T: Num + Copy,
 {
+    /// Constructs a new `FirNode<T>` with optional user defined initial state.
+    ///
+    /// # Arguments
+    ///
+    /// * `taps` - FIR filter tap Vec[Complex<T>].
+    /// * `state` - Initial state for the internal filter state and memory. If
+    ///    set to None, defaults to zeros.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::filter::fir_node::*;
+    /// use num::Complex;
+    ///
+    /// let taps = vec![
+    ///     Complex::new(0.2, 0.0),
+    ///     Complex::new(0.6, 0.0),
+    ///     Complex::new(0.6, 0.0),
+    ///     Complex::new(0.2, 0.0),
+    /// ];
+    ///
+    /// let mut state = vec![
+    ///     Complex::new(1.0, 0.0),
+    ///     Complex::new(0.5, 0.0),
+    ///     Complex::new(0.25, 0.0),
+    ///     Complex::new(0.125, 0.0),
+    /// ];
+    ///
+    /// let node = FirNode::new(taps, Some(state));
+    /// ```
+    pub fn new(
+        taps: Vec<Complex<T>>,
+        state: Option<Vec<Complex<T>>>,
+    ) -> Self {
+        match state {
+            Some(st) => FirNode {
+                taps,
+                st,
+                input: Default::default(),
+                output: Default::default(),
+            },
+            None => {
+                let len = taps.len();
+                FirNode {
+                    taps,
+                    state: vec![Complex::zero(); len],
+                    input: Default::default(),
+                    output: Default::default(),
+                }
+            }
+        }
+    }
+
     /// Runs the `FirNode<T>`.  Produces either a new `Complex<T>` sample or
     /// a `NodeError`.
     pub fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
@@ -111,6 +164,60 @@ impl<T> BatchFirNode<T>
 where
     T: Num + Copy,
 {
+    /// Constructs a new `BatchFirNode<T>` with optional user defined initial
+    /// state.
+    ///
+    /// # Arguments
+    ///
+    /// * `taps` - FIR filter tap Vec[Complex<T>].
+    /// * `state` - Initial state for the internal filter state and memory. If
+    ///    set to None, defaults to zeros.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::filter::fir_node::*;
+    /// use num::Complex;
+    ///
+    /// let taps = vec![
+    ///     Complex::new(0.2, 0.0),
+    ///     Complex::new(0.6, 0.0),
+    ///     Complex::new(0.6, 0.0),
+    ///     Complex::new(0.2, 0.0),
+    /// ];
+    ///
+    /// let mut state = vec![
+    ///     Complex::new(1.0, 0.0),
+    ///     Complex::new(0.5, 0.0),
+    ///     Complex::new(0.25, 0.0),
+    ///     Complex::new(0.125, 0.0),
+    /// ];
+    ///
+    /// let node = BatchFirNode::new(taps, Some(state));
+    /// ```
+    pub fn new(
+        taps: Vec<Complex<T>>,
+        state: Option<Vec<Complex<T>>>,
+    ) -> Self {
+        match state {
+            Some(st) => BatchFirNode {
+                taps,
+                st,
+                input: Default::default(),
+                output: Default::default(),
+            },
+            None => {
+                let len = taps.len();
+                BatchFirNode {
+                    taps,
+                    state: vec![Complex::zero(); len],
+                    input: Default::default(),
+                    output: Default::default(),
+                }
+            }
+        }
+    }
+
     /// Runs the `BatchFirNode<T>`.  Produces either a new `Vec<Complex<T>>`
     /// batch of samples or a `NodeError`.
     pub fn run(
@@ -119,140 +226,6 @@ where
     ) -> Result<Vec<Complex<T>>, NodeError> {
         Ok(batch_fir(input, &self.taps, &mut self.state))
     }
-}
-
-/// Constructs a new `FirNode<T>` with initial state set to zeros.
-///
-/// # Arguments
-///
-/// * `taps` - FIR filter tap Vec[Complex<T>].
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::filter::fir_node::*;
-/// use num::Complex;
-///
-/// let taps = vec![
-///     Complex::new(0.2, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.2, 0.0),
-/// ];
-/// let node = fir_node(taps);
-/// ```
-pub fn fir_node<T>(taps: Vec<Complex<T>>) -> FirNode<T>
-where
-    T: Num + Copy,
-{
-    let len = taps.len();
-    FirNode::new(taps, vec![Complex::zero(); len])
-}
-
-/// Constructs a new `FirNode<T>` with user defined initial state.
-///
-/// # Arguments
-///
-/// * `taps` - FIR filter tap Vec[Complex<T>].
-/// * `state` - Initial state for the internal filter state and memory.
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::filter::fir_node::*;
-/// use num::Complex;
-///
-/// let taps = vec![
-///     Complex::new(0.2, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.2, 0.0),
-/// ];
-///
-/// let mut state = vec![
-///     Complex::new(1.0, 0.0),
-///     Complex::new(0.5, 0.0),
-///     Complex::new(0.25, 0.0),
-///     Complex::new(0.125, 0.0),
-/// ];
-///
-/// let node = fir_node_with_state(taps, state);
-/// ```
-pub fn fir_node_with_state<T>(
-    taps: Vec<Complex<T>>,
-    state: Vec<Complex<T>>,
-) -> FirNode<T>
-where
-    T: Num + Copy,
-{
-    FirNode::new(taps, state)
-}
-
-/// Constructs a new `BatchFirNode<T>` with initial state set to zeros.
-///
-/// # Arguments
-///
-/// * `taps` - FIR filter tap Vec[Complex<T>].
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::filter::fir_node::*;
-/// use num::Complex;
-///
-/// let taps = vec![
-///     Complex::new(0.2, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.2, 0.0),
-/// ];
-/// let node = batch_fir_node(taps);
-/// ```
-pub fn batch_fir_node<T>(taps: Vec<Complex<T>>) -> BatchFirNode<T>
-where
-    T: Num + Copy,
-{
-    let len = taps.len();
-    BatchFirNode::new(taps, vec![Complex::zero(); len])
-}
-
-/// Constructs a new `BatchFirNode<T>` with user defined initial state.
-///
-/// # Arguments
-///
-/// * `taps` - FIR filter tap Vec[Complex<T>].
-/// * `state` - Initial state for the internal filter state and memory.
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::filter::fir_node::*;
-/// use num::Complex;
-///
-/// let taps = vec![
-///     Complex::new(0.2, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.6, 0.0),
-///     Complex::new(0.2, 0.0),
-/// ];
-///
-/// let mut state = vec![
-///     Complex::new(1.0, 0.0),
-///     Complex::new(0.5, 0.0),
-///     Complex::new(0.25, 0.0),
-///     Complex::new(0.125, 0.0),
-/// ];
-///
-/// let node = batch_fir_node_with_state(taps, state);
-/// ```
-pub fn batch_fir_node_with_state<T>(
-    taps: Vec<Complex<T>>,
-    state: Vec<Complex<T>>,
-) -> BatchFirNode<T>
-where
-    T: Num + Copy,
-{
-    BatchFirNode::new(taps, state)
 }
 
 #[cfg(test)]
@@ -389,7 +362,7 @@ mod test {
             Complex::zero(),
         ]);
 
-        let mut mynode = fir_node::batch_fir_node_with_state(
+        let mut mynode = fir_node::BatchFirNode::new(
             vec![
                 Complex::new(9, 0),
                 Complex::new(8, 7),
@@ -397,7 +370,7 @@ mod test {
                 Complex::new(4, 3),
                 Complex::new(2, 1),
             ],
-            vec![Complex::zero(); 5],
+            Some(vec![Complex::zero(); 5]),
         );
 
         #[derive(Node)]
