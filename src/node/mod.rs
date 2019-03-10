@@ -18,6 +18,12 @@
 //! }
 //!
 //! impl Node1 {
+//!     pub fn new() -> Self {
+//!         Node1 {
+//!             sender: Default::default(),
+//!         }
+//!     }
+//!
 //!     pub fn run(&mut self) -> Result<u32, NodeError> {
 //!         Ok(1)
 //!     }
@@ -29,6 +35,12 @@
 //! }
 //!
 //! impl Node2 {
+//!     pub fn new() -> Self {
+//!         Node2 {
+//!             input: Default::default(),
+//!         }
+//!     }
+//!
 //!     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 //!         assert_eq!(x, 1);
 //!         Ok(())
@@ -96,6 +108,12 @@ pub trait Node {
 /// # }
 /// #
 /// # impl Node1 {
+/// #   pub fn new() -> Self {
+/// #       Node1 {
+/// #           sender: Default::default(),
+/// #       }
+/// #   }
+/// #
 /// #   pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #       Ok(1)
 /// #   }
@@ -107,6 +125,12 @@ pub trait Node {
 /// # }
 /// #
 /// # impl Node2 {
+/// #   pub fn new() -> Self {
+/// #       Node2 {
+/// #           recv: Default::default(),
+/// #       }
+/// #   }
+/// #
 /// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #       assert_eq!(x, 1);
 /// #       Ok(())
@@ -145,6 +169,12 @@ macro_rules! connect_nodes {
 /// # }
 /// #
 /// # impl Node1 {
+/// #   pub fn new() -> Self {
+/// #       Node1 {
+/// #           sender: Default::default(),
+/// #       }
+/// #   }
+/// #
 /// #   pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #       Ok(1)
 /// #   }
@@ -156,6 +186,12 @@ macro_rules! connect_nodes {
 /// # }
 /// #
 /// # impl Node2 {
+/// #   pub fn new() -> Self {
+/// #       Node2 {
+/// #           recv: Default::default(),
+/// #       }
+/// #   }
+/// #
 /// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #       assert_eq!(x, 1);
 /// #       Ok(())
@@ -197,6 +233,12 @@ macro_rules! connect_nodes_feedback {
 /// # }
 ///
 /// # impl Node1 {
+/// #     pub fn new() -> Self {
+/// #         Node1 {
+/// #             sender: Default::default(),
+/// #         }
+/// #     }
+/// #
 /// #     pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
@@ -208,6 +250,12 @@ macro_rules! connect_nodes_feedback {
 /// # }
 ///
 /// # impl Node2 {
+/// #     pub fn new() -> Self {
+/// #         Node2 {
+/// #             input: Default::default(),
+/// #         }
+/// #     }
+/// #
 /// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
@@ -252,6 +300,12 @@ macro_rules! start_nodes {
 /// # }
 ///
 /// # impl Node1 {
+/// #     pub fn new() -> Self {
+/// #         Node1 {
+/// #             sender: Default::default(),
+/// #         }
+/// #     }
+/// #
 /// #     pub fn run(&mut self) -> Result<u32, NodeError> {
 /// #         Ok(1)
 /// #     }
@@ -263,6 +317,12 @@ macro_rules! start_nodes {
 /// # }
 ///
 /// # impl Node2 {
+/// #     pub fn new() -> Self {
+/// #         Node2 {
+/// #             input: Default::default(),
+/// #         }
+/// #     }
+/// #
 /// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
 /// #         assert_eq!(x, 1);
 /// #         Ok(())
@@ -307,6 +367,12 @@ mod test {
         }
 
         impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<u32, NodeError> {
                 Ok(1)
             }
@@ -318,6 +384,12 @@ mod test {
         }
 
         impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
                 assert_eq!(x, 1);
                 Ok(())
@@ -357,6 +429,13 @@ mod test {
         }
 
         impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    agg: vec![],
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Option<Arc<Vec<u32>>>, NodeError> {
                 if self.agg.len() < 2 {
                     self.agg.push(1);
@@ -377,6 +456,13 @@ mod test {
         }
 
         impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: &Arc<Vec<u32>>,
@@ -396,6 +482,12 @@ mod test {
         }
 
         impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: &Arc<Vec<u32>>,
@@ -405,7 +497,7 @@ mod test {
             }
         }
 
-        let mut node1 = Node1::new(Vec::new());
+        let mut node1 = Node1::new();
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
@@ -436,6 +528,12 @@ mod test {
         }
 
         impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut random = vec![0i16; 10000];
                 thread_rng().fill(random.as_mut_slice());
@@ -451,6 +549,13 @@ mod test {
         }
 
         impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 x: &Arc<Vec<i16>>,
@@ -471,6 +576,13 @@ mod test {
         }
 
         impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    count: 0,
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 _val: &Arc<Vec<i16>>,
@@ -487,7 +599,7 @@ mod test {
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
-        let mut node3 = Node3::new(0);
+        let mut node3 = Node3::new();
 
         connect_nodes!(node1, sender, node2, input);
         connect_nodes!(node2, sender, node3, input);
@@ -507,6 +619,12 @@ mod test {
         }
 
         impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut random = vec![0i16; 10000];
                 thread_rng().fill(random.as_mut_slice());
@@ -522,6 +640,13 @@ mod test {
         }
 
         impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 x: &Arc<Vec<i16>>,
@@ -542,6 +667,13 @@ mod test {
         }
 
         impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    count: 0,
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 _val: &Arc<Vec<i16>>,
@@ -558,7 +690,7 @@ mod test {
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
-        let mut node3 = Node3::new(0);
+        let mut node3 = Node3::new();
 
         connect_nodes!(node1, sender, node2, input);
         connect_nodes!(node2, sender, node3, input);
@@ -583,6 +715,12 @@ mod test {
         }
 
         impl NoInputNode {
+            pub fn new() -> Self {
+                NoInputNode {
+                    output: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<u32, NodeError> {
                 Ok(1)
             }
@@ -594,6 +732,12 @@ mod test {
         }
 
         impl AnotherNode {
+            pub fn new() -> Self {
+                AnotherNode {
+                    output: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<f64, NodeError> {
                 Ok(2.0)
             }
@@ -609,6 +753,14 @@ mod test {
         }
 
         impl DoubleInputNode {
+            pub fn new() -> Self {
+                DoubleInputNode {
+                    recv1: Default::default(),
+                    recv2: Default::default(),
+                    output: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: u32, y: f64) -> Result<f32, NodeError> {
                 Ok((f64::from(x) + y) as f32)
             }
@@ -620,6 +772,12 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    recv: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: f32) -> Result<(), NodeError> {
                 assert!(x - 3.0f32 < std::f32::EPSILON, "Fan-out failed.");
                 Ok(())
@@ -665,6 +823,13 @@ mod test {
         }
 
         impl OneNode {
+            pub fn new() -> Self {
+                OneNode {
+                    count: 0,
+                    output: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<i32, NodeError> {
                 self.count += 1;
                 Ok(self.count)
@@ -679,14 +844,22 @@ mod test {
         }
 
         impl CounterNode {
+            pub fn new() -> Self {
+                CounterNode {
+                    count: 0,
+                    recv: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
                 self.count += val;
                 Ok(self.count)
             }
         }
 
-        let mut one_node = OneNode::new(0);
-        let mut count_node = CounterNode::new(0);
+        let mut one_node = OneNode::new();
+        let mut count_node = CounterNode::new();
         connect_nodes!(one_node, output, count_node, recv);
 
         thread::spawn(move || {
@@ -716,6 +889,14 @@ mod test {
         }
 
         impl AddNode {
+            pub fn new() -> Self {
+                AddNode {
+                    count: 1,
+                    recv: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
                 self.count += val;
                 Ok(self.count)
@@ -730,14 +911,22 @@ mod test {
         }
 
         impl PrintNode {
+            pub fn new() -> Self {
+                PrintNode {
+                    count: 0,
+                    recv: Default::default(),
+                    output: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
                 self.count = val;
                 Ok(val)
             }
         }
 
-        let mut add_node = AddNode::new(1);
-        let mut print_node = PrintNode::new(0);
+        let mut add_node = AddNode::new();
+        let mut print_node = PrintNode::new();
         connect_nodes!(add_node, sender, print_node, recv);
         connect_nodes_feedback!(print_node, output, add_node, recv, 0);
         start_nodes!(add_node);

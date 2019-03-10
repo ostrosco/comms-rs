@@ -18,14 +18,9 @@ use crate::prelude::*;
 /// # Examples
 ///
 /// ```
-/// use rand::rngs::StdRng;
-/// use rand::FromEntropy;
-/// use rand::distributions::Uniform;
 /// use comms_rs::util::rand_node::UniformNode;
 ///
-/// let rng = StdRng::from_entropy();
-/// let dist = Uniform::new(0, 2);
-/// let node = UniformNode::new(rng, dist);
+/// let node = UniformNode::new(0, 2);
 /// ```
 #[derive(Node)]
 pub struct UniformNode<T>
@@ -41,6 +36,35 @@ impl<T> UniformNode<T>
 where
     T: SampleUniform + Clone,
 {
+    /// Builds a closure for generating random numbers with a Uniform distribution.
+    ///
+    /// Provides a shorthand for getting a node that produces uniformly distributed
+    /// random numbers with a given start and end range.
+    ///
+    /// # Arguments
+    ///
+    /// * `start` - Lower bound (inclusive) of `Uniform` range
+    /// * `end` - Upper bound (exclusive) of `Uniform` range
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::util::rand_node::UniformNode;
+    ///
+    /// let start = 0.0_f64;
+    /// let end = 1.0_f64;
+    /// let node = UniformNode::new(start, end);
+    /// ```
+    pub fn new(start: T, end: T) -> Self {
+        let rng = StdRng::from_entropy();
+        let dist = Uniform::new(start, end);
+        UniformNode {
+            rng,
+            dist,
+            sender: Default::default(),
+        }
+    }
+
     /// Runs the `UniformNode`.  Produces either a new `f64` sample drawn from
     /// the stored random number generator or produces a `NodeError`.
     pub fn run(&mut self) -> Result<T, NodeError> {
@@ -62,16 +86,11 @@ where
 /// # Examples
 ///
 /// ```
-/// use rand::rngs::StdRng;
-/// use rand::FromEntropy;
-/// use rand::distributions::Normal;
 /// use comms_rs::util::rand_node::NormalNode;
 ///
-/// let rng = StdRng::from_entropy();
 /// let mean_value = 0.0;
 /// let standard_deviation = 1.0;
-/// let dist = Normal::new(mean_value, standard_deviation);
-/// let node = NormalNode::new(rng, dist);
+/// let node = NormalNode::new(mean_value, standard_deviation);
 /// ```
 #[derive(Node)]
 pub struct NormalNode {
@@ -81,61 +100,40 @@ pub struct NormalNode {
 }
 
 impl NormalNode {
+    /// Builds a closure for generating random numbers with a Normal distribution.
+    ///
+    /// Provides a shorthand for getting a node that produces normally distributed
+    /// random numbers with a given mean and standard deviation.
+    ///
+    /// # Arguments
+    ///
+    /// * `mu` - Mean value for `Normal` distribution
+    /// * `std_dev` - Standard deviation for `Normal` distribution
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::util::rand_node::NormalNode;
+    ///
+    /// let mu = 0.0_f64;
+    /// let std_dev = 1.0_f64;
+    /// let node = NormalNode::new(mu, std_dev);
+    /// ```
+    pub fn new(mu: f64, std_dev: f64) -> NormalNode {
+        let rng = StdRng::from_entropy();
+        let dist = Normal::new(mu, std_dev);
+        NormalNode {
+            rng,
+            dist,
+            sender: Default::default(),
+        }
+    }
+
     /// Runs the `NormalNode`.  Produces either a new `f64` sample drawn from
     /// the stored random number generator or produces a `NodeError`.
     pub fn run(&mut self) -> Result<f64, NodeError> {
         Ok(self.rng.sample(&self.dist))
     }
-}
-
-/// Builds a closure for generating random numbers with a Normal distribution.
-///
-/// Provides a shorthand for getting a node that produces normally distributed
-/// random numbers with a given mean and standard deviation.
-///
-/// # Arguments
-///
-/// * `mu` - Mean value for `Normal` distribution
-/// * `std_dev` - Standard deviation for `Normal` distribution
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::util::rand_node::normal;
-///
-/// let mu = 0.0_f64;
-/// let std_dev = 1.0_f64;
-/// let node = normal(mu, std_dev);
-/// ```
-pub fn normal(mu: f64, std_dev: f64) -> NormalNode {
-    let rng = StdRng::from_entropy();
-    let norm = Normal::new(mu, std_dev);
-    NormalNode::new(rng, norm)
-}
-
-/// Builds a closure for generating random numbers with a Uniform distribution.
-///
-/// Provides a shorthand for getting a node that produces uniformly distributed
-/// random numbers with a given start and end range.
-///
-/// # Arguments
-///
-/// * `start` - Lower bound (inclusive) of `Uniform` range
-/// * `end` - Upper bound (exclusive) of `Uniform` range
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::util::rand_node::uniform;
-///
-/// let start = 0.0_f64;
-/// let end = 1.0_f64;
-/// let node = uniform(start, end);
-/// ```
-pub fn uniform<T: SampleUniform + Clone>(start: T, end: T) -> UniformNode<T> {
-    let rng = StdRng::from_entropy();
-    let uniform = Uniform::new(start, end);
-    UniformNode::new(rng, uniform)
 }
 
 /// Builds a closure for generating 0 or 1 with a Uniform distrubition.
@@ -148,7 +146,7 @@ pub fn uniform<T: SampleUniform + Clone>(start: T, end: T) -> UniformNode<T> {
 /// let node = random_bit();
 /// ```
 pub fn random_bit() -> UniformNode<u8> {
-    uniform(0u8, 2u8)
+    UniformNode::new(0u8, 2u8)
 }
 
 #[cfg(test)]
@@ -162,7 +160,7 @@ mod test {
     #[test]
     // A basic test that just makes sure the node doesn't crash.
     fn test_normal() {
-        let mut norm_node = rand_node::normal(0.0, 1.0);
+        let mut norm_node = rand_node::NormalNode::new(0.0, 1.0);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
@@ -179,13 +177,19 @@ mod test {
     // A basic test to ensure that the uniform node can be configured
     // correctly and generates numbers within the correct range.
     fn test_uniform() {
-        let mut uniform_node = rand_node::uniform(1.0, 2.0);
+        let mut uniform_node = rand_node::UniformNode::new(1.0, 2.0);
         #[derive(Node)]
         struct CheckNode {
             recv: NodeReceiver<f64>,
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    recv: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: f64) -> Result<(), NodeError> {
                 assert!(x >= 1.0 && x <= 2.0);
                 Ok(())
@@ -217,6 +221,12 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    recv: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: u8) -> Result<(), NodeError> {
                 assert!(x == 0u8 || x == 1u8);
                 Ok(())

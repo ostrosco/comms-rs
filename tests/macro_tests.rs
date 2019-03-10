@@ -11,6 +11,12 @@ pub struct Node1 {
 }
 
 impl Node1 {
+    fn new() -> Self {
+        Node1 {
+            sender: Default::default(),
+        }
+    }
+
     fn run(&mut self) -> Result<u32, NodeError> {
         Ok(1)
     }
@@ -24,6 +30,14 @@ pub struct Node2 {
 }
 
 impl Node2 {
+    fn new(stuff: u32) -> Self {
+        Node2 {
+            stuff,
+            recv_input: Default::default(),
+            sender: Default::default(),
+        }
+    }
+
     fn run(&mut self, x: u32) -> Result<u32, NodeError> {
         assert_eq!(x, 1);
         Ok(x + self.stuff)
@@ -36,6 +50,12 @@ pub struct Node3 {
 }
 
 impl Node3 {
+    fn new() -> Self {
+        Node3 {
+            recv_input: Default::default(),
+        }
+    }
+
     fn run(&mut self, x: u32) -> Result<(), NodeError> {
         assert_eq!(x, 6);
         Ok(())

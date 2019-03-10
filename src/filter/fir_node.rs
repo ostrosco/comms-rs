@@ -40,7 +40,7 @@ use num_traits::Num;
 ///     Complex::new(0.125, 0.0),
 /// ];
 ///
-/// let node = FirNode::new(taps, state);
+/// let node = FirNode::new(taps, Some(state));
 /// ```
 #[derive(Node)]
 #[pass_by_ref]
@@ -88,16 +88,13 @@ where
     ///
     /// let node = FirNode::new(taps, Some(state));
     /// ```
-    pub fn new(
-        taps: Vec<Complex<T>>,
-        state: Option<Vec<Complex<T>>>,
-    ) -> Self {
+    pub fn new(taps: Vec<Complex<T>>, state: Option<Vec<Complex<T>>>) -> Self {
         match state {
             Some(st) => FirNode {
                 taps,
-                st,
+                state: st,
                 input: Default::default(),
-                output: Default::default(),
+                sender: Default::default(),
             },
             None => {
                 let len = taps.len();
@@ -105,7 +102,7 @@ where
                     taps,
                     state: vec![Complex::zero(); len],
                     input: Default::default(),
-                    output: Default::default(),
+                    sender: Default::default(),
                 }
             }
         }
@@ -146,7 +143,7 @@ where
 ///     Complex::new(0.125, 0.0),
 /// ];
 ///
-/// let node = BatchFirNode::new(taps, state);
+/// let node = BatchFirNode::new(taps, Some(state));
 /// ```
 #[derive(Node)]
 #[pass_by_ref]
@@ -195,16 +192,13 @@ where
     ///
     /// let node = BatchFirNode::new(taps, Some(state));
     /// ```
-    pub fn new(
-        taps: Vec<Complex<T>>,
-        state: Option<Vec<Complex<T>>>,
-    ) -> Self {
+    pub fn new(taps: Vec<Complex<T>>, state: Option<Vec<Complex<T>>>) -> Self {
         match state {
             Some(st) => BatchFirNode {
                 taps,
-                st,
+                state: st,
                 input: Default::default(),
-                output: Default::default(),
+                sender: Default::default(),
             },
             None => {
                 let len = taps.len();
@@ -212,7 +206,7 @@ where
                     taps,
                     state: vec![Complex::zero(); len],
                     input: Default::default(),
-                    output: Default::default(),
+                    sender: Default::default(),
                 }
             }
         }
@@ -248,6 +242,13 @@ mod test {
         }
 
         impl SomeSamples {
+            pub fn new(samples: Vec<Complex<i16>>) -> Self {
+                SomeSamples {
+                    samples,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Complex<i16>, NodeError> {
                 if self.samples.is_empty() {
                     Ok(Complex::zero())
@@ -270,13 +271,16 @@ mod test {
             Complex::zero(),
         ]);
 
-        let mut mynode = fir_node::fir_node(vec![
-            Complex::new(9, 0),
-            Complex::new(8, 7),
-            Complex::new(6, 5),
-            Complex::new(4, 3),
-            Complex::new(2, 1),
-        ]);
+        let mut mynode = fir_node::FirNode::new(
+            vec![
+                Complex::new(9, 0),
+                Complex::new(8, 7),
+                Complex::new(6, 5),
+                Complex::new(4, 3),
+                Complex::new(2, 1),
+            ],
+            None,
+        );
 
         #[derive(Node)]
         pub struct CheckNode {
@@ -285,6 +289,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: Complex<i16>,
@@ -311,7 +322,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(source, sender, mynode, input);
         connect_nodes!(mynode, sender, check_node, input);
@@ -338,6 +349,13 @@ mod test {
         }
 
         impl SomeSamples {
+            pub fn new(samples: Vec<Complex<i16>>) -> Self {
+                SomeSamples {
+                    samples,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Vec<Complex<i16>>, NodeError> {
                 if self.samples.is_empty() {
                     Ok(vec![Complex::zero(), Complex::zero()])
@@ -381,6 +399,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: &[Complex<i16>],
@@ -408,7 +433,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(source, sender, mynode, input);
         connect_nodes!(mynode, sender, check_node, input);

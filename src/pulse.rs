@@ -33,8 +33,7 @@ use num_traits::Num;
 ///
 /// let sam_per_sym = 4_usize;
 /// let taps: Vec<Complex<i16>> = rect_taps(sam_per_sym).unwrap();
-/// let state = vec![Complex::zero(); taps.len()];
-/// let node = PulseNode::new(taps, sam_per_sym, state);
+/// let node = PulseNode::new(taps, sam_per_sym);
 /// ```
 #[derive(Node)]
 #[pass_by_ref]
@@ -53,6 +52,35 @@ impl<T> PulseNode<T>
 where
     T: Num + Copy,
 {
+    /// Constructs a new `PulseNode<T>` with initial state set to zeros.
+    ///
+    /// # Arguments
+    ///
+    /// * `taps` - FIR filter tap Vec[Complex<T>]
+    /// * `sam_per_sym` - Number of samples per symbol in the output
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::pulse::PulseNode;
+    /// use comms_rs::util::math::rect_taps;
+    /// use num::{Zero, Complex};
+    ///
+    /// let sam_per_sym = 4_usize;
+    /// let taps: Vec<Complex<i16>> = rect_taps(sam_per_sym).unwrap();
+    /// let node = PulseNode::new(taps, sam_per_sym);
+    /// ```
+    pub fn new(taps: Vec<Complex<T>>, sam_per_sym: usize) -> Self {
+        let len = taps.len();
+        PulseNode {
+            taps,
+            sam_per_sym,
+            state: vec![Complex::zero(); len],
+            input: Default::default(),
+            sender: Default::default(),
+        }
+    }
+
     pub fn run(
         &mut self,
         input: &Complex<T>,
@@ -64,33 +92,6 @@ where
         }
         Ok(output)
     }
-}
-
-/// Constructs a new `PulseNode<T>` with initial state set to zeros.
-///
-/// # Arguments
-///
-/// * `taps` - FIR filter tap Vec[Complex<T>]
-/// * `sam_per_sym` - Number of samples per symbol in the output
-/// * `state` - Initial state for the internal filter state and memory
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::pulse::pulse_node;
-/// use comms_rs::util::math::rect_taps;
-/// use num::{Zero, Complex};
-///
-/// let sam_per_sym = 4_usize;
-/// let taps: Vec<Complex<i16>> = rect_taps(sam_per_sym).unwrap();
-/// let node = pulse_node(taps, sam_per_sym);
-/// ```
-pub fn pulse_node<T>(taps: Vec<Complex<T>>, sam_per_sym: usize) -> PulseNode<T>
-where
-    T: Num + Copy,
-{
-    let len = taps.len();
-    PulseNode::new(taps, sam_per_sym, vec![Complex::zero(); len])
 }
 
 #[cfg(test)]
@@ -111,6 +112,13 @@ mod test {
         }
 
         impl SomeSamples {
+            pub fn new(samples: Vec<Complex<i16>>) -> Self {
+                SomeSamples {
+                    samples,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Complex<i16>, NodeError> {
                 if self.samples.is_empty() {
                     Ok(Complex::zero())
@@ -130,7 +138,7 @@ mod test {
 
         let sam_per_sym = 4;
         let taps = rect_taps(sam_per_sym).unwrap();
-        let mut mynode = pulse_node(taps, sam_per_sym);
+        let mut mynode = PulseNode::new(taps, sam_per_sym);
 
         #[derive(Node)]
         pub struct CheckNode {
@@ -139,6 +147,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: Vec<Complex<i16>>,
@@ -178,7 +193,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(source, sender, mynode, input);
         connect_nodes!(mynode, sender, check_node, input);

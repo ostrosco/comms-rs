@@ -19,6 +19,14 @@ impl<T> DecimateNode<T>
 where
     T: Copy,
 {
+    pub fn new(dec_rate: usize) -> Self {
+        DecimateNode {
+            dec_rate,
+            input: Default::default(),
+            sender: Default::default(),
+        }
+    }
+
     pub fn run(&mut self, signal: &[T]) -> Result<Vec<T>, NodeError> {
         Ok(self.decimate(signal))
     }
