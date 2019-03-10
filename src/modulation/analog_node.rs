@@ -4,7 +4,7 @@ use num::Complex;
 use num::Float;
 use num::Zero;
 
-#[derive(Node)]
+#[derive(Node, Default)]
 #[pass_by_ref]
 pub struct FMDemodNode<T>
 where
@@ -19,14 +19,15 @@ impl<T> FMDemodNode<T>
 where
     T: Float + Zero,
 {
+    pub fn new() -> Self {
+        FMDemodNode {
+            fm: analog::FM::new(),
+            input: Default::default(),
+            sender: Default::default(),
+        }
+    }
+
     pub fn run(&mut self, samples: &[Complex<T>]) -> Result<Vec<T>, NodeError> {
         Ok(self.fm.demod(samples))
     }
-}
-
-pub fn fm_demod_node<T>() -> FMDemodNode<T>
-where
-    T: Float + Zero,
-{
-    FMDemodNode::new(analog::FM::new())
 }

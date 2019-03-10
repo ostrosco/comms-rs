@@ -13,10 +13,6 @@ use std::default::Default;
 /// The node expects that input data matching the specified FFT size is
 /// provided.
 ///
-/// # Arguments
-///
-/// * `batch_fft` - FFT plan to be executed in this node.
-///
 /// # Examples
 ///
 /// ```
@@ -25,11 +21,7 @@ use std::default::Default;
 /// use rustfft::FFTplanner;
 ///
 /// let fft_size = 1024;
-/// let mut planner = FFTplanner::new(false);
-/// let fft = planner.plan_fft(fft_size);
-/// let batch_fft = BatchFFT::new(fft, fft_size);
-///
-/// let node: FFTBatchNode<f64> = FFTBatchNode::new(batch_fft);
+/// let node: FFTBatchNode<f64> = FFTBatchNode::new(fft_size, false);
 /// ```
 #[derive(Node)]
 #[pass_by_ref]
@@ -64,11 +56,11 @@ where
     ///
     /// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
     /// // an FFT on those samples.
-    /// let mut fft_node: FFTBatchNode<i16> = fft_node::fft_batch_node(1024, false);
+    /// let mut fft_node: FFTBatchNode<i16> = FFTBatchNode::new(1024, false);
     ///
     /// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
     /// // an IFFT on those samples.
-    /// let mut ifft_node: FFTBatchNode<f32> = fft_node::fft_batch_node(1024, true);
+    /// let mut ifft_node: FFTBatchNode<f32> = FFTBatchNode::new(1024, true);
     /// ```
     pub fn new(fft_size: usize, ifft: bool) -> Self {
         let mut planner = FFTplanner::new(ifft);
@@ -77,7 +69,7 @@ where
         FFTBatchNode {
             batch_fft,
             input: Default::default(),
-            output: Default::default(),
+            sender: Default::default(),
         }
     }
 
@@ -96,10 +88,6 @@ where
 /// This node expects data to be provided sample by sample and will only
 /// perform the FFT once it has received enough samples specified by fft_size.
 ///
-/// # Arguments
-///
-/// * `sample_fft` - `SampleFFT<T>` implementation to be executed in this node.
-///
 /// # Examples
 ///
 /// ```
@@ -108,11 +96,7 @@ where
 /// use rustfft::FFTplanner;
 ///
 /// let fft_size = 1024;
-/// let mut planner = FFTplanner::new(false);
-/// let fft = planner.plan_fft(fft_size);
-/// let sample_fft: SampleFFT<f64> = SampleFFT::new(fft, fft_size);
-///
-/// let node = FFTSampleNode::new(sample_fft);
+/// let node: FFTSampleNode<f64> = FFTSampleNode::new(fft_size, false);
 /// ```
 #[derive(Node)]
 #[aggregate]
@@ -130,7 +114,6 @@ impl<T> FFTSampleNode<T>
 where
     T: NumCast + Clone + Num,
 {
-
     /// Constructs a node that performs FFT or IFFTs, receiving a sample at a time
     /// versus a batch of samples.
     ///
@@ -150,23 +133,20 @@ where
     ///
     /// // Sets up an FFT that receives 1024 Complex<i16> samples and performs
     /// // an FFT on those samples.
-    /// let mut fft_node: FFTSampleNode<i16> = fft_node::fft_sample_node(1024, false);
+    /// let mut fft_node: FFTSampleNode<i16> = FFTSampleNode::new(1024, false);
     ///
     /// // Sets up an IFFT that receives 1024 Complex<f32> complex samples and performs
     /// // an IFFT on those samples.
-    /// let mut ifft_node: FFTSampleNode<f32> = fft_node::fft_sample_node(1024, true);
+    /// let mut ifft_node: FFTSampleNode<f32> = FFTSampleNode::new(1024, true);
     /// ```
-    pub fn new(
-        fft_size: usize,
-        ifft: bool,
-    ) -> Self {
+    pub fn new(fft_size: usize, ifft: bool) -> Self {
         let mut planner = FFTplanner::new(ifft);
         let fft = planner.plan_fft(fft_size);
         let sample_fft = SampleFFT::new(fft, fft_size);
         FFTSampleNode {
             sample_fft,
             input: Default::default(),
-            output: Default::default(),
+            sender: Default::default(),
         }
     }
 
@@ -204,6 +184,12 @@ mod test {
         }
 
         impl SendNode {
+            pub fn new() -> Self {
+                SendNode {
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Vec<Complex<f32>>, NodeError> {
                 let input = vec![
                     Complex::new(0.1, 0.1),
@@ -231,6 +217,12 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: &[Complex<f32>],
@@ -279,6 +271,13 @@ mod test {
         }
 
         impl SendNode {
+            pub fn new(state: Vec<Complex<f32>>) -> Self {
+                SendNode {
+                    state,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Complex<f32>, NodeError> {
                 Ok(self.state.pop().unwrap_or_else(|| Complex::new(0.0, 0.0)))
             }
@@ -306,6 +305,12 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: &[Complex<f32>],

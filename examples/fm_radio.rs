@@ -2,7 +2,7 @@
 extern crate comms_rs;
 extern crate num;
 
-use comms_rs::filter::fir_node::{batch_fir_node, BatchFirNode};
+use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
 use comms_rs::modulation::analog_node;
@@ -67,6 +67,13 @@ fn main() {
     }
 
     impl ConvertNode {
+        pub fn new() -> Self {
+            ConvertNode {
+                input: Default::default(),
+                sender: Default::default(),
+            }
+        }
+
         pub fn run(
             &mut self,
             samples: &[u8],
@@ -94,6 +101,13 @@ fn main() {
     }
 
     impl Convert2Node {
+        pub fn new() -> Self {
+            Convert2Node {
+                input: Default::default(),
+                sender: Default::default(),
+            }
+        }
+
         pub fn run(
             &mut self,
             samples: &[f32],
@@ -112,6 +126,13 @@ fn main() {
     }
 
     impl Convert3Node {
+        pub fn new() -> Self {
+            Convert3Node {
+                input: Default::default(),
+                sender: Default::default(),
+            }
+        }
+
         pub fn run(
             &mut self,
             samples: &[Complex<f32>],
@@ -123,13 +144,13 @@ fn main() {
     let mut sdr = radio::RadioRxNode::new(rtlsdr, 0, 262144);
     let mut convert = ConvertNode::new();
     let mut dec1: DecimateNode<Complex<f32>> = DecimateNode::new(5);
-    let mut filt1: BatchFirNode<f32> = batch_fir_node(taps.clone());
-    let mut fm = analog_node::fm_demod_node();
+    let mut filt1: BatchFirNode<f32> = BatchFirNode::new(taps.clone(), None);
+    let mut fm = analog_node::FMDemodNode::new();
     let mut convert2 = Convert2Node::new();
-    let mut filt2: BatchFirNode<f32> = batch_fir_node(taps);
+    let mut filt2: BatchFirNode<f32> = BatchFirNode::new(taps, None);
     let mut convert3 = Convert3Node::new();
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
-    let mut audio: audio::AudioNode<f32> = audio::audio(1, 44100, 0.1);
+    let mut audio: audio::AudioNode<f32> = audio::AudioNode::new(1, 44100, 0.1);
 
     connect_nodes!(sdr, sender, convert, input);
     connect_nodes!(convert, sender, filt1, input);

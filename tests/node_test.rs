@@ -13,6 +13,12 @@ fn simple_nodes() {
     }
 
     impl SourceNode {
+        pub fn new() -> Self {
+            SourceNode {
+                sender: Default::default(),
+            }
+        }
+
         pub fn run(&mut self) -> Result<u32, NodeError> {
             Ok(1)
         }
@@ -24,6 +30,12 @@ fn simple_nodes() {
     }
 
     impl SinkNode {
+        pub fn new() -> Self {
+            SinkNode {
+                input: Default::default(),
+            }
+        }
+
         pub fn run(&mut self, input: u32) -> Result<(), NodeError> {
             assert_eq!(input, 1);
             Ok(())

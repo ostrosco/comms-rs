@@ -20,6 +20,39 @@ impl<T> ZMQSend<T>
 where
     T: Serialize + Clone,
 {
+    /// Creates a node to serialize and send data out via ZeroMQ.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # #[macro_use] extern crate comms_rs;
+    /// # extern crate zmq;
+    /// # use comms_rs::prelude::*;
+    /// # use comms_rs::io::zmq_node::{self, ZMQSend};
+    /// # use comms_rs::util::rand_node;
+    /// # fn main() {
+    /// // Generate random numbers and broadcast them out via ZeroMQ.
+    /// let mut rand = rand_node::NormalNode::new(0.0, 1.0);
+    /// let mut send: ZMQSend<f64> = ZMQSend::new("tcp://*:5556",
+    ///     zmq::SocketType::PUB, 0);
+    /// connect_nodes!(rand, sender, send, input);
+    /// start_nodes!(rand, send);
+    /// # }
+    pub fn new(
+        endpoint: &str,
+        socket_type: zmq::SocketType,
+        flags: i32,
+    ) -> Self {
+        let context = zmq::Context::new();
+        let socket = context.socket(socket_type).unwrap();
+        socket.bind(endpoint).unwrap();
+        ZMQSend {
+            socket,
+            flags,
+            input: Default::default(),
+        }
+    }
+
     pub fn run(&mut self, data: &T) -> Result<(), NodeError> {
         self.send(data)
     }
@@ -34,38 +67,6 @@ where
             Err(_) => Err(NodeError::CommError),
         }
     }
-}
-
-/// Creates a node to serialize and send data out via ZeroMQ.
-///
-/// Example:
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # extern crate zmq;
-/// # use comms_rs::prelude::*;
-/// # use comms_rs::io::zmq_node::{self, ZMQSend};
-/// # use comms_rs::util::rand_node;
-/// # fn main() {
-/// // Generate random numbers and broadcast them out via ZeroMQ.
-/// let mut rand = rand_node::normal(0.0, 1.0);
-/// let mut send: ZMQSend<f64> = zmq_node::zmq_send("tcp://*:5556",
-///     zmq::SocketType::PUB, 0);
-/// connect_nodes!(rand, sender, send, input);
-/// start_nodes!(rand, send);
-/// # }
-pub fn zmq_send<T>(
-    endpoint: &str,
-    socket_type: zmq::SocketType,
-    flags: i32,
-) -> ZMQSend<T>
-where
-    T: Serialize + Clone,
-{
-    let context = zmq::Context::new();
-    let socket = context.socket(socket_type).unwrap();
-    socket.bind(endpoint).unwrap();
-    ZMQSend::new(socket, flags)
 }
 
 /// A node that will receiver serialized data from a ZMQ socket.
@@ -83,6 +84,44 @@ impl<T> ZMQRecv<T>
 where
     T: DeserializeOwned + Clone,
 {
+    /// Creates a node to receive data from a ZMQ socket.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # #[macro_use] extern crate comms_rs;
+    /// # extern crate zmq;
+    /// # extern crate num;
+    /// # use comms_rs::prelude::*;
+    /// # use comms_rs::io::zmq_node::{self, ZMQRecv};
+    /// # use comms_rs::fft::fft_node::{FFTBatchNode, self};
+    /// # use num::Complex;
+    /// # fn main() {
+    /// // Generate random numbers and broadcast them out via ZeroMQ.
+    /// let mut recv: ZMQRecv<Vec<Complex<u32>>> = ZMQRecv::new(
+    ///     "tcp://localhost:5556",
+    ///     zmq::SocketType::SUB,
+    ///     0);
+    /// let mut fft: FFTBatchNode<u32> = FFTBatchNode::new(1024, false);
+    /// connect_nodes!(recv, sender, fft, input);
+    /// start_nodes!(recv, fft);
+    /// # }
+    pub fn new(
+        endpoint: &str,
+        socket_type: zmq::SocketType,
+        flags: i32,
+    ) -> Self {
+        let context = zmq::Context::new();
+        let socket = context.socket(socket_type).unwrap();
+        socket.connect(endpoint).unwrap();
+        socket.set_subscribe(&[]).unwrap();
+        ZMQRecv {
+            socket,
+            flags,
+            sender: Default::default(),
+        }
+    }
+
     pub fn run(&mut self) -> Result<T, NodeError> {
         self.recv()
     }
@@ -100,47 +139,10 @@ where
     }
 }
 
-/// Creates a node to receive data from a ZMQ socket.
-///
-/// Example:
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # extern crate zmq;
-/// # extern crate num;
-/// # use comms_rs::prelude::*;
-/// # use comms_rs::io::zmq_node::{self, ZMQRecv};
-/// # use comms_rs::fft::fft_node::{FFTBatchNode, self};
-/// # use num::Complex;
-/// # fn main() {
-/// // Generate random numbers and broadcast them out via ZeroMQ.
-/// let mut recv: ZMQRecv<Vec<Complex<u32>>> = zmq_node::zmq_recv(
-///     "tcp://localhost:5556",
-///     zmq::SocketType::SUB,
-///     0);
-/// let mut fft: FFTBatchNode<u32> = fft_node::fft_batch_node(1024, false);
-/// connect_nodes!(recv, sender, fft, input);
-/// start_nodes!(recv, fft);
-/// # }
-pub fn zmq_recv<T>(
-    endpoint: &str,
-    socket_type: zmq::SocketType,
-    flags: i32,
-) -> ZMQRecv<T>
-where
-    T: DeserializeOwned + Clone,
-{
-    let context = zmq::Context::new();
-    let socket = context.socket(socket_type).unwrap();
-    socket.connect(endpoint).unwrap();
-    socket.set_subscribe(&[]).unwrap();
-    ZMQRecv::new(socket, flags)
-}
-
 #[cfg(test)]
 mod test {
     use crate::io::zmq;
-    use crate::io::zmq_node;
+    use crate::io::zmq_node::{ZMQRecv, ZMQSend};
     use crate::prelude::*;
     use std::thread;
 
@@ -151,22 +153,22 @@ mod test {
             pub sender: NodeSender<Vec<u32>>,
         }
         impl DataGen {
+            pub fn new() -> Self {
+                DataGen {
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Vec<u32>, NodeError> {
                 Ok(vec![1, 2, 3, 4, 5])
             }
         }
 
         let mut data_node = DataGen::new();
-        let mut zmq_send = zmq_node::zmq_send::<Vec<u32>>(
-            "tcp://*:5556",
-            zmq::SocketType::PUB,
-            0,
-        );
-        let mut zmq_recv = zmq_node::zmq_recv::<Vec<u32>>(
-            "tcp://localhost:5556",
-            zmq::SocketType::SUB,
-            0,
-        );
+        let mut zmq_send: ZMQSend<Vec<u32>> =
+            ZMQSend::new("tcp://*:5556", zmq::SocketType::PUB, 0);
+        let mut zmq_recv: ZMQRecv<Vec<u32>> =
+            ZMQRecv::new("tcp://localhost:5556", zmq::SocketType::SUB, 0);
 
         #[derive(Node)]
         #[pass_by_ref]
@@ -175,6 +177,12 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, data: &[u32]) -> Result<(), NodeError> {
                 assert_eq!(&data, &[1, 2, 3, 4, 5]);
                 Ok(())

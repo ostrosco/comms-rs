@@ -84,12 +84,11 @@ impl<T: PrimInt> PrnGen<T> {
 /// # Examples
 ///
 /// ```
-/// use comms_rs::prn::{PrnGen, PrnsNode};
+/// use comms_rs::prn::PrnsNode;
 ///
 /// let poly_mask = 0xC0_u8;
 /// let state = 0xFF_u8;
-/// let prn_gen = PrnGen::new(poly_mask, state);
-/// let node = PrnsNode::new(prn_gen);
+/// let prn_node = PrnsNode::new(poly_mask, state);
 /// ```
 #[derive(Node)]
 pub struct PrnsNode<T>
@@ -104,31 +103,34 @@ impl<T> PrnsNode<T>
 where
     T: PrimInt,
 {
+    /// Constructs a new `PrnsNode<T: PrimInt>`.
+    ///
+    /// # Arguments
+    ///
+    /// * `poly_mask` - Polynomial bit mask to define the feedback taps on the
+    /// LFSR. A 1 designates that the state bit present should be part of the xor
+    /// operation when creating the next bit in the sequence.
+    /// * `state` - Initial state of the LFSR.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::prn::PrnsNode;
+    ///
+    /// let poly_mask = 0xC0_u8;
+    /// let state = 0xFF_u8;
+    /// let node = PrnsNode::new(poly_mask, state);
+    /// ```
+    pub fn new(poly_mask: T, state: T) -> Self {
+        PrnsNode {
+            prngen: PrnGen::new(poly_mask, state),
+            sender: Default::default(),
+        }
+    }
+
     pub fn run(&mut self) -> Result<u8, NodeError> {
         Ok(self.prngen.next_byte())
     }
-}
-
-/// Constructs a new `PrnsNode<T: PrimInt>`.
-///
-/// # Arguments
-///
-/// * `poly_mask` - Polynomial bit mask to define the feedback taps on the
-/// LFSR. A 1 designates that the state bit present should be part of the xor
-/// operation when creating the next bit in the sequence.
-/// * `state` - Initial state of the LFSR.
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::prn::prns_node;
-///
-/// let poly_mask = 0xC0_u8;
-/// let state = 0xFF_u8;
-/// let node = prns_node(poly_mask, state);
-/// ```
-pub fn prns_node<T: PrimInt>(poly_mask: T, state: T) -> PrnsNode<T> {
-    PrnsNode::new(PrnGen::new(poly_mask, state))
 }
 
 #[cfg(test)]
@@ -187,7 +189,7 @@ mod test {
     #[test]
     // A test to verify the PrnsNode matches the PRBS7 output.
     fn test_prns_node() {
-        let mut mynode = prns_node(0xC0 as u8, 0x01);
+        let mut mynode = PrnsNode::new(0xC0 as u8, 0x01);
         #[derive(Node)]
         struct CheckNode {
             recv: NodeReceiver<u8>,
@@ -195,6 +197,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    recv: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, x: u8) -> Result<(), NodeError> {
                 if self.state.len() == 128 {
                     assert_eq!(
@@ -217,7 +226,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(mynode, sender, check_node, recv);
         start_nodes!(mynode);

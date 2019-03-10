@@ -105,66 +105,48 @@ impl<T> MixerNode<T>
 where
     T: Clone + Num + NumCast,
 {
+    /// Constructs a new `MixerNode<T>` with specified initial phase.
+    ///
+    /// Any frequency above Nyquist will not be supported, ie, dphase will be
+    /// limited to the range [0, 2*Pi).
+    ///
+    /// # Arguments
+    ///
+    /// * `dphase` - The change in phase (radians) per sampling period. This should
+    /// be dphase = 2 * PI * freq(Hz) * Ts.
+    /// * `phase` - The initial phase of the oscillator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use comms_rs::mixer::*;
+    /// use std::f64::consts::PI;
+    /// use num::Complex;
+    ///
+    /// let dphase = 0.1_f64;
+    /// let phase: f64 = PI / 4.0;
+    /// let node: MixerNode<Complex<f64>> = MixerNode::new(dphase, Some(phase));
+    /// ```
+    pub fn new(dphase: f64, phase: Option<f64>) -> Self {
+        match phase {
+            Some(ph) => MixerNode {
+                mixer: Mixer::new(ph, dphase),
+                input: Default::default(),
+                sender: Default::default(),
+            },
+            None => MixerNode {
+                mixer: Mixer::new(0.0, dphase),
+                input: Default::default(),
+                sender: Default::default(),
+            },
+        }
+    }
+
     /// Runs the `MixerNode<T>`.  Produces either the mixed `Complex<T>` sample
     /// or a `NodeError`.
     pub fn run(&mut self, input: &Complex<T>) -> Result<Complex<T>, NodeError> {
         Ok(self.mixer.mix(input))
     }
-}
-
-/// Constructs a new `MixerNode<T>` with an initial phase of 0.
-///
-/// Any frequency above Nyquist will not be supported, ie, dphase will be
-/// limited to the range [0, 2*Pi).
-///
-/// # Arguments
-///
-/// * `dphase` - The change in phase (radians) per sampling period. This should
-/// be dphase = 2 * PI * freq(Hz) * Ts.
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::mixer::*;
-/// use num::Complex;
-///
-/// let dphase = 0.1_f64;
-/// let node: MixerNode<Complex<f64>> = mixer_node(dphase);
-/// ```
-pub fn mixer_node<T>(dphase: f64) -> MixerNode<T>
-where
-    T: NumCast + Clone + Num,
-{
-    MixerNode::new(Mixer::new(0.0, dphase))
-}
-
-/// Constructs a new `MixerNode<T>` with specified initial phase.
-///
-/// Any frequency above Nyquist will not be supported, ie, dphase will be
-/// limited to the range [0, 2*Pi).
-///
-/// # Arguments
-///
-/// * `dphase` - The change in phase (radians) per sampling period. This should
-/// be dphase = 2 * PI * freq(Hz) * Ts.
-/// * `phase` - The initial phase of the oscillator.
-///
-/// # Examples
-///
-/// ```
-/// use comms_rs::mixer::*;
-/// use std::f64::consts::PI;
-/// use num::Complex;
-///
-/// let dphase = 0.1_f64;
-/// let phase: f64 = PI / 4.0;
-/// let node: MixerNode<Complex<f64>> = mixer_node_with_phase(dphase, phase);
-/// ```
-pub fn mixer_node_with_phase<T>(dphase: f64, phase: f64) -> MixerNode<T>
-where
-    T: NumCast + Clone + Num,
-{
-    MixerNode::new(Mixer::new(phase, dphase))
 }
 
 #[cfg(test)]
@@ -186,6 +168,13 @@ mod test {
         }
 
         impl SomeSamples {
+            pub fn new(samples: Vec<Complex<f64>>) -> Self {
+                SomeSamples {
+                    samples,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Complex<f64>, NodeError> {
                 if self.samples.is_empty() {
                     Ok(Complex::zero())
@@ -203,7 +192,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node::<f64>(0.123);
+        let mut mixer: MixerNode<f64> = MixerNode::new(0.123, None);
 
         #[derive(Node)]
         struct CheckNode {
@@ -212,6 +201,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: Complex<f64>,
@@ -235,7 +231,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(source, sender, mixer, input);
         connect_nodes!(mixer, sender, check_node, input);
@@ -262,6 +258,13 @@ mod test {
         }
 
         impl SomeSamples {
+            pub fn new(samples: Vec<Complex<f64>>) -> Self {
+                SomeSamples {
+                    samples,
+                    sender: Default::default(),
+                }
+            }
+
             pub fn run(&mut self) -> Result<Complex<f64>, NodeError> {
                 if self.samples.is_empty() {
                     Ok(Complex::zero())
@@ -279,7 +282,7 @@ mod test {
             Complex::new(9.0, 0.0),
         ]);
 
-        let mut mixer = mixer_node_with_phase::<f64>(0.123, 0.1);
+        let mut mixer: MixerNode<f64> = MixerNode::new(0.123, Some(0.1));
 
         #[derive(Node)]
         struct CheckNode {
@@ -288,6 +291,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    state: vec![],
+                    input: Default::default(),
+                }
+            }
+
             pub fn run(
                 &mut self,
                 input: Complex<f64>,
@@ -311,7 +321,7 @@ mod test {
             }
         }
 
-        let mut check_node = CheckNode::new(Vec::new());
+        let mut check_node = CheckNode::new();
 
         connect_nodes!(source, sender, mixer, input);
         connect_nodes!(mixer, sender, check_node, input);

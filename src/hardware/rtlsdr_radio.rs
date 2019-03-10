@@ -86,6 +86,13 @@ mod test {
         }
 
         impl CheckNode {
+            pub fn new(num_samples: usize) -> Self {
+                CheckNode {
+                    num_samples,
+                    recv: Default::default(),
+                }
+            }
+
             pub fn run(&mut self, samples: &[u8]) -> Result<(), NodeError> {
                 assert_eq!(samples.len(), self.num_samples);
                 Ok(())
