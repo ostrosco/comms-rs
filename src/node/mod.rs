@@ -944,4 +944,104 @@ mod test {
         });
         assert!(check.join().is_ok());
     }
+
+    #[test]
+    fn test_optional_input() {
+        #[derive(Node)]
+        struct OneNode {
+            sender: NodeSender<u32>,
+        }
+
+        impl OneNode {
+            pub fn new() -> Self {
+                OneNode {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        #[aggregate]
+        struct AggNode {
+            input: NodeReceiver<u32>,
+            state: u32,
+            sender: NodeSender<u32>,
+        }
+
+        impl AggNode {
+            pub fn new() -> Self {
+                AggNode {
+                    state: 0,
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                input: u32,
+            ) -> Result<Option<u32>, NodeError> {
+                self.state += input;
+                if self.state % 2 == 0 {
+                    Ok(Some(2))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+
+        #[derive(Node)]
+        struct OptionalNode {
+            input: NodeReceiver<u32>,
+            #[optional]
+            input2: NodeReceiver<u32>,
+            state: u32,
+        }
+
+        impl OptionalNode {
+            pub fn new() -> Self {
+                OptionalNode {
+                    input: Default::default(),
+                    state: 0,
+                    input2: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                input: u32,
+                input2: Option<u32>,
+            ) -> Result<(), NodeError> {
+                self.state += input;
+                match input2 {
+                    Some(v) if v == 2 => Ok(()),
+                    _ => Err(NodeError::DataError),
+                }
+            }
+        }
+
+        let mut one_node = OneNode::new();
+        let mut agg_node = AggNode::new();
+        let mut opt_node = OptionalNode::new();
+        connect_nodes!(one_node, sender, agg_node, input);
+        connect_nodes!(one_node, sender, opt_node, input);
+        connect_nodes!(agg_node, sender, opt_node, input2);
+        start_nodes!(one_node, agg_node);
+
+        let check = thread::spawn(move || {
+            let mut optional = false;
+            for _ in 0..10 {
+                match opt_node.call() {
+                    Ok(_) => optional = true,
+                    _ => (),
+                }
+            }
+            assert!(optional);
+        });
+        assert!(check.join().is_ok());
+    }
 }
