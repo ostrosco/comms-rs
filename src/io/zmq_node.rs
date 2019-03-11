@@ -1,8 +1,9 @@
 use crate::io::zmq;
 use crate::prelude::*;
-use bincode::{deserialize, serialize};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde_cbor::de::from_slice;
+use serde_cbor::ser::to_vec_packed;
 
 /// A node that will send serialized data out of a ZMQ socket.
 #[derive(Node)]
@@ -58,7 +59,7 @@ where
     }
 
     pub fn send(&mut self, data: &T) -> Result<(), NodeError> {
-        let buffer: Vec<u8> = match serialize(&data) {
+        let buffer: Vec<u8> = match to_vec_packed(&data) {
             Ok(b) => b,
             Err(_) => return Err(NodeError::DataError),
         };
@@ -131,7 +132,7 @@ where
             Ok(b) => b,
             Err(_) => return Err(NodeError::CommError),
         };
-        let res: T = match deserialize(&bytes) {
+        let res: T = match from_slice(&bytes) {
             Ok(r) => r,
             Err(_) => return Err(NodeError::DataError),
         };

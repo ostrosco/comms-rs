@@ -17,7 +17,6 @@
 
 #![allow(clippy::unreadable_literal)]
 
-extern crate bincode;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate crossbeam_channel;
@@ -28,6 +27,7 @@ extern crate rand;
 extern crate rayon;
 extern crate rustfft;
 extern crate serde;
+extern crate serde_cbor;
 
 #[macro_use]
 pub mod node;

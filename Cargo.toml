@@ -23,7 +23,7 @@ rodio = {version = "0.8", optional = true}
 rustfft = "2.1"
 rtlsdr = {version = "0.1", optional = true}
 serde = "1"
-bincode = "1"
+serde_cbor = "0.9"
 zmq = {version = "0.8", optional = true}
 node_derive = {path = "node_derive"}
 
