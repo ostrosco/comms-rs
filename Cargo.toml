@@ -43,3 +43,7 @@ required-features = ["rtlsdr_node", "audio_node"]
 [[example]]
 name = "play_audio"
 required-features = ["audio_node"]
+
+[[example]]
+name = "bpsk_mod"
+required-features = ["zmq_node"]

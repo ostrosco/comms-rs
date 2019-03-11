@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate comms_rs;
-extern crate zmq;
 
+use zmq;
 use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::io::raw_iq::IQBatchOutput;
 use comms_rs::io::zmq_node::ZMQSend;
@@ -9,10 +9,16 @@ use comms_rs::prelude::*;
 use comms_rs::util::math;
 use comms_rs::util::rand_node;
 use num::{Complex, Num, NumCast, Zero};
+use std::io::BufWriter;
 use std::fs::File;
 use std::time::Instant;
 
+/// An example that will generate random numbers, pass them through a BPSK
+/// modulation and a pulse shaper, then broadcast them out to a file and 
+/// via ZeroMQ for visualization.
 fn main() {
+    // A simple node to perform BPSK modulation. Only broadcasts a message
+    // once `num_samples` samples have been received and modulated.
     #[derive(Node, Default)]
     #[aggregate]
     struct BpskMod {
@@ -46,10 +52,12 @@ fn main() {
         }
     }
 
+    // A simple node to perform upsampling of data. Zeros are injected here;
+    // filtering takes place elsewhere.
     #[derive(Node)]
     struct UpsampleNode<T>
     where
-        T: Zero + Clone,
+        T: Zero + Copy,
     {
         input: NodeReceiver<Vec<T>>,
         upsample_factor: usize,
@@ -58,7 +66,7 @@ fn main() {
 
     impl<T> UpsampleNode<T>
     where
-        T: Zero + Clone,
+        T: Zero + Copy,
     {
         pub fn new(upsample_factor: usize) -> Self {
             UpsampleNode {
@@ -79,11 +87,12 @@ fn main() {
         }
     }
 
+    // A generic node to convert from one complex type to another. 
     #[derive(Node)]
     struct ConvertNode<T, U>
     where
-        T: Clone + Num + NumCast,
-        U: Clone + Num + NumCast,
+        T: Copy + Num + NumCast,
+        U: Copy + Num + NumCast,
     {
         input: NodeReceiver<Vec<Complex<T>>>,
         output: NodeSender<Vec<Complex<U>>>,
@@ -91,8 +100,8 @@ fn main() {
 
     impl<T, U> ConvertNode<T, U>
     where
-        T: Clone + Num + NumCast,
-        U: Clone + Num + NumCast,
+        T: Copy + Num + NumCast,
+        U: Copy + Num + NumCast,
     {
         pub fn new() -> Self {
             ConvertNode {
@@ -113,10 +122,12 @@ fn main() {
         }
     }
 
+    // A node to convert a vector of complex numbers into a vector of
+    // numbers which alternate between real and imaginary.
     #[derive(Node)]
     struct DeinterleaveNode<T>
     where
-        T: Clone + Num + NumCast,
+        T: Copy + Num + NumCast,
     {
         input: NodeReceiver<Vec<Complex<T>>>,
         output: NodeSender<Vec<T>>,
@@ -124,7 +135,7 @@ fn main() {
 
     impl<T> DeinterleaveNode<T>
     where
-        T: Clone + Num + NumCast,
+        T: Clone + Num + NumCast + Copy,
     {
         pub fn new() -> Self {
             DeinterleaveNode {
@@ -139,7 +150,7 @@ fn main() {
         ) -> Result<Vec<T>, NodeError> {
             let out: Vec<T> = input
                 .iter()
-                .flat_map(|x| vec![x.re.clone(), x.im.clone()])
+                .flat_map(|x| vec![x.re, x.im])
                 .collect();
             Ok(out)
         }
@@ -152,7 +163,7 @@ fn main() {
     let taps: Vec<Complex<f32>> =
         math::rrc_taps(32, sam_per_sym, 0.25).unwrap();
     let mut pulse_shape = BatchFirNode::new(taps, None);
-    let writer = File::create("/tmp/bpsk_out.bin").unwrap();
+    let writer = BufWriter::new(File::create("/tmp/bpsk_out.bin").unwrap());
     let mut convert = ConvertNode::new();
     let mut iq_out = IQBatchOutput::new(writer);
     let mut zmq = ZMQSend::new("tcp://*:5563", zmq::SocketType::PUB, 0);
@@ -168,12 +179,12 @@ fn main() {
     start_nodes!(
         rand_bits,
         bpsk_node,
-        upsample,
         pulse_shape,
-        convert,
         iq_out,
-        deinterleave,
-        zmq
+        zmq,
+        upsample,
+        convert,
+        deinterleave
     );
 
     let start = Instant::now();
