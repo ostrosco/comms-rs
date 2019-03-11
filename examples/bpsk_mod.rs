@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate comms_rs;
 
-use zmq;
 use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::io::raw_iq::IQBatchOutput;
 use comms_rs::io::zmq_node::ZMQSend;
@@ -9,13 +8,14 @@ use comms_rs::prelude::*;
 use comms_rs::util::math;
 use comms_rs::util::rand_node;
 use num::{Complex, Num, NumCast, Zero};
-use std::io::BufWriter;
 use std::fs::File;
+use std::io::BufWriter;
 use std::thread;
 use std::time::Duration;
+use zmq;
 
 /// An example that will generate random numbers, pass them through a BPSK
-/// modulation and a pulse shaper, then broadcast them out to a file and 
+/// modulation and a pulse shaper, then broadcast them out to a file and
 /// via ZeroMQ for visualization.
 fn main() {
     // A simple node to perform BPSK modulation. Only broadcasts a message
@@ -88,7 +88,7 @@ fn main() {
         }
     }
 
-    // A generic node to convert from one complex type to another. 
+    // A generic node to convert from one complex type to another.
     #[derive(Node)]
     struct ConvertNode<T, U>
     where
@@ -149,10 +149,8 @@ fn main() {
             &mut self,
             input: Vec<Complex<T>>,
         ) -> Result<Vec<T>, NodeError> {
-            let out: Vec<T> = input
-                .iter()
-                .flat_map(|x| vec![x.re, x.im])
-                .collect();
+            let out: Vec<T> =
+                input.iter().flat_map(|x| vec![x.re, x.im]).collect();
             Ok(out)
         }
     }
