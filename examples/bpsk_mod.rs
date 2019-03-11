@@ -11,7 +11,8 @@ use comms_rs::util::rand_node;
 use num::{Complex, Num, NumCast, Zero};
 use std::io::BufWriter;
 use std::fs::File;
-use std::time::Instant;
+use std::thread;
+use std::time::Duration;
 
 /// An example that will generate random numbers, pass them through a BPSK
 /// modulation and a pulse shaper, then broadcast them out to a file and 
@@ -187,10 +188,5 @@ fn main() {
         deinterleave
     );
 
-    let start = Instant::now();
-    loop {
-        if start.elapsed().as_secs() > 10 {
-            break;
-        }
-    }
+    thread::sleep(Duration::from_secs(10));
 }
