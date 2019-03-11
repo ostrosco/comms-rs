@@ -27,7 +27,7 @@ use std::default::Default;
 #[pass_by_ref]
 pub struct FFTBatchNode<T>
 where
-    T: NumCast + Clone + Num,
+    T: NumCast + Copy + Num,
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     batch_fft: BatchFFT,
@@ -36,7 +36,7 @@ where
 
 impl<T> FFTBatchNode<T>
 where
-    T: NumCast + Clone + Num,
+    T: NumCast + Copy + Num,
 {
     /// Constructs a node that performs FFT or IFFTs in batches.
     ///
@@ -103,7 +103,7 @@ where
 #[pass_by_ref]
 pub struct FFTSampleNode<T>
 where
-    T: NumCast + Clone + Num,
+    T: NumCast + Copy + Num,
 {
     pub input: NodeReceiver<Complex<T>>,
     sample_fft: SampleFFT<T>,
@@ -112,7 +112,7 @@ where
 
 impl<T> FFTSampleNode<T>
 where
-    T: NumCast + Clone + Num,
+    T: NumCast + Copy + Num,
 {
     /// Constructs a node that performs FFT or IFFTs, receiving a sample at a time
     /// versus a batch of samples.
@@ -156,7 +156,7 @@ where
         &mut self,
         sample: &Complex<T>,
     ) -> Result<Option<Vec<Complex<T>>>, NodeError> {
-        self.sample_fft.samples.push(sample.clone());
+        self.sample_fft.samples.push(*sample);
         if self.sample_fft.samples.len() == self.sample_fft.fft_size {
             let results = self.sample_fft.run_fft();
             self.sample_fft.samples = vec![];

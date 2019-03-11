@@ -72,7 +72,7 @@ impl BatchFFT {
     /// ```
     pub fn run_fft<T>(&mut self, data: &[Complex<T>]) -> Vec<Complex<T>>
     where
-        T: NumCast + Clone + Num,
+        T: NumCast + Copy + Num,
     {
         // Convert the input type from interleaved values to Complex<f32>.
         let mut input: Vec<FFTComplex<f64>> = data
@@ -111,7 +111,7 @@ pub struct SampleFFT<T> {
 
 impl<T> SampleFFT<T>
 where
-    T: NumCast + Clone + Num,
+    T: NumCast + Copy + Num,
 {
     /// Creates a new `SampleFFT`.
     ///
