@@ -17,11 +17,11 @@ use std::f64::consts::PI;
 /// ```
 pub fn cast_complex<T, U>(input: &Complex<T>) -> Option<Complex<U>>
 where
-    T: Clone + Num + num_traits::NumCast,
-    U: Clone + Num + num_traits::NumCast,
+    T: Copy + Num + num_traits::NumCast,
+    U: Copy + Num + num_traits::NumCast,
 {
-    let re = U::from(input.re.clone())?;
-    let im = U::from(input.im.clone())?;
+    let re = U::from(input.re)?;
+    let im = U::from(input.im)?;
     Some(Complex::new(re, im))
 }
 
@@ -45,7 +45,7 @@ where
 /// ```
 pub fn rect_taps<T>(n_taps: usize) -> Option<Vec<Complex<T>>>
 where
-    T: Clone + Num + num_traits::NumCast,
+    T: Copy + Num + num_traits::NumCast,
 {
     let re = T::from(1)?;
     let im = T::from(0)?;
@@ -80,7 +80,7 @@ pub fn gaussian_taps<T>(
     alpha: f64,
 ) -> Option<Vec<Complex<T>>>
 where
-    T: Clone + Num + num_traits::NumCast,
+    T: Copy + Num + num_traits::NumCast,
 {
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
@@ -151,7 +151,7 @@ pub fn rc_taps<T>(
     beta: f64,
 ) -> Option<Vec<Complex<T>>>
 where
-    T: Clone + Num + num_traits::NumCast,
+    T: Copy + Num + num_traits::NumCast,
 {
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
@@ -216,7 +216,7 @@ pub fn rrc_taps<T>(
     beta: f64,
 ) -> Option<Vec<Complex<T>>>
 where
-    T: Clone + Num + num_traits::NumCast,
+    T: Copy + Num + num_traits::NumCast,
 {
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;

@@ -74,7 +74,7 @@ impl Mixer {
     /// ```
     pub fn mix<T>(&mut self, input: &Complex<T>) -> Complex<T>
     where
-        T: NumCast + Clone + Num,
+        T: NumCast + Copy + Num,
     {
         let inp: Complex<f64> = math::cast_complex(input).unwrap();
         let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
@@ -94,7 +94,7 @@ impl Mixer {
 #[pass_by_ref]
 pub struct MixerNode<T>
 where
-    T: Clone + Num + NumCast,
+    T: Copy + Num + NumCast,
 {
     pub input: NodeReceiver<Complex<T>>,
     mixer: Mixer,
@@ -103,7 +103,7 @@ where
 
 impl<T> MixerNode<T>
 where
-    T: Clone + Num + NumCast,
+    T: Copy + Num + NumCast,
 {
     /// Constructs a new `MixerNode<T>` with specified initial phase.
     ///

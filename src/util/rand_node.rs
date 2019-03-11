@@ -25,7 +25,7 @@ use crate::prelude::*;
 #[derive(Node)]
 pub struct UniformNode<T>
 where
-    T: SampleUniform + Clone,
+    T: SampleUniform + Copy,
 {
     rng: StdRng,
     dist: Uniform<T>,
@@ -34,7 +34,7 @@ where
 
 impl<T> UniformNode<T>
 where
-    T: SampleUniform + Clone,
+    T: SampleUniform + Copy,
 {
     /// Builds a closure for generating random numbers with a Uniform distribution.
     ///
