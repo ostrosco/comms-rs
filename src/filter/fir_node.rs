@@ -226,7 +226,7 @@ where
 mod test {
     use crate::filter::fir_node;
     use crate::prelude::*;
-    use crossbeam_channel as channel;
+    use crossbeam::channel;
     use num::Complex;
     use num::Zero;
     use std::thread;

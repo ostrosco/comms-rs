@@ -933,7 +933,7 @@ mod test {
         let check = thread::spawn(move || {
             for (print, val) in &print_node.output {
                 match val {
-                    Some(v) => print.send(*v),
+                    Some(v) => print.send(*v).unwrap(),
                     None => continue,
                 }
             }
@@ -946,7 +946,7 @@ mod test {
     }
 
     #[test]
-    fn test_optional_input() {
+    fn test_option_input() {
         #[derive(Node)]
         struct OneNode {
             sender: NodeSender<u32>,
@@ -965,11 +965,10 @@ mod test {
         }
 
         #[derive(Node)]
-        #[aggregate]
         struct AggNode {
             input: NodeReceiver<u32>,
             state: u32,
-            sender: NodeSender<u32>,
+            sender: NodeSender<Option<u32>>,
         }
 
         impl AggNode {
@@ -997,8 +996,7 @@ mod test {
         #[derive(Node)]
         struct OptionalNode {
             input: NodeReceiver<u32>,
-            #[optional]
-            input2: NodeReceiver<u32>,
+            input2: NodeReceiver<Option<u32>>,
             state: u32,
         }
 
@@ -1017,10 +1015,13 @@ mod test {
                 input2: Option<u32>,
             ) -> Result<(), NodeError> {
                 self.state += input;
-                match input2 {
-                    Some(v) if v == 2 => Ok(()),
-                    _ => Err(NodeError::DataError),
+                if self.state % 2 == 0 {
+                    match input2 {
+                        Some(v) if v == 2 => return Ok(()),
+                        _ => return Err(NodeError::DataError),
+                    }
                 }
+                Ok(())
             }
         }
 

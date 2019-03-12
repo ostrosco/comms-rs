@@ -97,11 +97,26 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         .map(|x| x.ident.clone().unwrap())
         .collect();
 
+    let recv_optionals: Vec<syn::Ident> = recv_fields
+        .iter()
+        .filter(|x| x.1)
+        .map(|x| x.0.ident.clone().unwrap())
+        .collect();
+    let recv_blocks: Vec<syn::Ident> = recv_fields
+        .iter()
+        .filter(|x| !x.1)
+        .map(|x| x.0.ident.clone().unwrap())
+        .collect();
+
     // In order to stop quote from moving any variables and from complaining
     // about duplicates bindings in the macros, we need to build references for
     // each field we need.
     let send_idents1 = &send_idents;
     let send_idents2 = &send_idents;
+    let recv_optional_idents = &recv_optionals;
+    let recv_optional_fields = &recv_optionals;
+    let recv_block_idents = &recv_blocks;
+    let recv_block_fields = &recv_blocks;
 
     let run_func = if pass_by_ref {
         quote! {
@@ -113,113 +128,71 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let recv_optionals: Vec<syn::Ident> = recv_fields
-        .iter()
-        .filter(|x| x.1 == true)
-        .map(|x| x.0.ident.clone().unwrap())
-        .collect();
-    let recv_blocks: Vec<syn::Ident> = recv_fields
-        .iter()
-        .filter(|x| x.1 == false)
-        .map(|x| x.0.ident.clone().unwrap())
-        .collect();
-    let recv_optional_idents = &recv_optionals;
-    let recv_optional_fields = &recv_optionals;
-    let recv_block_idents = &recv_blocks;
-    let recv_block_fields = &recv_blocks;
-
-    let derive_node = if aggregate {
+    let send_func = if aggregate {
         quote! {
-            impl #impl_generics Node for #name #ty_generics #where_clause {
-                fn start(&mut self) {
-                    #(
-                        for (send, val) in &self.#send_idents2 {
-                            match val {
-                                Some(v) => send.send(v.clone()),
-                                None => continue,
-                            }
-                        }
-                    )*
-                    loop {
-                        if self.call().is_err() {
-                            break;
+            if let Some(res) = res {
+                #(
+                    for (send, _) in &self.#send_idents1 {
+                        match send.send(res.clone()) {
+                            Ok(_) => (),
+                            Err(e) => return Err(NodeError::CommError),
                         }
                     }
-                }
-
-                fn call(&mut self) -> Result<(), NodeError> {
-                    #(
-                        let #recv_optional_idents = match self.#recv_optional_fields {
-                            Some(ref r) => r.try_recv(),
-                            None => return Err(NodeError::PermanentError),
-                        };
-                    )*
-                    #(
-                        let #recv_block_idents = match self.#recv_block_fields {
-                            Some(ref r) => r.recv().unwrap(),
-                            None => return Err(NodeError::PermanentError),
-                        };
-                    )*
-                    #run_func
-                    if let Some(res) = res {
-                        #(
-                            for (send, _) in &self.#send_idents1 {
-                                send.send(res.clone());
-                            }
-                        )*
-                    }
-                    Ok(())
-                }
+                )*
             }
         }
     } else {
         quote! {
-            impl #impl_generics Node for #name #ty_generics #where_clause {
-                fn start(&mut self) {
-                    #(
-                        for (send, val) in &self.#send_idents2 {
-                            match val {
-                                Some(v) => send.send(v.clone()),
-                                None => continue,
-                            }
-                        }
-                    )*
-                    loop {
-                        if self.call().is_err() {
-                            break;
-                        }
+            #(
+                for (send, _) in &self.#send_idents1 {
+                    match send.send(res.clone()) {
+                        Ok(_) => (),
+                        Err(e) => return Err(NodeError::CommError),
                     }
                 }
+            )*
+        }
+    };
 
-                fn call(&mut self) -> Result<(), NodeError> {
-                    #(
-                        let #recv_optional_idents = match self.#recv_optional_fields {
-                            Some(ref r) => r.try_recv(),
-                            None => return Err(NodeError::PermanentError),
-                        };
-                    )*
-                    #(
-                        let #recv_block_idents = match self.#recv_block_fields {
-                            Some(ref r) => r.recv().unwrap(),
-                            None => return Err(NodeError::PermanentError),
-                        };
-                    )*
-                    #run_func
-                    #(
-                        for (send, _) in &self.#send_idents1 {
-                            send.send(res.clone());
+    let derive_node = quote! {
+        impl #impl_generics Node for #name #ty_generics #where_clause {
+            fn start(&mut self) {
+                #(
+                    for (send, val) in &self.#send_idents2 {
+                        match val {
+                            Some(v) => send.send(v.clone()).unwrap(),
+                            None => continue,
                         }
-                    )*
-                    Ok(())
+                    }
+                )*
+                loop {
+                    if self.call().is_err() {
+                        break;
+                    }
                 }
+            }
+
+            fn call(&mut self) -> Result<(), NodeError> {
+                #(
+                    let #recv_optional_idents = match self.#recv_optional_fields {
+                        Some(ref r) => r.try_recv(),
+                        None => return Err(NodeError::PermanentError),
+                    };
+                )*
+                #(
+                    let #recv_block_idents = match self.#recv_block_fields {
+                        Some(ref r) => r.recv().unwrap(),
+                        None => return Err(NodeError::PermanentError),
+                    };
+                )*
+                #run_func
+                #send_func
+                Ok(())
             }
         }
     };
 
-    let macro_out = quote! {
-        #derive_node
-    };
-    macro_out.into()
+    derive_node.into()
 }
 
 fn parse_fields(fields: &syn::FieldsNamed) -> ParsedFields {

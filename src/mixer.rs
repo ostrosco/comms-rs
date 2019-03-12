@@ -152,7 +152,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::mixer::*;
-    use crossbeam_channel as channel;
+    use crossbeam::channel;
     use num::complex::Complex;
     use num::Zero;
     use std::thread;
