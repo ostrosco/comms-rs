@@ -12,11 +12,11 @@ enum FieldType {
 }
 
 struct ParsedFields<'a> {
-    recv_fields: Vec<(&'a syn::Field, bool)>,
+    recv_fields: Vec<&'a syn::Field>,
     send_fields: Vec<&'a syn::Field>,
 }
 
-#[proc_macro_derive(Node, attributes(aggregate, pass_by_ref, optional))]
+#[proc_macro_derive(Node, attributes(aggregate, pass_by_ref))]
 /// Creates a node derived from an input structure with a constructor and
 /// implements the Node trait.
 ///
@@ -89,7 +89,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
 
     let recv_idents: Vec<syn::Ident> = recv_fields
         .iter()
-        .map(|x| x.0.ident.clone().unwrap())
+        .map(|x| x.ident.clone().unwrap())
         .collect();
 
     let send_idents: Vec<syn::Ident> = send_fields
@@ -97,34 +97,21 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         .map(|x| x.ident.clone().unwrap())
         .collect();
 
-    let recv_optionals: Vec<syn::Ident> = recv_fields
-        .iter()
-        .filter(|x| x.1)
-        .map(|x| x.0.ident.clone().unwrap())
-        .collect();
-    let recv_blocks: Vec<syn::Ident> = recv_fields
-        .iter()
-        .filter(|x| !x.1)
-        .map(|x| x.0.ident.clone().unwrap())
-        .collect();
-
     // In order to stop quote from moving any variables and from complaining
     // about duplicates bindings in the macros, we need to build references for
     // each field we need.
     let send_idents1 = &send_idents;
     let send_idents2 = &send_idents;
-    let recv_optional_idents = &recv_optionals;
-    let recv_optional_fields = &recv_optionals;
-    let recv_block_idents = &recv_blocks;
-    let recv_block_fields = &recv_blocks;
+    let recv_block_idents = &recv_idents;
+    let recv_block_fields = &recv_idents;
 
     let run_func = if pass_by_ref {
         quote! {
-            let res = self.run(#(&#recv_idents),*)?;
+            let res = self.run(#(&#recv_block_idents),*)?;
         }
     } else {
         quote! {
-            let res = self.run(#(#recv_idents),*)?;
+            let res = self.run(#(#recv_block_idents),*)?;
         }
     };
 
@@ -174,12 +161,6 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
 
             fn call(&mut self) -> Result<(), NodeError> {
                 #(
-                    let #recv_optional_idents = match self.#recv_optional_fields {
-                        Some(ref r) => r.try_recv(),
-                        None => return Err(NodeError::PermanentError),
-                    };
-                )*
-                #(
                     let #recv_block_idents = match self.#recv_block_fields {
                         Some(ref r) => r.recv().unwrap(),
                         None => return Err(NodeError::PermanentError),
@@ -200,18 +181,7 @@ fn parse_fields(fields: &syn::FieldsNamed) -> ParsedFields {
     let mut send_fields = vec![];
     for field in &fields.named {
         match parse_type(&field) {
-            FieldType::Input => {
-                let mut optional = false;
-                for attr in &field.attrs {
-                    match attr.parse_meta() {
-                        Ok(syn::Meta::Word(ref id)) if *id == "optional" => {
-                            optional = true;
-                        }
-                        _ => continue,
-                    }
-                }
-                recv_fields.push((field, optional));
-            }
+            FieldType::Input => recv_fields.push(field),
             FieldType::Output => send_fields.push(field),
             _ => continue,
         }
