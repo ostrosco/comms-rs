@@ -39,7 +39,7 @@ use num_traits::Num;
 #[pass_by_ref]
 pub struct PulseNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     pub input: NodeReceiver<Complex<T>>,
     taps: Vec<Complex<T>>,
@@ -50,7 +50,7 @@ where
 
 impl<T> PulseNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     /// Constructs a new `PulseNode<T>` with initial state set to zeros.
     ///

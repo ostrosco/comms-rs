@@ -27,7 +27,7 @@ use std::default::Default;
 #[pass_by_ref]
 pub struct FFTBatchNode<T>
 where
-    T: NumCast + Copy + Num,
+    T: NumCast + Copy + Num + Send,
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     batch_fft: BatchFFT,
@@ -36,7 +36,7 @@ where
 
 impl<T> FFTBatchNode<T>
 where
-    T: NumCast + Copy + Num,
+    T: NumCast + Copy + Num + Send,
 {
     /// Constructs a node that performs FFT or IFFTs in batches.
     ///
@@ -103,7 +103,7 @@ where
 #[pass_by_ref]
 pub struct FFTSampleNode<T>
 where
-    T: NumCast + Copy + Num,
+    T: NumCast + Copy + Num + Send,
 {
     pub input: NodeReceiver<Complex<T>>,
     sample_fft: SampleFFT<T>,
@@ -112,7 +112,7 @@ where
 
 impl<T> FFTSampleNode<T>
 where
-    T: NumCast + Copy + Num,
+    T: NumCast + Copy + Num + Send,
 {
     /// Constructs a node that performs FFT or IFFTs, receiving a sample at a time
     /// versus a batch of samples.

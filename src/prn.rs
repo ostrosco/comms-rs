@@ -93,7 +93,7 @@ impl<T: PrimInt> PrnGen<T> {
 #[derive(Node)]
 pub struct PrnsNode<T>
 where
-    T: PrimInt,
+    T: PrimInt + Send,
 {
     prngen: PrnGen<T>,
     pub sender: NodeSender<u8>,
@@ -101,7 +101,7 @@ where
 
 impl<T> PrnsNode<T>
 where
-    T: PrimInt,
+    T: PrimInt + Send,
 {
     /// Constructs a new `PrnsNode<T: PrimInt>`.
     ///

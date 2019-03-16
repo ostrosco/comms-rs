@@ -8,7 +8,7 @@ use num::Zero;
 #[pass_by_ref]
 pub struct FMDemodNode<T>
 where
-    T: Float + Zero,
+    T: Float + Zero + Send,
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     fm: analog::FM<T>,
@@ -17,7 +17,7 @@ where
 
 impl<T> FMDemodNode<T>
 where
-    T: Float + Zero,
+    T: Float + Zero + Send,
 {
     pub fn new() -> Self {
         FMDemodNode {

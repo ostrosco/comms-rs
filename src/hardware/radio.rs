@@ -19,8 +19,8 @@ pub trait RadioRx<T> {
 #[pass_by_ref]
 pub struct RadioTxNode<T, U>
 where
-    T: RadioTx<U>,
-    U: Clone,
+    T: RadioTx<U> + Send,
+    U: Clone + Send,
 {
     pub input: NodeReceiver<Vec<U>>,
     radio: T,
@@ -29,8 +29,8 @@ where
 
 impl<T, U> RadioTxNode<T, U>
 where
-    T: RadioTx<U>,
-    U: Clone,
+    T: RadioTx<U> + Send,
+    U: Clone + Send,
 {
     pub fn new(radio: T, output_idx: usize) -> Self {
         RadioTxNode {
@@ -51,8 +51,8 @@ where
 #[derive(Node)]
 pub struct RadioRxNode<T, U>
 where
-    T: RadioRx<U>,
-    U: Clone,
+    T: RadioRx<U> + Send,
+    U: Clone + Send,
 {
     radio: T,
     input_idx: usize,
@@ -62,8 +62,8 @@ where
 
 impl<T, U> RadioRxNode<T, U>
 where
-    T: RadioRx<U>,
-    U: Clone,
+    T: RadioRx<U> + Send,
+    U: Clone + Send,
 {
     pub fn new(radio: T, input_idx: usize, num_samples: usize) -> Self {
         RadioRxNode {

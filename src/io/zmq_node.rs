@@ -10,7 +10,7 @@ use serde_cbor::ser::to_vec_packed;
 #[pass_by_ref]
 pub struct ZMQSend<T>
 where
-    T: Serialize + Clone,
+    T: Serialize + Clone + Send,
 {
     pub input: NodeReceiver<T>,
     socket: zmq::Socket,
@@ -19,7 +19,7 @@ where
 
 impl<T> ZMQSend<T>
 where
-    T: Serialize + Clone,
+    T: Serialize + Clone + Send,
 {
     /// Creates a node to serialize and send data out via ZeroMQ.
     ///
@@ -74,7 +74,7 @@ where
 #[derive(Node)]
 pub struct ZMQRecv<T>
 where
-    T: DeserializeOwned + Clone,
+    T: DeserializeOwned + Clone + Send,
 {
     socket: zmq::Socket,
     flags: i32,
@@ -83,7 +83,7 @@ where
 
 impl<T> ZMQRecv<T>
 where
-    T: DeserializeOwned + Clone,
+    T: DeserializeOwned + Clone + Send,
 {
     /// Creates a node to receive data from a ZMQ socket.
     ///

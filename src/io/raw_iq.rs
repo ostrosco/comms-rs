@@ -20,13 +20,13 @@ type IQSample = Complex<i16>;
 #[derive(Node)]
 pub struct IQInput<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     reader: R,
     pub sender: NodeSender<IQSample>,
 }
 
-impl<R: Read> IQInput<R> {
+impl<R: Read + Send> IQInput<R> {
     /// Make an IQInput node reading data to the given file.
     ///
     /// # Example
@@ -77,7 +77,7 @@ impl<R: Read> IQInput<R> {
 #[derive(Node)]
 pub struct IQBatchInput<R>
 where
-    R: Read,
+    R: Read + Send,
 {
     reader: R,
     batch_size: usize,
@@ -87,7 +87,7 @@ where
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Will only send vectors completely filled to size of buf_size.
 /// Panics upon reaching end of file.
-impl<R: Read> IQBatchInput<R> {
+impl<R: Read + Send> IQBatchInput<R> {
     /// Make an IQBatchInput node that reads data to the given file.
     ///
     /// # Example
@@ -143,13 +143,13 @@ impl<R: Read> IQBatchInput<R> {
 #[derive(Node)]
 pub struct IQOutput<W>
 where
-    W: Write,
+    W: Write + Send,
 {
     pub input: NodeReceiver<IQSample>,
     writer: W,
 }
 
-impl<W: Write> IQOutput<W> {
+impl<W: Write + Send> IQOutput<W> {
     /// Make an IQOutput node sending data to the given file.
     ///
     /// # Example
@@ -184,13 +184,13 @@ impl<W: Write> IQOutput<W> {
 #[pass_by_ref]
 pub struct IQBatchOutput<W>
 where
-    W: Write,
+    W: Write + Send,
 {
     pub input: NodeReceiver<Vec<IQSample>>,
     writer: W,
 }
 
-impl<W: Write> IQBatchOutput<W> {
+impl<W: Write + Send> IQBatchOutput<W> {
     /// Make an IQBatchOutput node sending data to the given file.
     ///
     /// # Example
