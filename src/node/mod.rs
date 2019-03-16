@@ -61,6 +61,8 @@
 //! # }
 //! ```
 
+pub mod graph;
+
 use std::error;
 use std::fmt;
 
@@ -91,7 +93,7 @@ impl error::Error for NodeError {
 }
 
 /// The trait that all nodes in the library implement.
-pub trait Node {
+pub trait Node: Send {
     fn start(&mut self);
     fn call(&mut self) -> Result<(), NodeError>;
 }
@@ -149,6 +151,19 @@ pub trait Node {
 macro_rules! connect_nodes {
     ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
         let (send, recv) = channel::bounded(0);
+        $n1.$send.push((send, None));
+        $n2.$recv = Some(recv);
+    }};
+}
+
+#[macro_export]
+macro_rules! connect_graph {
+    ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
+        let (send, recv) = channel::bounded(0);
+        let $n1 = $n1.clone();
+        let mut $n1 = $n1.lock().unwrap();
+        let $n2 = $n2.clone();
+        let mut $n2 = $n2.lock().unwrap();
         $n1.$send.push((send, None));
         $n2.$recv = Some(recv);
     }};
@@ -351,10 +366,11 @@ macro_rules! start_nodes_threadpool {
 #[cfg(test)]
 mod test {
     use rand::{thread_rng, Rng};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
 
+    use crate::node::graph::Graph;
     use crate::prelude::*;
     use rayon;
 
@@ -411,6 +427,55 @@ mod test {
             }
         });
         assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// Constructs a simple network with two nodes: one source and one sink.
+    fn test_simple_graph() {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<u32>,
+        }
+
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<u32>,
+        }
+
+        impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+                assert_eq!(x, 1);
+                Ok(())
+            }
+        }
+
+        let node1 = Arc::new(Mutex::new(Node1::new()));
+        let node2 = Arc::new(Mutex::new(Node2::new()));
+        connect_graph!(node1, sender, node2, input);
+
+        let mut graph = Graph::new();
+        graph.add_node("Node1".into(), node1);
+        graph.add_node("Node2".into(), node2);
+        graph.run_graph();
+        thread::sleep(Duration::from_secs(1));
     }
 
     #[test]

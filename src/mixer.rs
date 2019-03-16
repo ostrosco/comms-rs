@@ -94,7 +94,7 @@ impl Mixer {
 #[pass_by_ref]
 pub struct MixerNode<T>
 where
-    T: Copy + Num + NumCast,
+    T: Copy + Num + NumCast + Send,
 {
     pub input: NodeReceiver<Complex<T>>,
     mixer: Mixer,
@@ -103,7 +103,7 @@ where
 
 impl<T> MixerNode<T>
 where
-    T: Copy + Num + NumCast,
+    T: Copy + Num + NumCast + Send,
 {
     /// Constructs a new `MixerNode<T>` with specified initial phase.
     ///

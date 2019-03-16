@@ -58,7 +58,7 @@ fn main() {
     #[derive(Node)]
     struct UpsampleNode<T>
     where
-        T: Zero + Copy,
+        T: Zero + Copy + Send,
     {
         input: NodeReceiver<Vec<T>>,
         upsample_factor: usize,
@@ -67,7 +67,7 @@ fn main() {
 
     impl<T> UpsampleNode<T>
     where
-        T: Zero + Copy,
+        T: Zero + Copy + Send,
     {
         pub fn new(upsample_factor: usize) -> Self {
             UpsampleNode {
@@ -92,8 +92,8 @@ fn main() {
     #[derive(Node)]
     struct ConvertNode<T, U>
     where
-        T: Copy + Num + NumCast,
-        U: Copy + Num + NumCast,
+        T: Copy + Num + NumCast + Send,
+        U: Copy + Num + NumCast + Send,
     {
         input: NodeReceiver<Vec<Complex<T>>>,
         output: NodeSender<Vec<Complex<U>>>,
@@ -101,8 +101,8 @@ fn main() {
 
     impl<T, U> ConvertNode<T, U>
     where
-        T: Copy + Num + NumCast,
-        U: Copy + Num + NumCast,
+        T: Copy + Num + NumCast + Send,
+        U: Copy + Num + NumCast + Send,
     {
         pub fn new() -> Self {
             ConvertNode {
@@ -128,7 +128,7 @@ fn main() {
     #[derive(Node)]
     struct DeinterleaveNode<T>
     where
-        T: Copy + Num + NumCast,
+        T: Copy + Num + NumCast + Send,
     {
         input: NodeReceiver<Vec<Complex<T>>>,
         output: NodeSender<Vec<T>>,
@@ -136,7 +136,7 @@ fn main() {
 
     impl<T> DeinterleaveNode<T>
     where
-        T: Clone + Num + NumCast + Copy,
+        T: Num + NumCast + Copy + Send,
     {
         pub fn new() -> Self {
             DeinterleaveNode {

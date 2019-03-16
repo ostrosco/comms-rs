@@ -8,7 +8,7 @@ use crate::prelude::*;
 #[pass_by_ref]
 pub struct DecimateNode<T>
 where
-    T: Copy,
+    T: Copy + Send,
 {
     pub input: NodeReceiver<Vec<T>>,
     dec_rate: usize,
@@ -17,7 +17,7 @@ where
 
 impl<T> DecimateNode<T>
 where
-    T: Copy,
+    T: Copy + Send,
 {
     pub fn new(dec_rate: usize) -> Self {
         DecimateNode {
@@ -30,12 +30,7 @@ where
     pub fn run(&mut self, signal: &[T]) -> Result<Vec<T>, NodeError> {
         Ok(self.decimate(signal))
     }
-}
 
-impl<T> DecimateNode<T>
-where
-    T: Copy,
-{
     /// This is the decimation function.
     ///
     /// A slice of `data` will be reduced by a factor of `dec_rate`.

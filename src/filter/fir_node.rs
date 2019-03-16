@@ -46,7 +46,7 @@ use num_traits::Num;
 #[pass_by_ref]
 pub struct FirNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     pub input: NodeReceiver<Complex<T>>,
     taps: Vec<Complex<T>>,
@@ -56,7 +56,7 @@ where
 
 impl<T> FirNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     /// Constructs a new `FirNode<T>` with optional user defined initial state.
     ///
@@ -149,7 +149,7 @@ where
 #[pass_by_ref]
 pub struct BatchFirNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     taps: Vec<Complex<T>>,
@@ -159,7 +159,7 @@ where
 
 impl<T> BatchFirNode<T>
 where
-    T: Num + Copy,
+    T: Num + Copy + Send,
 {
     /// Constructs a new `BatchFirNode<T>` with optional user defined initial
     /// state.
