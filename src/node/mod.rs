@@ -156,19 +156,6 @@ macro_rules! connect_nodes {
     }};
 }
 
-#[macro_export]
-macro_rules! connect_graph {
-    ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
-        let (send, recv) = channel::bounded(0);
-        let $n1 = $n1.clone();
-        let mut $n1 = $n1.lock().unwrap();
-        let $n2 = $n2.clone();
-        let mut $n2 = $n2.lock().unwrap();
-        $n1.$send.push((send, None));
-        $n2.$recv = Some(recv);
-    }};
-}
-
 /// Connects two nodes together in a feedback configuration using channels.
 /// When the nodes are connected in feedback, a specified value is sent
 /// through the channel immediately so that the nodes don't deadlock on
@@ -452,30 +439,42 @@ mod test {
         #[derive(Node)]
         struct Node2 {
             pub input: NodeReceiver<u32>,
+            pub check: Arc<Mutex<bool>>,
         }
 
         impl Node2 {
-            pub fn new() -> Self {
+            pub fn new(check: Arc<Mutex<bool>>) -> Self {
                 Node2 {
                     input: Default::default(),
+                    check,
                 }
             }
 
             pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
-                assert_eq!(x, 1);
+                let mut check = self.check.lock().unwrap();
+                *check = x == 1;
                 Ok(())
             }
         }
 
+        let check = Arc::new(Mutex::new(false));
         let node1 = Arc::new(Mutex::new(Node1::new()));
-        let node2 = Arc::new(Mutex::new(Node2::new()));
-        connect_graph!(node1, sender, node2, input);
+        let node2 = Arc::new(Mutex::new(Node2::new(check.clone())));
 
         let mut graph = Graph::new();
-        graph.add_node("Node1".into(), node1);
-        graph.add_node("Node2".into(), node2);
+        graph.add_node("Node1".into(), node1.clone());
+        graph.add_node("Node2".into(), node2.clone());
+        {
+            let mut node1 = node1.lock().unwrap();
+            let mut node2 = node2.lock().unwrap();
+            graph.connect_nodes(&mut node1.sender, &mut node2.input, None);
+        }
         graph.run_graph();
         thread::sleep(Duration::from_secs(1));
+        {
+            let check = check.lock().unwrap();
+            assert!(*check);
+        }
     }
 
     #[test]
