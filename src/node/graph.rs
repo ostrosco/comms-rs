@@ -1,4 +1,4 @@
-use crate::node::Node;
+use crate::prelude::*;
 use hashbrown::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -8,6 +8,7 @@ use std::thread::JoinHandle;
 /// after starting the graph. Currently, this does not support connecting the
 /// nodes; nodes need to be connected before passing them to the graph at the
 /// moment.
+#[derive(Default)]
 pub struct Graph {
     nodes: HashMap<String, Arc<Mutex<dyn Node>>>,
     handles: Vec<JoinHandle<()>>,
@@ -23,6 +24,17 @@ impl Graph {
 
     pub fn add_node(&mut self, name: String, node: Arc<Mutex<dyn Node>>) {
         self.nodes.insert(name, node);
+    }
+
+    pub fn connect_nodes<T>(
+        &mut self,
+        sender: &mut NodeSender<T>,
+        receiver: &mut NodeReceiver<T>,
+        default: Option<T>,
+    ) {
+        let (send, recv) = channel::bounded(0);
+        sender.push((send, default));
+        *receiver = Some(recv);
     }
 
     /// Start up all of the nodes in the graph one by one and keep track of
