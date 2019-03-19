@@ -3,6 +3,7 @@ use hashbrown::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
+use uuid::Uuid;
 
 /// The basics of a data structure to hold nodes and their thread handles
 /// after starting the graph. Currently, this does not support connecting the
@@ -10,7 +11,7 @@ use std::thread::JoinHandle;
 /// moment.
 #[derive(Default)]
 pub struct Graph {
-    nodes: HashMap<String, Arc<Mutex<dyn Node>>>,
+    nodes: HashMap<Uuid, Arc<Mutex<dyn Node>>>,
     handles: Vec<JoinHandle<()>>,
 }
 
@@ -22,12 +23,12 @@ impl Graph {
         }
     }
 
-    pub fn add_node(&mut self, name: String, node: Arc<Mutex<dyn Node>>) {
-        self.nodes.insert(name, node);
+    pub fn add_node(&mut self, node: Arc<Mutex<dyn Node>>) {
+        self.nodes.insert(Uuid::new_v4(), node);
     }
 
     pub fn connect_nodes<T>(
-        &mut self,
+        &self,
         sender: &mut NodeSender<T>,
         receiver: &mut NodeReceiver<T>,
         default: Option<T>,
@@ -35,6 +36,17 @@ impl Graph {
         let (send, recv) = channel::bounded(0);
         sender.push((send, default));
         *receiver = Some(recv);
+    }
+
+    pub fn is_connected(&self) -> bool {
+        for (_, node) in self.nodes.iter() {
+            let lock = node.clone();
+            let node = lock.lock().unwrap();
+            if !node.is_connected() {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// Start up all of the nodes in the graph one by one and keep track of
