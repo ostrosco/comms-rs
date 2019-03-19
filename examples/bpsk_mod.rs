@@ -1,15 +1,14 @@
-#[macro_use]
-extern crate comms_rs;
-
 use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::io::raw_iq::IQBatchOutput;
 use comms_rs::io::zmq_node::ZMQSend;
+use comms_rs::node::graph::Graph;
 use comms_rs::prelude::*;
 use comms_rs::util::math;
 use comms_rs::util::rand_node;
 use num::{Complex, Num, NumCast, Zero};
 use std::fs::File;
 use std::io::BufWriter;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use zmq;
@@ -155,36 +154,54 @@ fn main() {
         }
     }
 
-    let mut rand_bits = rand_node::random_bit();
-    let mut bpsk_node = BpskMod::new(128);
-    let mut upsample = UpsampleNode::new(4);
+    let mut graph = Graph::new();
+    let rand_bits = Arc::new(Mutex::new(rand_node::random_bit()));
+    let bpsk_node = Arc::new(Mutex::new(BpskMod::new(4096)));
+    let upsample = Arc::new(Mutex::new(UpsampleNode::new(4)));
     let sam_per_sym = 4.0;
     let taps: Vec<Complex<f32>> =
         math::rrc_taps(32, sam_per_sym, 0.25).unwrap();
-    let mut pulse_shape = BatchFirNode::new(taps, None);
+    let pulse_shape = Arc::new(Mutex::new(BatchFirNode::new(taps, None)));
     let writer = BufWriter::new(File::create("/tmp/bpsk_out.bin").unwrap());
-    let mut convert = ConvertNode::new();
-    let mut iq_out = IQBatchOutput::new(writer);
-    let mut zmq = ZMQSend::new("tcp://*:5563", zmq::SocketType::PUB, 0);
-    let mut deinterleave = DeinterleaveNode::new();
+    let convert = Arc::new(Mutex::new(ConvertNode::new()));
+    let iq_out = Arc::new(Mutex::new(IQBatchOutput::new(writer)));
+    let zmq = Arc::new(Mutex::new(ZMQSend::new(
+        "tcp://*:5563",
+        zmq::SocketType::PUB,
+        0,
+    )));
+    let deinterleave = Arc::new(Mutex::new(DeinterleaveNode::new()));
+    let nodes: Vec<Arc<Mutex<dyn Node>>> = vec![
+        rand_bits.clone(),
+        bpsk_node.clone(),
+        pulse_shape.clone(),
+        upsample.clone(),
+        convert.clone(),
+        iq_out.clone(),
+        deinterleave.clone(),
+        zmq.clone(),
+    ];
+    graph.add_nodes(nodes);
 
-    connect_nodes!(rand_bits, sender, bpsk_node, input);
-    connect_nodes!(bpsk_node, output, upsample, input);
-    connect_nodes!(upsample, output, pulse_shape, input);
-    connect_nodes!(pulse_shape, sender, convert, input);
-    connect_nodes!(convert, output, iq_out, input);
-    connect_nodes!(convert, output, deinterleave, input);
-    connect_nodes!(deinterleave, output, zmq, input);
-    start_nodes!(
-        rand_bits,
-        bpsk_node,
-        pulse_shape,
-        iq_out,
-        zmq,
-        upsample,
-        convert,
-        deinterleave
-    );
+    {
+        let mut rand_bits = rand_bits.lock().unwrap();
+        let mut bpsk_node = bpsk_node.lock().unwrap();
+        let mut pulse_shape = pulse_shape.lock().unwrap();
+        let mut convert = convert.lock().unwrap();
+        let mut iq_out = iq_out.lock().unwrap();
+        let mut deinterleave = deinterleave.lock().unwrap();
+        let mut zmq = zmq.lock().unwrap();
+        let mut upsample = upsample.lock().unwrap();
+        graph.connect_nodes(&mut rand_bits.sender, &mut bpsk_node.input, None);
+        graph.connect_nodes(&mut bpsk_node.output, &mut upsample.input, None);
+        graph.connect_nodes(&mut upsample.output, &mut pulse_shape.input, None);
+        graph.connect_nodes(&mut pulse_shape.sender, &mut convert.input, None);
+        graph.connect_nodes(&mut convert.output, &mut iq_out.input, None);
+        graph.connect_nodes(&mut convert.output, &mut deinterleave.input, None);
+        graph.connect_nodes(&mut deinterleave.output, &mut zmq.input, None);
+    }
 
+    assert!(graph.is_connected());
+    graph.run_graph();
     thread::sleep(Duration::from_secs(10));
 }
