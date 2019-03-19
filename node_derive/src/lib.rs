@@ -1,7 +1,6 @@
 #![recursion_limit = "128"]
 extern crate proc_macro;
 
-use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
@@ -51,7 +50,7 @@ struct ParsedFields<'a> {
 /// }
 /// ```
 ///  
-pub fn node_derive(input: TokenStream) -> TokenStream {
+pub fn node_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let generics = &input.generics;
@@ -68,7 +67,12 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                 pass_by_ref = true
             }
             Ok(_) => continue,
-            Err(e) => panic!("Invalid attribute {}", e),
+            Err(_) => {
+                let err = quote! {
+                    compile_error!("unrecognized attribute");
+                };
+                return proc_macro::TokenStream::from(err);
+            }
         }
     }
 
@@ -82,9 +86,26 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
                 recv_fields = parsed_fields.recv_fields.clone();
                 send_fields = parsed_fields.send_fields.clone();
             }
-            _ => panic!("Node macro only supports named fields."),
+            _ => {
+                let err = quote! {
+                    compile_error!("can't derive Node for non-named structs");
+                };
+                return proc_macro::TokenStream::from(err);
+            }
         },
-        _ => panic!("Node macro only supports structs."),
+        _ => {
+            let err = quote! {
+                compile_error!("can't derive Node for non-named structs");
+            };
+            return proc_macro::TokenStream::from(err);
+        }
+    }
+    if recv_fields.is_empty() && send_fields.is_empty() {
+        let err = quote! {
+        compile_error!("node needs at least one NodeReceiver or \
+            NodeSender");
+        };
+        return proc_macro::TokenStream::from(err);
     }
 
     let recv_idents: Vec<syn::Ident> = recv_fields
@@ -141,39 +162,63 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let derive_node = quote! {
-        impl #impl_generics Node for #name #ty_generics #where_clause {
-            fn start(&mut self) {
-                #(
-                    for (send, val) in &self.#send_idents2 {
-                        match val {
-                            Some(v) => send.send(v.clone()).unwrap(),
-                            None => continue,
-                        }
-                    }
-                )*
-                loop {
-                    if self.call().is_err() {
-                        break;
+    let is_connected = quote! {
+        fn is_connected(&self) -> bool {
+            #(
+                if self.#recv_block_fields.is_none() {
+                    return false;
+                }
+            )*
+            #(
+                if self.#send_idents1.is_empty() {
+                    return false;
+                }
+            )*
+            return true;
+        }
+    };
+
+    let start = quote! {
+        fn start(&mut self) {
+            #(
+                for (send, val) in &self.#send_idents2 {
+                    match val {
+                        Some(v) => send.send(v.clone()).unwrap(),
+                        None => continue,
                     }
                 }
-            }
-
-            fn call(&mut self) -> Result<(), NodeError> {
-                #(
-                    let #recv_block_idents = match self.#recv_block_fields {
-                        Some(ref r) => r.recv().unwrap(),
-                        None => return Err(NodeError::PermanentError),
-                    };
-                )*
-                #run_func
-                #send_func
-                Ok(())
+            )*
+            loop {
+                if self.call().is_err() {
+                    break;
+                }
             }
         }
     };
 
-    derive_node.into()
+    let call = quote! {
+        fn call(&mut self) -> Result<(), NodeError> {
+            #(
+                let #recv_block_idents = match self.#recv_block_fields {
+                    Some(ref r) => r.recv().unwrap(),
+                    None => return Err(NodeError::PermanentError),
+                };
+            )*
+            #run_func
+            #send_func
+            Ok(())
+        }
+    };
+
+    let derive_node = quote! {
+        impl #impl_generics Node for #name #ty_generics #where_clause {
+            #start
+            #call
+            #is_connected
+        }
+    };
+
+    proc_macro::TokenStream::from(derive_node)
 }
 
 fn parse_fields(fields: &syn::FieldsNamed) -> ParsedFields {

@@ -96,6 +96,7 @@ impl error::Error for NodeError {
 pub trait Node: Send {
     fn start(&mut self);
     fn call(&mut self) -> Result<(), NodeError>;
+    fn is_connected(&self) -> bool;
 }
 
 /// Connects two nodes together with crossbeam channels.
@@ -462,13 +463,14 @@ mod test {
         let node2 = Arc::new(Mutex::new(Node2::new(check.clone())));
 
         let mut graph = Graph::new();
-        graph.add_node("Node1".into(), node1.clone());
-        graph.add_node("Node2".into(), node2.clone());
+        graph.add_node(node1.clone());
+        graph.add_node(node2.clone());
         {
             let mut node1 = node1.lock().unwrap();
             let mut node2 = node2.lock().unwrap();
             graph.connect_nodes(&mut node1.sender, &mut node2.input, None);
         }
+        assert!(graph.is_connected());
         graph.run_graph();
         thread::sleep(Duration::from_secs(1));
         {
