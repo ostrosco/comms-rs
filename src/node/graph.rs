@@ -46,7 +46,7 @@ impl Graph {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     /// Start up all of the nodes in the graph one by one and keep track of
