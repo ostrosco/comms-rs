@@ -27,6 +27,12 @@ impl Graph {
         self.nodes.insert(Uuid::new_v4(), node);
     }
 
+    pub fn add_nodes(&mut self, nodes: Vec<Arc<Mutex<dyn Node>>>) {
+        for node in nodes {
+            self.add_node(node);
+        }
+    }
+
     pub fn connect_nodes<T>(
         &self,
         sender: &mut NodeSender<T>,
