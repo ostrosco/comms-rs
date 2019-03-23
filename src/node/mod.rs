@@ -276,7 +276,7 @@ macro_rules! connect_nodes_feedback {
 /// ```
 #[macro_export]
 macro_rules! start_nodes {
-    ($($node:ident),+) => {
+    ($($node:ident),+ $(,)?) => {
         $(
             thread::spawn(move || {
                 $node.start();
@@ -342,7 +342,7 @@ macro_rules! start_nodes {
 /// ```
 #[macro_export]
 macro_rules! start_nodes_threadpool {
-    ($($node:ident),+) => {
+    ($($node:ident),+ $(,)?) => {
         $(
             rayon::spawn(move || {
                 $node.start();
@@ -761,7 +761,7 @@ mod test {
         connect_nodes!(node1, sender, node2, input);
         connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node3);
-        start_nodes_threadpool!(node2);
+        start_nodes_threadpool!(node2,);
         thread::sleep(Duration::from_secs(1));
     }
 
@@ -863,7 +863,7 @@ mod test {
         connect_nodes!(node3, output, node4, recv);
 
         // Lastly, start up your nodes.
-        start_nodes!(node1, node2, node3);
+        start_nodes!(node1, node2, node3,);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
