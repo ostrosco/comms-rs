@@ -162,7 +162,7 @@ fn main() {
     connect_nodes!(convert3, sender, dec2, input);
     connect_nodes!(dec2, sender, audio, input);
     start_nodes!(
-        sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio
+        sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio,
     );
     loop {}
 }
