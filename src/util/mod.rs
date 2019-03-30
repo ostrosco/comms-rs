@@ -7,3 +7,5 @@ pub mod math;
 pub mod rand_node;
 /// Some nodes to aid in resampling signals
 pub mod resample_node;
+/// Node for creating an OpenGL window and plotting data
+pub mod plot_node;
