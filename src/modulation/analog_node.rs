@@ -35,12 +35,11 @@ where
     /// Examples:
     ///
     /// ```
-    /// use comms_rs::analog_node::FMDemodNode;
+    /// use comms_rs::modulation::analog_node::FMDemodNode;
     ///
     /// // Creates a new demodulation node to be connected to the graph
-    /// let node = FMDemodNode::new();
+    /// let node = FMDemodNode::<f32>::new();
     /// ```
-    ///
     pub fn new() -> Self {
         FMDemodNode::default()
     }
