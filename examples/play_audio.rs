@@ -35,7 +35,7 @@ fn main() {
     }
 
     let mut sine = SineNode::new(Box::new(source::SineWave::new(440)));
-    let mut plot = PlotNode::new();
+    let mut plot = PlotNode::new(48000);
 
     connect_nodes!(sine, sender, audio, input);
     connect_nodes!(sine, sender, plot, input);

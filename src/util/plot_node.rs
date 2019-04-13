@@ -6,22 +6,24 @@ struct ThreadFigure<'a>(Figure<'a>);
 
 unsafe impl<'a> Send for ThreadFigure<'a> {}
 
-impl<'a> ThreadFigure<'a> {
-    fn new() -> Self {
-        Self(Figure::new())
-    }
-}
-
-pub struct PlotNode<'a, T> where T: Into<f32> + Copy + Send {
+pub struct PlotNode<'a, T>
+where
+    T: Into<f32> + Copy + Send,
+{
     pub input: NodeReceiver<Vec<T>>,
     figure: Option<ThreadFigure<'a>>,
+    num_points: usize,
 }
 
-impl<'a, T> PlotNode<'a, T> where T: Into<f32> + Copy + Send {
-    pub fn new() -> Self {
+impl<'a, T> PlotNode<'a, T>
+where
+    T: Into<f32> + Copy + Send,
+{
+    pub fn new(num_points: usize) -> Self {
         PlotNode {
             input: Default::default(),
             figure: None,
+            num_points,
         }
     }
 
@@ -35,9 +37,14 @@ impl<'a, T> PlotNode<'a, T> where T: Into<f32> + Copy + Send {
     }
 }
 
-impl<'a, T> Node for PlotNode<'a, T> where T: Into<f32> + Copy + Send {
+impl<'a, T> Node for PlotNode<'a, T>
+where
+    T: Into<f32> + Copy + Send,
+{
     fn start(&mut self) {
-        self.figure = Some(ThreadFigure::new());
+        self.figure = Some(ThreadFigure(
+            Figure::new().init_renderer(self.num_points),
+        ));
         loop {
             if self.call().is_err() {
                 break;
@@ -61,13 +68,18 @@ impl<'a, T> Node for PlotNode<'a, T> where T: Into<f32> + Copy + Send {
 pub struct ComplexPlotNode<'a, T> where T: Into<f32> + Copy + Send {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     figure: Option<ThreadFigure<'a>>,
+    num_points: usize,
 }
 
-impl<'a, T> ComplexPlotNode<'a, T> where T: Into<f32> + Copy + Send {
-    pub fn new() -> Self {
+impl<'a, T> ComplexPlotNode<'a, T>
+where
+    T: Into<f32> + Copy + Send,
+{
+    pub fn new(num_points: usize) -> Self {
         ComplexPlotNode {
             input: Default::default(),
             figure: None,
+            num_points,
         }
     }
 
@@ -81,9 +93,14 @@ impl<'a, T> ComplexPlotNode<'a, T> where T: Into<f32> + Copy + Send {
     }
 }
 
-impl<'a, T> Node for ComplexPlotNode<'a, T> where T: Into<f32> + Copy + Send {
+impl<'a, T> Node for ComplexPlotNode<'a, T>
+where
+    T: Into<f32> + Copy + Send,
+{
     fn start(&mut self) {
-        self.figure = Some(ThreadFigure::new());
+        self.figure = Some(ThreadFigure(
+            Figure::new().init_renderer(self.num_points),
+        ));
         loop {
             if self.call().is_err() {
                 break;
