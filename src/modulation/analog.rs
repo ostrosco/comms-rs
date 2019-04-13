@@ -1,3 +1,4 @@
+//! This module implements frequency demodulation
 use num::Complex;
 use num::Float;
 use num::Zero;
@@ -10,12 +11,6 @@ impl<T> FM<T>
 where
     T: Float + Zero,
 {
-    pub fn new() -> FM<T> {
-        FM {
-            prev: Complex::zero(),
-        }
-    }
-
     pub fn demod(&mut self, samples: &[Complex<T>]) -> Vec<T> {
         let mut prev = self.prev;
         let mut demod_queue: Vec<T> = Vec::with_capacity(samples.len());
@@ -36,6 +31,8 @@ where
     T: Float + Zero,
 {
     fn default() -> Self {
-        Self::new()
+        FM {
+            prev: Complex::<T>::zero(),
+        }
     }
 }
