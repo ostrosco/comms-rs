@@ -49,9 +49,9 @@ fn catch_hackrf_code_and_quit(
     }
 }
 
-struct StateHolder {
+struct StateHolder<'a> {
     file_idx: usize,
-    file_ref: &mut File,
+    file_ref: &'a mut File,
 }
 
 extern "C" fn reader(xfer: *mut hackrf_transfer) -> i32 {
@@ -307,7 +307,7 @@ fn main() {
             }
         };
         //Assuming the file gets cleaned up when we leave scope. May cause errors
-        let state_ball = StateHolder { 0, &mut in_file };
+        let mut state_ball = StateHolder { file_idx:0, file_ref:&mut in_file };
         let state_ptr: *mut StateHolder = &mut state_ball;
 
         debug!("About to set up the transmitter");
