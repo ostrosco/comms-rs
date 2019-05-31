@@ -1,0 +1,17 @@
+[package]
+name = "node_derive"
+version = "0.1.0"
+authors = ["ostrosco <ostrosco@fastmail.fm>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "0.6"
+syn = {version = "0.15", features=["extra-traits", "full"]}
+proc-macro2 = "0.4"
+
+[dev-dependencies]
+crossbeam = "0.4"
+crossbeam-channel = "0.2"

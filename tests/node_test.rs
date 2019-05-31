@@ -7,20 +7,44 @@ use std::time::Duration;
 
 #[test]
 fn simple_nodes() {
-    fn gen_stuff() -> u32 {
-        1
+    #[derive(Node)]
+    struct SourceNode {
+        pub sender: NodeSender<u32>,
     }
 
-    fn do_thingies(x: u32) -> () {
-        assert_eq!(x, 1);
+    impl SourceNode {
+        pub fn new() -> Self {
+            SourceNode {
+                sender: Default::default(),
+            }
+        }
+
+        pub fn run(&mut self) -> Result<u32, NodeError> {
+            Ok(1)
+        }
     }
 
-    create_node!(SourceNode: u32, [], [], { |_| gen_stuff() });
-    create_node!(SinkNode: (), [], [recv1: u32], { |_, x| do_thingies(x) });
+    #[derive(Node)]
+    struct SinkNode {
+        pub input: NodeReceiver<u32>,
+    }
+
+    impl SinkNode {
+        pub fn new() -> Self {
+            SinkNode {
+                input: Default::default(),
+            }
+        }
+
+        pub fn run(&mut self, input: u32) -> Result<(), NodeError> {
+            assert_eq!(input, 1);
+            Ok(())
+        }
+    }
 
     let mut node = SourceNode::new();
     let mut node2 = SinkNode::new();
-    connect_nodes!(node, node2, recv1);
+    connect_nodes!(node, sender, node2, input);
     start_nodes!(node, node2);
     thread::sleep(Duration::from_secs(1));
 }

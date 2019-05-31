@@ -12,8 +12,40 @@
 //! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
 //! // inputs, the receivers must explicitly be named.
-//! create_node!(Node1: u32, [], [], { |_| 1 });
-//! create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
+//! #[derive(Node)]
+//! struct Node1 {
+//!     pub sender: NodeSender<u32>,
+//! }
+//!
+//! impl Node1 {
+//!     pub fn new() -> Self {
+//!         Node1 {
+//!             sender: Default::default(),
+//!         }
+//!     }
+//!
+//!     pub fn run(&mut self) -> Result<u32, NodeError> {
+//!         Ok(1)
+//!     }
+//! }
+//!
+//! #[derive(Node)]
+//! struct Node2 {
+//!     pub input: NodeReceiver<u32>,
+//! }
+//!
+//! impl Node2 {
+//!     pub fn new() -> Self {
+//!         Node2 {
+//!             input: Default::default(),
+//!         }
+//!     }
+//!
+//!     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+//!         assert_eq!(x, 1);
+//!         Ok(())
+//!     }
+//! }
 //!
 //! // Now that the structures are created, the user can now instantiate their
 //! // nodes and pass in closures for the nodes to execute.
@@ -22,323 +54,49 @@
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
 //! // receiving on the `recv` receiver in the Node2 structure.
-//! connect_nodes!(node1, node2, recv);
+//! connect_nodes!(node1, sender, node2, input);
 //!
 //! // Spawn threads for node1 and node2 and have them executing indefinitely.
 //! start_nodes!(node1, node2);
 //! # }
 //! ```
 
-/// The trait that all nodes in the library implement. Only contains a single
-/// function: `call(&mut self)` which executes the function in the node once.
-pub trait Node {
-    fn call(&mut self);
+pub mod graph;
+
+use std::error;
+use std::fmt;
+
+#[derive(Clone, Debug)]
+pub enum NodeError {
+    DataError,
+    PermanentError,
+    DataEnd,
+    CommError,
 }
 
-/// Creates a structure with crossbeam senders and receivers automatically and
-/// auto-implements the Node trait.
-///
-/// # Arguments
-///
-/// create_node!(name: out_type, [fields: field_type], [recv: recv_type], func);
-///
-/// - name: The name of the node to construct.
-/// - out_type: The type the node outputs, can be () if the node doesn't send
-///   anything to another node.
-/// - [fields: field_type]: A list of fields with their types to add to the
-///   structure. This is useful for maintaining state within the structure.
-/// - [recv: recv_type]: A list of receiver field names to add to the structure
-///   along with the type.
-/// - func: The function this node executes upon executing `call()`. The
-///   function must accept a mutable reference to the node being constructed as
-///   its first parameter, but if the function doesn't need to access state the
-///   parameter can be safely be ignored.
-///
-/// Generics can be passed along with the following format:
-///
-/// create_node!(name<generic>: out_type, [fields: field_type], [recv: recv_type], func, generic:
-/// Trait + ...);
-/// - generic: any generic variables to add to the structure
-/// - generic: Trait + ...,: a list of trait bounds for the structure,
-///   trait bounds are optional
-///
-/// # Examples
-///
-/// ```
-/// # #[macro_use] extern crate comms_rs;
-/// # use comms_rs::prelude::*;
-/// # fn main() {
-/// // Creates a node that takes no inputs and outputs a u32.
-/// create_node!(
-///     NoInputNode: u32,
-///     [],
-///     [],
-///     |_| 1
-/// );
-///
-/// // Creates a node that outputs a f32 and receives a u32 and an f64.
-/// create_node!(
-///     DoubleInputNode: f32,
-///     [],
-///     [recv_u: u32, recv_v: f64],
-///     |_, x, y| (x as f64 + y) as f32
-/// );
-///
-/// // Creates a node that takes one u32 input and outputs nothing.
-/// create_node!(
-///     NoOutputNode: (),
-///     [],
-///     [recv_u: u32],
-///     |_, x| println!("{}", x)
-/// );
-///
-/// // Create a node named CounterNode that receives an i32 input on the
-/// // receiver named `recv`, and adds it to a `count` field in the structure.
-/// // The current count is outputted from the node.
-/// create_node!(CounterNode: i32,
-///     [count: i32],
-///     [recv: i32],
-///     |node: &mut CounterNode, val: i32| {
-///         node.count += val;
-///         node.count
-///     },
-/// );
-///
-/// // Create a node that takes a generic type parameter.
-/// create_node!(
-///     GenericNode<T>: T,
-///     [state: T],
-///     [recv: T],
-///     |node: &mut GenericNode<T>, new_val: T| {
-///         node.state = new_val.clone();
-///         node.state.clone()
-///     },
-///     T: Clone,
-/// );
-/// # }
-/// ```
-#[macro_export]
-macro_rules! create_node {
-    ($(#[$attr:meta])* $name:ident: Option<$out:ty>, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl $name {
-            generate_new!($name, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl Node for $name
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
-     [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+> {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+> {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: Option<$out:ty>,
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
-     $($bounds:tt)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+>
-        where $($bounds)*
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_aggregate_call!($func, $out, $($recv),*);
-        }
-    };
-    ($(#[$attr:meta])* $name:ident: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl $name {
-            generate_new!($name, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl Node for $name
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty, [$($state:ident: $type:ty),*],
-     [$($recv:ident: $in:ty),*], $func:expr$(,)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+> {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+> {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-
-    ($(#[$attr:meta])* $name:ident<$($gen:ident),+>: $out:ty,
-     [$($state:ident: $type:ty),*], [$($recv:ident: $in:ty),*], $func:expr,
-     $($bounds:tt)*) => {
-        $(#[$attr])*
-        pub struct $name<$($gen,)+>
-        where $($bounds)*
-        {
-            $(
-                pub $recv: Option<Receiver<$in>>,
-            )*
-            pub sender: Vec<(Sender<$out>, Option<$out>)>,
-            $(
-                pub $state: $type,
-            )*
-        }
-
-        impl<$($gen,)*> $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_new!($name<$($gen),+>, [$($state: $type),*], [$($recv),*]);
-        }
-
-        impl<$($gen,)*> Node for $name<$($gen,)+>
-        where $($bounds)*
-        {
-            generate_call!($func, $out, $($recv),*);
-        }
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_call {
-    ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) {
-            $(
-                let $recv = match self.$recv {
-                    Some(ref r) => r.recv().unwrap(),
-                    None => return,
-                };
-            )*
-            let res: $out = ($func)(&mut *self, $($recv,)*);
-            for (send, _) in &self.sender {
-                send.send(res.clone());
-            }
-        }
+impl fmt::Display for NodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let desc = match *self {
+            NodeError::DataError => "unable to access data",
+            NodeError::PermanentError => "unable to continue executing node",
+            NodeError::DataEnd => "end of data source",
+            NodeError::CommError => "unable to establish comm channel",
+        };
+        write!(f, "Node error: {}", desc)
     }
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_aggregate_call {
-    ($func:expr, $out:ty, $($recv:ident),*) => {
-        fn call(&mut self) {
-            $(
-                let $recv = match self.$recv {
-                    Some(ref r) => r.recv().unwrap(),
-                    None => return,
-                };
-            )*
-            let result: Option<$out> = ($func)(&mut *self, $($recv,)*);
-            if let Some(res) = result {
-                for (send, _) in &self.sender {
-                    send.send(res.clone());
-                }
-            }
-        }
+impl error::Error for NodeError {
+    fn cause(&self) -> Option<&error::Error> {
+        None
     }
 }
 
-#[doc(hidden)]
-#[macro_export]
-macro_rules! generate_new {
-    ($name:ident, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
-        pub fn new($($state: $type,)*) -> $name {
-            $name {
-                $(
-                    $recv: None,
-                )*
-                $(
-                    $state,
-                )*
-                sender: vec![],
-            }
-        }
-    };
-    ($name:ident<$($gen:ident),*>, [$($state:ident: $type:ty),*], [$($recv:ident),*]) => {
-        pub fn new($($state: $type,)*) -> $name<$($gen,)*> {
-            $name {
-                $(
-                    $recv: None,
-                )*
-                $(
-                    $state,
-                )*
-                sender: vec![],
-            }
-        }
-    }
+/// The trait that all nodes in the library implement.
+pub trait Node: Send {
+    fn start(&mut self);
+    fn call(&mut self) -> Result<(), NodeError>;
+    fn is_connected(&self) -> bool;
 }
 
 /// Connects two nodes together with crossbeam channels.
@@ -347,22 +105,54 @@ macro_rules! generate_new {
 /// # #[macro_use] extern crate comms_rs;
 /// # use comms_rs::prelude::*;
 /// # fn main() {
-/// # create_node!(Node1: u32, [], [], |_| 1);
-/// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     sender: NodeSender<u32>,
+/// # }
+/// #
+/// # impl Node1 {
+/// #   pub fn new() -> Self {
+/// #       Node1 {
+/// #           sender: Default::default(),
+/// #       }
+/// #   }
+/// #
+/// #   pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #       Ok(1)
+/// #   }
+/// # }
+/// #
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #   recv: NodeReceiver<u32>,
+/// # }
+/// #
+/// # impl Node2 {
+/// #   pub fn new() -> Self {
+/// #       Node2 {
+/// #           recv: Default::default(),
+/// #       }
+/// #   }
+/// #
+/// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #       assert_eq!(x, 1);
+/// #       Ok(())
+/// #   }
+/// # }
 /// let mut node1 = Node1::new();
 /// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
-/// connect_nodes!(node1, node2, recv);
+/// connect_nodes!(node1, sender, node2, recv);
 /// # }
 /// ```
 ///
 #[macro_export]
 macro_rules! connect_nodes {
-    ($n1:ident, $n2:ident, $recv:ident) => {{
+    ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
         let (send, recv) = channel::bounded(0);
-        $n1.sender.push((send, None));
+        $n1.$send.push((send, None));
         $n2.$recv = Some(recv);
     }};
 }
@@ -376,8 +166,40 @@ macro_rules! connect_nodes {
 /// # #[macro_use] extern crate comms_rs;
 /// # use comms_rs::prelude::*;
 /// # fn main() {
-/// # create_node!(Node1: u32, [], [], |_| 1);
-/// # create_node!(Node2: (), [], [recv: u32], { |_, x| assert_eq!(x, 1) });
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     sender: NodeSender<u32>,
+/// # }
+/// #
+/// # impl Node1 {
+/// #   pub fn new() -> Self {
+/// #       Node1 {
+/// #           sender: Default::default(),
+/// #       }
+/// #   }
+/// #
+/// #   pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #       Ok(1)
+/// #   }
+/// # }
+/// #
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #   recv: NodeReceiver<u32>,
+/// # }
+/// #
+/// # impl Node2 {
+/// #   pub fn new() -> Self {
+/// #       Node2 {
+/// #           recv: Default::default(),
+/// #       }
+/// #   }
+/// #
+/// #   pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #       assert_eq!(x, 1);
+/// #       Ok(())
+/// #   }
+/// # }
 /// let mut node1 = Node1::new();
 /// let mut node2 = Node2::new();
 ///
@@ -385,15 +207,15 @@ macro_rules! connect_nodes {
 /// // message on its receiver named `recv`. When node1 starts, it will send
 /// // a 0 to node2 the first time it's run by start_nodes! and run a normal
 /// // loop afterwards.
-/// connect_nodes_feedback!(node1, node2, recv, 0);
+/// connect_nodes_feedback!(node1, sender, node2, recv, 0);
 /// # }
 /// ```
 ///
 #[macro_export]
 macro_rules! connect_nodes_feedback {
-    ($n1:ident, $n2:ident, $recv:ident, $default:tt) => {{
+    ($n1:ident, $send:ident, $n2:ident, $recv:ident, $default:tt) => {{
         let (send, recv) = channel::bounded(0);
-        $n1.sender.push((send, Some($default)));
+        $n1.$send.push((send, Some($default)));
         $n2.$recv = Some(recv);
     }};
 }
@@ -408,31 +230,56 @@ macro_rules! connect_nodes_feedback {
 /// # use comms_rs::prelude::*;
 /// # use std::thread;
 /// # fn main() {
-/// # create_node!(Node1: u32, [], [], |_| 1);
-/// # create_node!(Node2: (), [], [recv: u32], |_, x| assert_eq!(x, 1));
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     pub sender: NodeSender<u32>,
+/// # }
+///
+/// # impl Node1 {
+/// #     pub fn new() -> Self {
+/// #         Node1 {
+/// #             sender: Default::default(),
+/// #         }
+/// #     }
+/// #
+/// #     pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #         Ok(1)
+/// #     }
+/// # }
+///
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #     pub input: NodeReceiver<u32>,
+/// # }
+///
+/// # impl Node2 {
+/// #     pub fn new() -> Self {
+/// #         Node2 {
+/// #             input: Default::default(),
+/// #         }
+/// #     }
+/// #
+/// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, 1);
+/// #         Ok(())
+/// #    }
+/// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, node2, recv);
+/// # connect_nodes!(node1, sender, node2, input);
+///
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
-/// // message on its receiver named `recv`.
+/// // message on its receiver named `input`.
 /// start_nodes!(node1, node2);
 /// # }
 /// ```
 #[macro_export]
 macro_rules! start_nodes {
-    ($($node:ident),+) => {
+    ($($node:ident),+ $(,)?) => {
         $(
             thread::spawn(move || {
-                for (send, val) in &$node.sender {
-                    match val {
-                        Some(v) => send.send(v.clone()),
-                        None => continue,
-                    }
-                }
-                loop {
-                    $node.call();
-                }
+                $node.start();
             });
         )*
     }
@@ -448,12 +295,45 @@ macro_rules! start_nodes {
 /// # extern crate rayon;
 /// # use comms_rs::prelude::*;
 /// # use std::thread;
+///
 /// # fn main() {
-/// # create_node!(Node1: u32, [], [], |_| 1);
-/// # create_node!(Node2: (), [], [recv: u32], |_, x| assert_eq!(x, 1));
+/// # #[derive(Node)]
+/// # struct Node1 {
+/// #     pub sender: NodeSender<u32>,
+/// # }
+///
+/// # impl Node1 {
+/// #     pub fn new() -> Self {
+/// #         Node1 {
+/// #             sender: Default::default(),
+/// #         }
+/// #     }
+/// #
+/// #     pub fn run(&mut self) -> Result<u32, NodeError> {
+/// #         Ok(1)
+/// #     }
+/// # }
+///
+/// # #[derive(Node)]
+/// # struct Node2 {
+/// #     pub input: NodeReceiver<u32>,
+/// # }
+///
+/// # impl Node2 {
+/// #     pub fn new() -> Self {
+/// #         Node2 {
+/// #             input: Default::default(),
+/// #         }
+/// #     }
+/// #
+/// #     pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+/// #         assert_eq!(x, 1);
+/// #         Ok(())
+/// #    }
+/// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, node2, recv);
+/// # connect_nodes!(node1, sender, node2, input);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
 /// // message on its receiver named `recv`.
@@ -462,18 +342,10 @@ macro_rules! start_nodes {
 /// ```
 #[macro_export]
 macro_rules! start_nodes_threadpool {
-    ($($node:ident),+) => {
+    ($($node:ident),+ $(,)?) => {
         $(
             rayon::spawn(move || {
-                for (send, val) in &$node.sender {
-                    match val {
-                        Some(v) => send.send(v.clone()),
-                        None => continue,
-                    }
-                }
-                loop {
-                    $node.call();
-                }
+                $node.start();
             });
         )*
     }
@@ -482,34 +354,129 @@ macro_rules! start_nodes_threadpool {
 #[cfg(test)]
 mod test {
     use rand::{thread_rng, Rng};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use prelude::*;
+    use crate::node::graph::Graph;
+    use crate::prelude::*;
     use rayon;
 
     #[test]
     /// Constructs a simple network with two nodes: one source and one sink.
     fn test_simple_nodes() {
-        create_node!(Node1: u32, [], [], { |_| 1 });
-        create_node!(Node2: (), [], [recv1: u32], { |_, x| assert_eq!(x, 1) },);
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<u32>,
+        }
+
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<u32>,
+        }
+
+        impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+                assert_eq!(x, 1);
+                Ok(())
+            }
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
 
-        connect_nodes!(node1, node2, recv1);
+        connect_nodes!(node1, sender, node2, input);
         start_nodes!(node1);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                node2.call();
+                node2.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }
             }
         });
         assert!(check.join().is_ok());
+    }
+
+    #[test]
+    /// Constructs a simple network with two nodes: one source and one sink.
+    fn test_simple_graph() {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<u32>,
+        }
+
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct Node2 {
+            pub input: NodeReceiver<u32>,
+            pub check: Arc<Mutex<bool>>,
+        }
+
+        impl Node2 {
+            pub fn new(check: Arc<Mutex<bool>>) -> Self {
+                Node2 {
+                    input: Default::default(),
+                    check,
+                }
+            }
+
+            pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
+                let mut check = self.check.lock().unwrap();
+                *check = x == 1;
+                Ok(())
+            }
+        }
+
+        let check = Arc::new(Mutex::new(false));
+        let node1 = Arc::new(Mutex::new(Node1::new()));
+        let node2 = Arc::new(Mutex::new(Node2::new(check.clone())));
+
+        let mut graph = Graph::new();
+        graph.add_node(node1.clone());
+        graph.add_node(node2.clone());
+        {
+            let mut node1 = node1.lock().unwrap();
+            let mut node2 = node2.lock().unwrap();
+            graph.connect_nodes(&mut node1.sender, &mut node2.input, None);
+        }
+        assert!(graph.is_connected());
+        graph.run_graph();
+        thread::sleep(Duration::from_secs(1));
+        {
+            let check = check.lock().unwrap();
+            assert!(*check);
+        }
     }
 
     #[test]
@@ -520,51 +487,93 @@ mod test {
     /// used to pass around references through the channels much easier,
     /// saving on potential expensive copies.
     fn test_aggregate_nodes() {
-        create_node!(
-            Node1: Option<Arc<Vec<u32>>>,
-            [agg: Vec<u32>],
-            [],
-            |node: &mut Node1| if node.agg.len() < 2 {
-                node.agg.push(1);
-                None
-            } else {
-                let val = node.agg.clone();
-                node.agg = vec![];
-                Some(Arc::new(val))
-            }
-        );
-        create_node!(
-            Node2: Option<Arc<Vec<u32>>>,
-            [],
-            [recv1: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| {
-                let mut y = Arc::clone(&x);
-                for z in Arc::make_mut(&mut y).iter_mut() {
-                    *z = *z + 1;
-                }
-                Some(y)
-            }
-        );
-        create_node!(
-            Node3: (),
-            [],
-            [recv2: Arc<Vec<u32>>],
-            |_, x: Arc<Vec<u32>>| {
-                assert_eq!(*x, vec![2, 2]);
-            }
-        );
+        #[derive(Node)]
+        #[aggregate]
+        struct Node1 {
+            agg: Vec<u32>,
+            pub sender: NodeSender<Arc<Vec<u32>>>,
+        }
 
-        let mut node1 = Node1::new(Vec::new());
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    agg: vec![],
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<Option<Arc<Vec<u32>>>, NodeError> {
+                if self.agg.len() < 2 {
+                    self.agg.push(1);
+                    Ok(None)
+                } else {
+                    let val = self.agg.clone();
+                    self.agg = vec![];
+                    Ok(Some(Arc::new(val)))
+                }
+            }
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<u32>>>,
+            pub sender: NodeSender<Arc<Vec<u32>>>,
+        }
+
+        impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                input: &Arc<Vec<u32>>,
+            ) -> Result<Arc<Vec<u32>>, NodeError> {
+                let mut y = Arc::clone(&input);
+                for z in Arc::make_mut(&mut y).iter_mut() {
+                    *z += 1;
+                }
+                Ok(y)
+            }
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<u32>>>,
+        }
+
+        impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    input: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                input: &Arc<Vec<u32>>,
+            ) -> Result<(), NodeError> {
+                assert_eq!(**input, vec![2, 2]);
+                Ok(())
+            }
+        }
+
+        let mut node1 = Node1::new();
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                node3.call();
+                node3.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }
@@ -579,43 +588,87 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_throughput() {
-        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| {
-            let mut random = vec![0i16; 10000];
-            thread_rng().fill(random.as_mut_slice());
-            Arc::new(random)
-        });
-        create_node!(
-            Node2: Arc<Vec<i16>>,
-            [],
-            [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
+                let mut random = vec![0i16; 10000];
+                thread_rng().fill(random.as_mut_slice());
+                Ok(Arc::new(random))
+            }
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                x: &Arc<Vec<i16>>,
+            ) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
-                y
+                Ok(y)
             }
-        );
-        create_node!(
-            Node3: (),
-            [count: u32],
-            [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| {
-                node.count = node.count + 1;
-                if node.count == 40000 {
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            count: u32,
+        }
+
+        impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    count: 0,
+                    input: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                _val: &Arc<Vec<i16>>,
+            ) -> Result<(), NodeError> {
+                self.count += 1;
+                if self.count == 40000 {
                     println!(
                         "test_throughput: Hit goal of 400 million i16 sent."
                     );
                 }
+                Ok(())
             }
-        );
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
-        let mut node3 = Node3::new(0);
+        let mut node3 = Node3::new();
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node2, node3);
         thread::sleep(Duration::from_secs(1));
     }
@@ -626,46 +679,89 @@ mod test {
     /// to see if channels will handle the throughput we hope it will.
     /// Make sure to run this test with --release.
     fn test_threadpool_throughput() {
-        create_node!(Node1: Arc<Vec<i16>>, [], [], |_| {
-            let mut random = vec![0i16; 10000];
-            thread_rng().fill(random.as_mut_slice());
-            Arc::new(random)
-        });
-        create_node!(
-            Node2: Arc<Vec<i16>>,
-            [],
-            [recv1: Arc<Vec<i16>>],
-            |_, x: Arc<Vec<i16>>| {
+        #[derive(Node)]
+        struct Node1 {
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node1 {
+            pub fn new() -> Self {
+                Node1 {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<Arc<Vec<i16>>, NodeError> {
+                let mut random = vec![0i16; 10000];
+                thread_rng().fill(random.as_mut_slice());
+                Ok(Arc::new(random))
+            }
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node2 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            pub sender: NodeSender<Arc<Vec<i16>>>,
+        }
+
+        impl Node2 {
+            pub fn new() -> Self {
+                Node2 {
+                    input: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(
+                &mut self,
+                x: &Arc<Vec<i16>>,
+            ) -> Result<Arc<Vec<i16>>, NodeError> {
                 let mut y = Arc::clone(&x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
-                y
+                Ok(y)
             }
-        );
-        create_node!(
-            Node3: (),
-            [count: u32],
-            [recv2: Arc<Vec<i16>>],
-            |node: &mut Node3, _val: Arc<Vec<i16>>| {
-                node.count = node.count + 1;
-                if node.count == 40000 {
-                    println!(
-                        "test_threadpool_throughput: Hit goal of 400 \
-                         million i16 sent."
-                    );
+        }
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct Node3 {
+            pub input: NodeReceiver<Arc<Vec<i16>>>,
+            count: u32,
+        }
+
+        impl Node3 {
+            pub fn new() -> Self {
+                Node3 {
+                    count: 0,
+                    input: Default::default(),
                 }
             }
-        );
+
+            pub fn run(
+                &mut self,
+                _val: &Arc<Vec<i16>>,
+            ) -> Result<(), NodeError> {
+                self.count += 1;
+                if self.count == 40000 {
+                    println!(
+                        "test_threadpool_throughput: Hit goal of 400 million i16 sent."
+                    );
+                }
+                Ok(())
+            }
+        }
 
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
-        let mut node3 = Node3::new(0);
+        let mut node3 = Node3::new();
 
-        connect_nodes!(node1, node2, recv1);
-        connect_nodes!(node2, node3, recv2);
+        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node2, sender, node3, input);
         start_nodes!(node1, node3);
-        start_nodes_threadpool!(node2);
+        start_nodes_threadpool!(node2,);
         thread::sleep(Duration::from_secs(1));
     }
 
@@ -674,27 +770,85 @@ mod test {
     /// This serves to make sure that fan-in operation works as we expect
     /// it to.
     fn test_fan_in() {
-        use prelude::*;
+        use crate::prelude::*;
         use std::thread;
         use std::time::Duration;
 
         // Creates a node that takes no inputs and returns a value.
-        create_node!(NoInputNode: u32, [], [], { |_| 1 });
-        create_node!(AnotherNode: f64, [], [], { |_| 2.0 });
+        #[derive(Node)]
+        struct NoInputNode {
+            output: NodeSender<u32>,
+        }
+
+        impl NoInputNode {
+            pub fn new() -> Self {
+                NoInputNode {
+                    output: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<u32, NodeError> {
+                Ok(1)
+            }
+        }
+
+        #[derive(Node)]
+        struct AnotherNode {
+            output: NodeSender<f64>,
+        }
+
+        impl AnotherNode {
+            pub fn new() -> Self {
+                AnotherNode {
+                    output: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<f64, NodeError> {
+                Ok(2.0)
+            }
+        }
 
         // Creates a node that takes a u32 and a f64, returns a f32, and names
         // the receivers recv_u and recv_f.
-        create_node!(
-            DoubleInputNode: f32,
-            [],
-            [recv1: u32, recv2: f64],
-            |_, x: u32, y: f64| (x as f64 + y) as f32
-        );
+        #[derive(Node)]
+        struct DoubleInputNode {
+            recv1: NodeReceiver<u32>,
+            recv2: NodeReceiver<f64>,
+            output: NodeSender<f32>,
+        }
 
-        // Create a node to check the value.
-        create_node!(CheckNode: (), [], [recv: f32], |_, x: f32| {
-            assert_eq!(x, 3.0, "Node didn't work!");
-        });
+        impl DoubleInputNode {
+            pub fn new() -> Self {
+                DoubleInputNode {
+                    recv1: Default::default(),
+                    recv2: Default::default(),
+                    output: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, x: u32, y: f64) -> Result<f32, NodeError> {
+                Ok((f64::from(x) + y) as f32)
+            }
+        }
+
+        #[derive(Node)]
+        struct CheckNode {
+            recv: NodeReceiver<f32>,
+        }
+
+        impl CheckNode {
+            pub fn new() -> Self {
+                CheckNode {
+                    recv: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, x: f32) -> Result<(), NodeError> {
+                assert!(x - 3.0f32 < std::f32::EPSILON, "Fan-out failed.");
+                Ok(())
+            }
+        }
 
         // Now, you can instantiate your nodes as usual.
         let mut node1 = NoInputNode::new();
@@ -704,16 +858,16 @@ mod test {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        connect_nodes!(node1, node3, recv1);
-        connect_nodes!(node2, node3, recv2);
-        connect_nodes!(node3, node4, recv);
+        connect_nodes!(node1, output, node3, recv1);
+        connect_nodes!(node2, output, node3, recv2);
+        connect_nodes!(node3, output, node4, recv);
 
         // Lastly, start up your nodes.
-        start_nodes!(node1, node2, node3);
+        start_nodes!(node1, node2, node3,);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                node4.call();
+                node4.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }
@@ -728,34 +882,61 @@ mod test {
     /// two nodes: one to send 1 to 10 and the other to add the number to a
     /// counter within the node.
     fn test_counter() {
-        create_node!(OneNode: i32, [count: i32], [], |node: &mut OneNode| {
-            node.count += 1;
-            node.count
-        });
+        #[derive(Node)]
+        struct OneNode {
+            count: i32,
+            output: NodeSender<i32>,
+        }
 
-        create_node!(
-            CounterNode: i32,
-            [count: i32],
-            [recv: i32],
-            |node: &mut CounterNode, val: i32| {
-                node.count = node.count + val;
-                node.count
+        impl OneNode {
+            pub fn new() -> Self {
+                OneNode {
+                    count: 0,
+                    output: Default::default(),
+                }
             }
-        );
 
-        let mut one_node = OneNode::new(0);
-        let mut count_node = CounterNode::new(0);
-        connect_nodes!(one_node, count_node, recv);
+            pub fn run(&mut self) -> Result<i32, NodeError> {
+                self.count += 1;
+                Ok(self.count)
+            }
+        }
+
+        #[derive(Node)]
+        struct CounterNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            sender: NodeSender<i32>,
+        }
+
+        impl CounterNode {
+            pub fn new() -> Self {
+                CounterNode {
+                    count: 0,
+                    recv: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
+                self.count += val;
+                Ok(self.count)
+            }
+        }
+
+        let mut one_node = OneNode::new();
+        let mut count_node = CounterNode::new();
+        connect_nodes!(one_node, output, count_node, recv);
 
         thread::spawn(move || {
             for _ in 0..10 {
-                one_node.call();
+                one_node.call().unwrap();
             }
         });
 
         let check = thread::spawn(move || {
             for _ in 0..10 {
-                count_node.call();
+                count_node.call().unwrap();
             }
             assert_eq!(count_node.count, 55);
         });
@@ -766,39 +947,64 @@ mod test {
     #[test]
     /// A test to verify that feedback will work.
     fn test_feedback() {
-        create_node!(
-            AddNode: i32,
-            [count: i32],
-            [recv_f: i32],
-            |node: &mut AddNode, val: i32| {
-                node.count += val;
-                node.count
-            }
-        );
-        create_node!(
-            PrintNode: i32,
-            [count: i32],
-            [recv_sum: i32],
-            |node: &mut PrintNode, val: i32| {
-                node.count = val;
-                val
-            }
-        );
+        #[derive(Node)]
+        struct AddNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            sender: NodeSender<i32>,
+        }
 
-        let mut add_node = AddNode::new(1);
-        let mut print_node = PrintNode::new(0);
-        connect_nodes!(add_node, print_node, recv_sum);
-        connect_nodes_feedback!(print_node, add_node, recv_f, 0);
+        impl AddNode {
+            pub fn new() -> Self {
+                AddNode {
+                    count: 1,
+                    recv: Default::default(),
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
+                self.count += val;
+                Ok(self.count)
+            }
+        }
+
+        #[derive(Node)]
+        struct PrintNode {
+            recv: NodeReceiver<i32>,
+            count: i32,
+            output: NodeSender<i32>,
+        }
+
+        impl PrintNode {
+            pub fn new() -> Self {
+                PrintNode {
+                    count: 0,
+                    recv: Default::default(),
+                    output: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, val: i32) -> Result<i32, NodeError> {
+                self.count = val;
+                Ok(val)
+            }
+        }
+
+        let mut add_node = AddNode::new();
+        let mut print_node = PrintNode::new();
+        connect_nodes!(add_node, sender, print_node, recv);
+        connect_nodes_feedback!(print_node, output, add_node, recv, 0);
         start_nodes!(add_node);
         let check = thread::spawn(move || {
-            for (print, val) in &print_node.sender {
+            for (print, val) in &print_node.output {
                 match val {
-                    Some(v) => print.send(*v),
+                    Some(v) => print.send(*v).unwrap(),
                     None => continue,
                 }
             }
             for _ in 0..10 {
-                print_node.call();
+                print_node.call().unwrap();
             }
             assert_eq!(print_node.count, 512);
         });

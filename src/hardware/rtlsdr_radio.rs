@@ -1,5 +1,5 @@
-use hardware::radio::RadioRx;
-use hardware::rtlsdr::{self, RTLSDRDevice, RTLSDRError};
+use crate::hardware::radio::RadioRx;
+use crate::hardware::rtlsdr::{self, RTLSDRDevice, RTLSDRError};
 
 pub struct RTLSDR {
     rtlsdr: RTLSDRDevice,
@@ -44,7 +44,10 @@ impl RadioRx<u8> for RTLSDR {
     fn recv_samples(&mut self, num_samples: usize, _: usize) -> Vec<u8> {
         match self.rtlsdr.read_sync(num_samples) {
             Ok(samp) => samp,
-            Err(_) => vec![],
+            Err(_) => {
+                println!("Couldn't get samples");
+                return vec![];
+            }
         }
     }
 }
@@ -59,13 +62,14 @@ pub fn rtlsdr(index: i32) -> Result<RTLSDR, RTLSDRError> {
 
 #[cfg(test)]
 mod test {
-    use hardware::{radio, rtlsdr_radio};
+    use crate::hardware::{radio, rtlsdr_radio};
     use std::time::Instant;
 
-    use prelude::*;
+    use crate::prelude::*;
+    use std::thread;
 
     #[test]
-    #[cfg_attr(not(feature = "rtlsdr_support"), ignore)]
+    #[cfg_attr(not(feature = "rtlsdr_node"), ignore)]
     // A quick test to check if we can read samples off the RTLSDR.
     fn test_get_samples() {
         let num_samples = 262144;
@@ -73,21 +77,35 @@ mod test {
         sdr.init_radio(88.7e6 as u32, 2.4e6 as u32, 0).unwrap();
         sdr.set_agc(true).unwrap();
         let mut sdr_node = radio::RadioRxNode::new(sdr, 0, num_samples);
-        create_node!(
-            CheckNode: (),
-            [num_samples: usize],
-            [recv: Vec<u8>],
-            |node: &mut CheckNode, samples: Vec<u8>| {
-                assert_eq!(samples.len(), node.num_samples);
+
+        #[derive(Node)]
+        #[pass_by_ref]
+        struct CheckNode {
+            recv: NodeReceiver<Vec<u8>>,
+            num_samples: usize,
+        }
+
+        impl CheckNode {
+            pub fn new(num_samples: usize) -> Self {
+                CheckNode {
+                    num_samples,
+                    recv: Default::default(),
+                }
             }
-        );
+
+            pub fn run(&mut self, samples: &[u8]) -> Result<(), NodeError> {
+                assert_eq!(samples.len(), self.num_samples);
+                Ok(())
+            }
+        }
+
         let mut check_node = CheckNode::new(num_samples);
-        connect_nodes!(sdr_node, check_node, recv);
+        connect_nodes!(sdr_node, sender, check_node, recv);
         start_nodes!(sdr_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
             loop {
-                check_node.call();
+                check_node.call().unwrap();
                 if now.elapsed().as_secs() >= 1 {
                     break;
                 }

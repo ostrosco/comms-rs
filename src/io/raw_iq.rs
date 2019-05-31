@@ -7,27 +7,46 @@
 use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use num::Complex;
 
-use prelude::*;
+use crate::prelude::*;
 
-use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Write};
-use std::path::Path;
+use std::default::Default;
+use std::io::{self, Read, Write};
 use std::{thread, time};
 
 type IQSample = Complex<i16>;
 
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Panics upon reaching end of file.
-create_node!(
-    IQInput<R>: IQSample,
-    [reader: R],
-    [],
-    |node: &mut IQInput<R>| node.run(),
-    R: Read,
-);
+#[derive(Node)]
+pub struct IQInput<R>
+where
+    R: Read + Send,
+{
+    reader: R,
+    pub sender: NodeSender<IQSample>,
+}
 
-impl<R: Read> IQInput<R> {
-    fn run(&mut self) -> IQSample {
+impl<R: Read + Send> IQInput<R> {
+    /// Make an IQInput node reading data to the given file.
+    ///
+    /// # Example
+    ///
+    /// ```no-run
+    /// use std::fs::File;
+    /// use std::io::BufReader;
+    /// use comms_rs::io::raw_iq::IQInput;
+    ///
+    /// let reader = BufReader::new(File::open("/tmp/raw_iq.bin").unwrap());
+    /// let innode_res = IQInput::new(reader);
+    /// ```
+    pub fn new(reader: R) -> Self {
+        IQInput {
+            reader,
+            sender: Default::default(),
+        }
+    }
+
+    pub fn run(&mut self) -> Result<IQSample, NodeError> {
         let re_res = self.reader.read_i16::<NativeEndian>();
         let im_res = self.reader.read_i16::<NativeEndian>();
 
@@ -51,36 +70,44 @@ impl<R: Read> IQInput<R> {
             }
         };
 
-        Complex::new(re, im)
+        Ok(Complex::new(re, im))
     }
 }
 
-/// Make an IQInput node reading data to the given file.
-///
-/// # Example
-///
-/// ```
-/// use comms_rs::io::raw_iq::iq_file_in;
-///
-/// let innode_res = iq_file_in("/tmp/raw_iq.bin");
-/// ```
-pub fn iq_file_in<P: AsRef<Path>>(path: P) -> io::Result<IQInput<impl Read>> {
-    Ok(IQInput::new(BufReader::new(File::open(path)?)))
+#[derive(Node)]
+pub struct IQBatchInput<R>
+where
+    R: Read + Send,
+{
+    reader: R,
+    batch_size: usize,
+    pub sender: NodeSender<Vec<IQSample>>,
 }
-
-create_node!(
-    IQBatchInput<R>: Vec<IQSample>,
-    [reader: R, batch_size: usize],
-    [],
-    |node: &mut Self| node.run(),
-    R: Read,
-);
 
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
 /// reader. Will only send vectors completely filled to size of buf_size.
 /// Panics upon reaching end of file.
-impl<R: Read> IQBatchInput<R> {
-    fn run(&mut self) -> Vec<IQSample> {
+impl<R: Read + Send> IQBatchInput<R> {
+    /// Make an IQBatchInput node that reads data to the given file.
+    ///
+    /// # Example
+    ///
+    /// ```no-run
+    /// use std::fs::File;
+    /// use comms_rs::io::raw_iq::IQBatchInput;
+    ///
+    /// let file = File::open("/tmp/raw_iq.bin").unwrap();
+    /// let innode_res = IQBatchInput::new(file, 1024);
+    /// ```
+    pub fn new(reader: R, batch_size: usize) -> Self {
+        IQBatchInput {
+            reader,
+            batch_size,
+            sender: Default::default(),
+        }
+    }
+
+    pub fn run(&mut self) -> Result<Vec<IQSample>, NodeError> {
         let mut buf = Vec::with_capacity(self.batch_size);
         for _ in 0..self.batch_size {
             let re_res = self.reader.read_i16::<NativeEndian>();
@@ -108,71 +135,81 @@ impl<R: Read> IQBatchInput<R> {
             buf.push(Complex::new(re, im));
         }
 
-        buf
+        Ok(buf)
     }
 }
 
-/// Make an IQBatchInput node sending data to the given file.
-///
-/// # Example
-///
-/// ```
-/// use comms_rs::io::raw_iq::iq_batch_file_in;
-///
-/// let innode_res = iq_batch_file_in("/tmp/raw_iq.bin", 1024);
-/// ```
-pub fn iq_batch_file_in<P: AsRef<Path>>(
-    path: P,
-    buffer_size: usize,
-) -> io::Result<IQBatchInput<impl Read>> {
-    Ok(IQBatchInput::new(File::open(path)?, buffer_size))
+/// Will send samples as interleaved 16-bit values in host byte-order to writer.
+#[derive(Node)]
+pub struct IQOutput<W>
+where
+    W: Write + Send,
+{
+    pub input: NodeReceiver<IQSample>,
+    writer: W,
 }
 
-/// Will send samples as interleaved 16-bit values in host byte-order to writer.
-create_node!(
-    IQOutput<W>: (),
-    [writer: W],
-    [sample: IQSample],
-    |node: &mut IQOutput<W>, sample: IQSample| node.run(sample),
-    W: Write,
-);
+impl<W: Write + Send> IQOutput<W> {
+    /// Make an IQOutput node sending data to the given file.
+    ///
+    /// # Example
+    ///
+    /// ```no-run
+    /// use std::fs::File;
+    /// use std::io::BufWriter;
+    /// use comms_rs::io::raw_iq::IQOutput;
+    ///
+    /// let writer = BufWriter::new(File::create("/tmp/raw_iq.bin").unwrap());
+    /// let outnode = IQOutput::new(writer);
+    /// ```
+    pub fn new(writer: W) -> Self {
+        IQOutput {
+            writer,
+            input: Default::default(),
+        }
+    }
 
-impl<W: Write> IQOutput<W> {
-    fn run(&mut self, samp: IQSample) {
+    pub fn run(&mut self, samp: IQSample) -> Result<(), NodeError> {
         self.writer
             .write_i16::<NativeEndian>(samp.re)
             .expect("failed to write sample to writer");
         self.writer
             .write_i16::<NativeEndian>(samp.im)
             .expect("failed to write sample to writer");
+        Ok(())
     }
 }
 
-/// Make an IQOutput node sending data to the given file.
-///
-/// # Example
-///
-/// ```
-/// use comms_rs::io::raw_iq::iq_file_out;
-///
-/// let outnode = iq_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
-/// ```
-pub fn iq_file_out<P: AsRef<Path>>(
-    path: P,
-) -> io::Result<IQOutput<impl Write>> {
-    Ok(IQOutput::new(BufWriter::new(File::create(path)?)))
+#[derive(Node)]
+#[pass_by_ref]
+pub struct IQBatchOutput<W>
+where
+    W: Write + Send,
+{
+    pub input: NodeReceiver<Vec<IQSample>>,
+    writer: W,
 }
 
-create_node!(
-    IQBatchOutput<W>: (),
-    [writer: W],
-    [samples: Vec<IQSample>],
-    |node: &mut Self, samples: Vec<IQSample>| node.run(&samples),
-    W: Write,
-);
+impl<W: Write + Send> IQBatchOutput<W> {
+    /// Make an IQBatchOutput node sending data to the given file.
+    ///
+    /// # Example
+    ///
+    /// ```no-run
+    /// use std::fs::File;
+    /// use comms_rs::io::raw_iq::IQBatchOutput;
+    ///
+    /// let writer = File::create("/tmp/raw_iq.bin").unwrap();
+    /// let outnode = IQBatchOutput::new(writer);
+    /// ```
+    pub fn new(writer: W) -> Self {
+        IQBatchOutput {
+            writer,
+            input: Default::default(),
+        }
+    }
 
-impl<W: Write> IQBatchOutput<W> {
-    fn run(&mut self, samples: &[IQSample]) {
+    pub fn run(&mut self, samples: &[IQSample]) -> Result<(), NodeError> {
         samples.iter().for_each(|samp| {
             self.writer
                 .write_i16::<NativeEndian>(samp.re)
@@ -181,28 +218,14 @@ impl<W: Write> IQBatchOutput<W> {
                 .write_i16::<NativeEndian>(samp.im)
                 .expect("failed to write sample to writer");
         });
+        Ok(())
     }
-}
-
-/// Make an IQBatchOutput node sending data to the given file.
-///
-/// # Example
-///
-/// ```
-/// use comms_rs::io::raw_iq::iq_batch_file_out;
-///
-/// let outnode = iq_batch_file_out("/tmp/raw_iq.bin").expect("couldn't create file");
-/// ```
-pub fn iq_batch_file_out<P: AsRef<Path>>(
-    path: P,
-) -> io::Result<IQBatchOutput<impl Write>> {
-    Ok(IQBatchOutput::new(File::create(path)?))
 }
 
 #[cfg(test)]
 mod test {
+    use crate::io::raw_iq::*;
     use byteorder::{ByteOrder, NativeEndian};
-    use io::raw_iq::*;
     use std::io::Cursor;
     use std::mem;
 
@@ -227,7 +250,7 @@ mod test {
         {
             let mut node = IQInput::new(Cursor::new(input));
             for _ in 0..iterations {
-                out.push(node.run());
+                out.push(node.run().unwrap());
             }
         }
 
@@ -263,14 +286,14 @@ mod test {
         {
             let mut node = IQBatchInput::new(Cursor::new(input), iterations);
             for _ in 0..iterations {
-                out.push(node.run());
+                out.push(node.run().unwrap());
             }
         }
 
         assert_eq!(out.len(), iterations);
-        for i in 0..iterations {
+        for out in out.iter() {
             for j in 0..iterations {
-                assert_eq!(expected_out[j], out[i][j]);
+                assert_eq!(expected_out[j], out[j]);
             }
         }
     }
@@ -287,7 +310,7 @@ mod test {
         {
             let mut node = IQOutput::new(&mut out);
             for item in expected.iter() {
-                node.run(*item);
+                node.run(*item).unwrap();
             }
         }
 
@@ -311,7 +334,7 @@ mod test {
         {
             let mut node = IQBatchOutput::new(&mut out);
             for _ in 0..iterations {
-                node.run(&expected.clone());
+                node.run(&expected).unwrap();
             }
         }
 
