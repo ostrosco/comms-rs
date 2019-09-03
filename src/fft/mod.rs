@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// automatically cast any provided input appropriately, although it does
 /// expect the general form of `Complex<T>`.
 pub struct BatchFFT {
-    pub fft: Arc<FFT<f64>>,
+    pub fft: Arc<dyn FFT<f64>>,
     pub fft_size: usize,
 }
 
@@ -43,7 +43,7 @@ impl BatchFFT {
     /// let fft = planner.plan_fft(fft_size);
     /// let batch_fft = BatchFFT::new(fft, fft_size);
     /// ```
-    pub fn new(fft: Arc<FFT<f64>>, fft_size: usize) -> BatchFFT {
+    pub fn new(fft: Arc<dyn FFT<f64>>, fft_size: usize) -> BatchFFT {
         BatchFFT { fft, fft_size }
     }
 
@@ -104,7 +104,7 @@ impl BatchFFT {
 /// cast any provided input appropriately, although it does expect the general
 /// form of `Complex<T>`.
 pub struct SampleFFT<T> {
-    pub fft: Arc<FFT<f64>>,
+    pub fft: Arc<dyn FFT<f64>>,
     pub fft_size: usize,
     pub samples: Vec<Complex<T>>,
 }
@@ -133,7 +133,7 @@ where
     /// let fft = planner.plan_fft(fft_size);
     /// let sample_fft: SampleFFT<f64> = SampleFFT::new(fft, fft_size);
     /// ```
-    pub fn new(fft: Arc<FFT<f64>>, fft_size: usize) -> SampleFFT<T> {
+    pub fn new(fft: Arc<dyn FFT<f64>>, fft_size: usize) -> SampleFFT<T> {
         SampleFFT {
             fft,
             fft_size,

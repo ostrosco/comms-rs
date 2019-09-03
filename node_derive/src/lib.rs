@@ -77,8 +77,8 @@ pub fn node_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let data = &input.data;
-    let mut recv_fields;
-    let mut send_fields;
+    let recv_fields;
+    let send_fields;
     match data {
         syn::Data::Struct(data_struct) => match &data_struct.fields {
             syn::Fields::Named(fields) => {
