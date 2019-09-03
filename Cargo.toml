@@ -47,4 +47,3 @@ required-features = ["audio_node"]
 
 [[example]]
 name = "bpsk_mod"
-required-features = ["zmq_node"]
