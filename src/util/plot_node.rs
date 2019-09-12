@@ -29,7 +29,7 @@ where
 
     pub fn run(&mut self, input: &[T]) -> Result<(), NodeError> {
         match self.figure {
-            Some(ref mut fig) => fig.0.plot_y(input),
+            Some(ref mut fig) => fig.0.plot_stream(input),
             None => return Err(NodeError::PermanentError),
         }
 
@@ -85,7 +85,7 @@ where
 
     pub fn run(&mut self, input: &[Complex<T>]) -> Result<(), NodeError> {
         match self.figure {
-            Some(ref mut fig) => fig.0.plot_complex(input),
+            Some(ref mut fig) => fig.0.plot_complex_stream(input),
             None => return Err(NodeError::PermanentError),
         }
 

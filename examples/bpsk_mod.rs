@@ -1,6 +1,7 @@
 use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::io::raw_iq::IQBatchOutput;
 use comms_rs::node::graph::Graph;
+use comms_rs::util::plot_node::ComplexPlotNode;
 use comms_rs::prelude::*;
 use comms_rs::util::math;
 use comms_rs::util::rand_node;
@@ -129,6 +130,7 @@ fn main() {
     let taps: Vec<Complex<f32>> =
         math::rrc_taps(32, sam_per_sym, 0.25).unwrap();
     let pulse_shape = Arc::new(Mutex::new(BatchFirNode::new(taps, None)));
+    let plots = Arc::new(Mutex::new(ComplexPlotNode::new(5000)));
     let writer = BufWriter::new(File::create("./bpsk_out.bin").unwrap());
     let convert = Arc::new(Mutex::new(ConvertNode::new()));
     let iq_out = Arc::new(Mutex::new(IQBatchOutput::new(writer)));
@@ -138,6 +140,7 @@ fn main() {
         pulse_shape.clone(),
         upsample.clone(),
         convert.clone(),
+        plots.clone(),
         iq_out.clone(),
     ];
     graph.add_nodes(nodes);
@@ -149,10 +152,12 @@ fn main() {
         let mut convert = convert.lock().unwrap();
         let mut iq_out = iq_out.lock().unwrap();
         let mut upsample = upsample.lock().unwrap();
+        let mut plots = plots.lock().unwrap();
         graph.connect_nodes(&mut rand_bits.sender, &mut bpsk_node.input, None);
         graph.connect_nodes(&mut bpsk_node.output, &mut upsample.input, None);
         graph.connect_nodes(&mut upsample.output, &mut pulse_shape.input, None);
         graph.connect_nodes(&mut pulse_shape.sender, &mut convert.input, None);
+        graph.connect_nodes(&mut pulse_shape.sender, &mut plots.input, None);
         graph.connect_nodes(&mut convert.output, &mut iq_out.input, None);
     }
 
