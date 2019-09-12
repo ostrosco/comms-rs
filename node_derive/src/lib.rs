@@ -200,7 +200,7 @@ pub fn node_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         fn call(&mut self) -> Result<(), NodeError> {
             #(
                 let #recv_block_idents = match self.#recv_block_fields {
-                    Some(ref r) => r.recv().unwrap(),
+                    Some(ref r) => r.recv().or(Err(NodeError::DataEnd))?,
                     None => return Err(NodeError::PermanentError),
                 };
             )*

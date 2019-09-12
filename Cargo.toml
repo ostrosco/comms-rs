@@ -32,6 +32,10 @@ node_derive = {path = "node_derive"}
 version = "0.2"
 features = ["serde"]
 
+[profile.release]
+lto = true
+opt-level = 3
+
 [features]
 rtlsdr_node = ["rtlsdr"]
 zmq_node = ["zmq"]

@@ -39,7 +39,8 @@ fn main() {
             &mut self,
             input: u8,
         ) -> Result<Option<Vec<Complex<f32>>>, NodeError> {
-            self.state.push(Complex::new(input as f32 * 2.0 - 1.0, 0.0));
+            let samp: f32 = num::cast(input).unwrap();
+            self.state.push(Complex::new(samp * 2.0 - 1.0, 0.0));
             if self.state.len() == self.num_samples {
                 let state_cl = self.state.clone();
                 self.state = vec![];
@@ -120,7 +121,7 @@ fn main() {
         }
     }
 
-    let mut graph = Graph::new();
+    let mut graph = Graph::new(None);
     let rand_bits = Arc::new(Mutex::new(rand_node::random_bit()));
     let bpsk_node = Arc::new(Mutex::new(BpskMod::new(4096)));
     let upsample = Arc::new(Mutex::new(UpsampleNode::new(4)));
