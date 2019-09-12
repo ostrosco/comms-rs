@@ -151,7 +151,7 @@ pub trait Node: Send {
 #[macro_export]
 macro_rules! connect_nodes {
     ($n1:ident, $send:ident, $n2:ident, $recv:ident) => {{
-        let (send, recv) = channel::bounded(0);
+        let (send, recv) = channel::unbounded();
         $n1.$send.push((send, None));
         $n2.$recv = Some(recv);
     }};
@@ -214,7 +214,7 @@ macro_rules! connect_nodes {
 #[macro_export]
 macro_rules! connect_nodes_feedback {
     ($n1:ident, $send:ident, $n2:ident, $recv:ident, $default:tt) => {{
-        let (send, recv) = channel::bounded(0);
+        let (send, recv) = channel::unbounded();
         $n1.$send.push((send, Some($default)));
         $n2.$recv = Some(recv);
     }};
@@ -462,7 +462,7 @@ mod test {
         let node1 = Arc::new(Mutex::new(Node1::new()));
         let node2 = Arc::new(Mutex::new(Node2::new(check.clone())));
 
-        let mut graph = Graph::new();
+        let mut graph = Graph::new(None);
         graph.add_node(node1.clone());
         graph.add_node(node2.clone());
         {

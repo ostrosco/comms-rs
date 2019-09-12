@@ -13,13 +13,15 @@ use uuid::Uuid;
 pub struct Graph {
     nodes: HashMap<Uuid, Arc<Mutex<dyn Node>>>,
     handles: Vec<JoinHandle<()>>,
+    channel_size: Option<usize>,
 }
 
 impl Graph {
-    pub fn new() -> Self {
+    pub fn new(channel_size: Option<usize>) -> Self {
         Graph {
             nodes: HashMap::new(),
             handles: vec![],
+            channel_size,
         }
     }
 
@@ -39,7 +41,10 @@ impl Graph {
         receiver: &mut NodeReceiver<T>,
         default: Option<T>,
     ) {
-        let (send, recv) = channel::bounded(0);
+        let (send, recv) = match self.channel_size {
+            Some(size) => channel::bounded(size),
+            None => channel::unbounded(),
+        };
         sender.push((send, default));
         *receiver = Some(recv);
     }
