@@ -22,8 +22,7 @@ rayon = "1"
 rodio = {version = "0.8", optional = true}
 rustfft = "2.1"
 rtlsdr = {version = "0.1", optional = true}
-# rtplot = { git = "https://github.com/ostrosco/rtplot" }
-rtplot = { path = "../rtplot" }
+rtplot = { git = "https://github.com/ostrosco/rtplot" }
 serde = "1"
 serde_cbor = "0.9"
 uuid = {version = "0.7", features = ["v4"]}
