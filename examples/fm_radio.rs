@@ -196,7 +196,7 @@ fn main() {
     let mut audio: audio::AudioNode<f32> = audio::AudioNode::new(1, 44100, 0.1);
     let mut fft: FFTBatchNode<f32> = FFTBatchNode::new(131072, false);
     let mut mag: MagnitudeNode<f32> = MagnitudeNode::new();
-    let mut plot = PlotNode::new(figure_conf);
+    let mut plot = PlotNode::new(figure_conf, false);
 
     connect_nodes!(sdr, sender, convert, input);
     connect_nodes!(convert, sender, filt1, input);

@@ -13,17 +13,19 @@ where
     pub input: NodeReceiver<Vec<T>>,
     figure: Option<ThreadFigure<'a>>,
     config: FigureConfig<'a>,
+    use_stream_plotting: bool,
 }
 
 impl<'a, T> PlotNode<'a, T>
 where
     T: Into<f32> + Copy + Send,
 {
-    pub fn new(config: FigureConfig<'a>) -> Self {
+    pub fn new(config: FigureConfig<'a>, use_stream_plotting: bool) -> Self {
         PlotNode {
             input: Default::default(),
             figure: None,
             config,
+            use_stream_plotting,
         }
     }
 
@@ -31,7 +33,11 @@ where
         match self.figure {
             Some(ref mut fig) => {
                 fig.0.handle_events();
-                fig.0.plot_y(input);
+                if self.use_stream_plotting {
+                    fig.0.plot_stream(input);
+                } else {
+                    fig.0.plot_y(input);
+                }
             }
             None => return Err(NodeError::PermanentError),
         }
@@ -47,7 +53,7 @@ where
     fn start(&mut self) {
         self.figure = Some(ThreadFigure(
             Figure::new_with_config(self.config.clone())
-                .init_renderer(self.config.num_points),
+                .init_window(self.config.num_points),
         ));
         loop {
             if self.call().is_err() {
@@ -76,17 +82,19 @@ where
     pub input: NodeReceiver<Vec<Complex<T>>>,
     figure: Option<ThreadFigure<'a>>,
     config: FigureConfig<'a>,
+    use_stream_plotting: bool,
 }
 
 impl<'a, T> ComplexPlotNode<'a, T>
 where
     T: Into<f32> + Copy + Send,
 {
-    pub fn new(config: FigureConfig<'a>) -> Self {
+    pub fn new(config: FigureConfig<'a>, use_stream_plotting: bool) -> Self {
         ComplexPlotNode {
             input: Default::default(),
             figure: None,
             config,
+            use_stream_plotting,
         }
     }
 
@@ -94,7 +102,11 @@ where
         match self.figure {
             Some(ref mut fig) => {
                 fig.0.handle_events();
-                fig.0.plot_complex_stream(input);
+                if self.use_stream_plotting {
+                    fig.0.plot_complex_stream(input);
+                } else {
+                    fig.0.plot_complex(input);
+                }
             }
             None => return Err(NodeError::PermanentError),
         }
@@ -110,7 +122,7 @@ where
     fn start(&mut self) {
         self.figure = Some(ThreadFigure(
             Figure::new_with_config(self.config.clone())
-                .init_renderer(self.config.num_points),
+                .init_window(self.config.num_points),
         ));
         loop {
             if self.call().is_err() {
