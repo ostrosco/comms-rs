@@ -150,7 +150,6 @@ fn main() {
         xlabel: Some("Frequency"),
         ylabel: Some("Amplitude"),
         color: [0, 255, 0],
-        num_points: 32768,
         plot_type: PlotType::Line,
     };
 
@@ -196,7 +195,7 @@ fn main() {
     let mut audio: audio::AudioNode<f32> = audio::AudioNode::new(1, 44100, 0.1);
     let mut fft: FFTBatchNode<f32> = FFTBatchNode::new(131072, false);
     let mut mag: MagnitudeNode<f32> = MagnitudeNode::new();
-    let mut plot = PlotNode::new(figure_conf, false);
+    let mut plot = PlotNode::new(figure_conf, 32768, false);
 
     connect_nodes!(sdr, sender, convert, input);
     connect_nodes!(convert, sender, filt1, input);
