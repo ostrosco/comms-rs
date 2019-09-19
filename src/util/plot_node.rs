@@ -21,7 +21,11 @@ impl<'a, T> PlotNode<'a, T>
 where
     T: Into<f32> + Copy + Send,
 {
-    pub fn new(config: FigureConfig<'a>, queue_size: usize, use_stream_plotting: bool) -> Self {
+    pub fn new(
+        config: FigureConfig<'a>,
+        queue_size: usize,
+        use_stream_plotting: bool,
+    ) -> Self {
         PlotNode {
             input: Default::default(),
             figure: None,
@@ -53,9 +57,10 @@ where
     T: Into<f32> + Copy + Send,
 {
     fn start(&mut self) {
-        self.figure = Some(ThreadFigure(
-            Figure::new_with_config(self.config.clone(), self.queue_size)
-        ));
+        self.figure = Some(ThreadFigure(Figure::new_with_config(
+            self.config.clone(),
+            self.queue_size,
+        )));
         loop {
             if self.call().is_err() {
                 break;
@@ -91,7 +96,11 @@ impl<'a, T> ComplexPlotNode<'a, T>
 where
     T: Into<f32> + Copy + Send,
 {
-    pub fn new(config: FigureConfig<'a>, queue_size: usize, use_stream_plotting: bool) -> Self {
+    pub fn new(
+        config: FigureConfig<'a>,
+        queue_size: usize,
+        use_stream_plotting: bool,
+    ) -> Self {
         ComplexPlotNode {
             input: Default::default(),
             figure: None,
@@ -123,9 +132,10 @@ where
     T: Into<f32> + Copy + Send,
 {
     fn start(&mut self) {
-        self.figure = Some(ThreadFigure(
-            Figure::new_with_config(self.config.clone(), self.queue_size)
-        ));
+        self.figure = Some(ThreadFigure(Figure::new_with_config(
+            self.config.clone(),
+            self.queue_size,
+        )));
         loop {
             if self.call().is_err() {
                 break;

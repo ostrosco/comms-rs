@@ -10,7 +10,7 @@ use comms_rs::modulation::analog_node;
 use comms_rs::prelude::*;
 use comms_rs::util::plot_node::PlotNode;
 use comms_rs::util::resample_node::DecimateNode;
-use num::{Complex, Float, Num};
+use num::Complex;
 use rtplot::{FigureConfig, PlotType};
 use std::thread;
 
@@ -146,27 +146,21 @@ fn main() {
 
     let figure_conf = FigureConfig {
         xlim: None,
-        ylim: None,
+        ylim: Some([0.0, 40.0]),
         xlabel: Some("Frequency"),
-        ylabel: Some("Amplitude"),
-        color: [0, 255, 0],
+        ylabel: Some("FFT Values"),
+        color: [0, 0, 255],
         plot_type: PlotType::Line,
     };
 
     #[derive(Node)]
     #[pass_by_ref]
-    struct MagnitudeNode<T>
-    where
-        T: Num + Clone + Send + Float,
-    {
-        pub input: NodeReceiver<Vec<Complex<T>>>,
-        pub output: NodeSender<Vec<T>>,
+    struct MagnitudeNode {
+        pub input: NodeReceiver<Vec<Complex<f32>>>,
+        pub output: NodeSender<Vec<f32>>,
     }
 
-    impl<T> MagnitudeNode<T>
-    where
-        T: Num + Clone + Send + Float,
-    {
+    impl MagnitudeNode {
         pub fn new() -> Self {
             Self {
                 input: Default::default(),
@@ -176,9 +170,18 @@ fn main() {
 
         pub fn run(
             &mut self,
-            input: &[Complex<T>],
-        ) -> Result<Vec<T>, NodeError> {
-            Ok(input.iter().map(|x| x.norm()).collect())
+            input: &[Complex<f32>],
+        ) -> Result<Vec<f32>, NodeError> {
+            let mut norm: Vec<f32> =
+                input.iter().map(|x| 10.0 * x.norm().log10()).collect();
+
+            // We're switching the left and right sides of the FFT plot to
+            // center around zero.
+            let len = norm.len() / 2;
+            let (left, right) = norm.split_at_mut(len);
+            let mut right = right.to_vec();
+            right.append(&mut left.to_vec());
+            Ok(right)
         }
     }
 
@@ -194,7 +197,7 @@ fn main() {
     let mut dec3: DecimateNode<f32> = DecimateNode::new(4);
     let mut audio: audio::AudioNode<f32> = audio::AudioNode::new(1, 44100, 0.1);
     let mut fft: FFTBatchNode<f32> = FFTBatchNode::new(131072, false);
-    let mut mag: MagnitudeNode<f32> = MagnitudeNode::new();
+    let mut mag: MagnitudeNode = MagnitudeNode::new();
     let mut plot = PlotNode::new(figure_conf, 32768, false);
 
     connect_nodes!(sdr, sender, convert, input);
