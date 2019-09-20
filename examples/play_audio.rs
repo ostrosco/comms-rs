@@ -4,6 +4,7 @@ extern crate crossbeam;
 extern crate rodio;
 use comms_rs::io::audio::AudioNode;
 use comms_rs::prelude::*;
+use comms_rs::util::plot_node::PlotNode;
 use crossbeam::channel;
 use rodio::source::{self, Source};
 use std::boxed::Box;
@@ -34,8 +35,10 @@ fn main() {
     }
 
     let mut sine = SineNode::new(Box::new(source::SineWave::new(440)));
+    let mut plot = PlotNode::new(48000);
 
     connect_nodes!(sine, sender, audio, input);
-    start_nodes!(sine, audio);
+    connect_nodes!(sine, sender, plot, input);
+    start_nodes!(sine, audio, plot);
     loop {}
 }

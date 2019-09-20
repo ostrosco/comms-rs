@@ -3,6 +3,8 @@
 
 /// Some basic math functions used elsewhere in the project
 pub mod math;
+/// Node for creating an OpenGL window and plotting data
+pub mod plot_node;
 /// Some nodes to aid in the generation of random numbers
 pub mod rand_node;
 /// Some nodes to aid in resampling signals
