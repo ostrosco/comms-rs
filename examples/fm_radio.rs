@@ -174,11 +174,13 @@ fn main() {
         ) -> Result<Vec<f32>, NodeError> {
             let tau = 0.1;
             let mut linear_trace = 0.0;
-            let mut norm: Vec<f32> =
-                input.iter().map(|x| {
+            let mut norm: Vec<f32> = input
+                .iter()
+                .map(|x| {
                     linear_trace = (1.0 - tau) * linear_trace + tau * x.norm();
                     10.0 * linear_trace.log10()
-                }).collect();
+                })
+                .collect();
 
             // We're switching the left and right sides of the FFT plot to
             // center around zero.
