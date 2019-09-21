@@ -8,6 +8,7 @@ addons:
   apt:
     packages:
     - libasound2-dev
+    - librtlsdr-dev
 matrix:
   allow_failures: nightly
 before_install:
@@ -23,6 +24,10 @@ before_install:
 script:
   - cargo build --release --verbose --all
   - cargo test --release --verbose --all --features=zmq_node
+  - cargo build --release --example bpsk_mod
+  - cargo build --release --example single_thread_bpsk
+  - cargo build --release --example fm_radio --features="rtlsdr_node audio_node"
+  - cargo build --release --example play_audio --features="audio_node"
 env:
   global:
   - PATH=$HOME/.local/bin:$PATH
