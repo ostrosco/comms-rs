@@ -52,3 +52,9 @@ required-features = ["audio_node"]
 
 [[example]]
 name = "bpsk_mod"
+
+[[example]]
+name = "single_thread_bpsk"
+
+[[example]]
+name = "single_thread_qpsk"
