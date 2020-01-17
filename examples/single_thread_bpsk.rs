@@ -39,7 +39,7 @@ fn main() {
         let pulse_shape = fir::batch_fir(&upsample, &taps, &mut state);
         pulse_shape
             .iter()
-            .map(|x| Complex::new(x.re as i16, x.im as i16))
+            .map(|x| Complex::new((8192.0 * x.re) as i16, (8192.0 * x.im) as i16))
             .for_each(|x| {
                 writer.write_i16::<NativeEndian>(x.re).unwrap();
                 writer.write_i16::<NativeEndian>(x.im).unwrap();
