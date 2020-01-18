@@ -27,8 +27,12 @@ fn main() {
             bits.push(rng.sample(&dist));
         }
         let qpsk_mod: Vec<Complex<f32>> = bits
-            .iter().step_by(2).zip(bits.iter().skip(1).step_by(2))
-            .map(|(x, y)| Complex::new(f32::from(*x) * 2.0 - 1.0, *y as f32 * 2.0 - 1.0))
+            .iter()
+            .step_by(2)
+            .zip(bits.iter().skip(1).step_by(2))
+            .map(|(x, y)| {
+                Complex::new(f32::from(*x) * 2.0 - 1.0, *y as f32 * 2.0 - 1.0)
+            })
             .collect();
         let mut upsample = vec![Complex::zero(); 4096 * 2];
         let mut ix = 0;
@@ -39,7 +43,9 @@ fn main() {
         let pulse_shape = fir::batch_fir(&upsample, &taps, &mut state);
         pulse_shape
             .iter()
-            .map(|x| Complex::new((8192.0 * x.re) as i16, (8192.0 * x.im) as i16))
+            .map(|x| {
+                Complex::new((8192.0 * x.re) as i16, (8192.0 * x.im) as i16)
+            })
             .for_each(|x| {
                 writer.write_i16::<NativeEndian>(x.re).unwrap();
                 writer.write_i16::<NativeEndian>(x.im).unwrap();
