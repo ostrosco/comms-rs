@@ -30,6 +30,7 @@ extern crate serde_cbor;
 
 #[macro_use]
 pub mod node;
+pub mod demodulation;
 pub mod fft;
 pub mod filter;
 pub mod hardware;
