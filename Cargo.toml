@@ -58,3 +58,7 @@ name = "single_thread_bpsk"
 
 [[example]]
 name = "single_thread_qpsk"
+
+[[example]]
+name = "qpsk_zmq"
+required-features = ["zmq_node"]
