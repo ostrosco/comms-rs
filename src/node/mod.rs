@@ -9,7 +9,6 @@
 //! use comms_rs::prelude::*;
 //! use std::thread;
 //!
-//! # fn main() {
 //! // Creates two nodes: a source and a sink node. For nodes that receive
 //! // inputs, the receivers must explicitly be named.
 //! #[derive(Node)]
@@ -58,7 +57,6 @@
 //!
 //! // Spawn threads for node1 and node2 and have them executing indefinitely.
 //! start_nodes!(node1, node2);
-//! # }
 //! ```
 
 pub mod graph;
