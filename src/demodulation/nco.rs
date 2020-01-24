@@ -66,9 +66,9 @@ impl Nco {
     /// let mut nco = Nco::new(phase, dphase);
     ///
     /// let perr: f64 = -0.01;
-    /// let nco_out = nco.push(&perr);
+    /// let nco_out = nco.push(perr);
     /// ```
-    pub fn push(&mut self, perr: &f64) -> Complex<f64> {
+    pub fn push(&mut self, perr: f64) -> Complex<f64> {
         self.phase += self.dphase + perr;
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
@@ -82,7 +82,6 @@ impl Nco {
 /// This node operates on a single sample at a time, as opposed to batch mode
 /// operation.
 #[derive(Node)]
-#[pass_by_ref]
 pub struct NcoNode {
     pub input: NodeReceiver<f64>,
     nco: Nco,
@@ -129,7 +128,7 @@ impl NcoNode {
 
     /// Runs the `NcoNode`.  Produces either the mixed `Complex<f64>` sample
     /// or a `NodeError`.
-    pub fn run(&mut self, input: &f64) -> Result<Complex<f64>, NodeError> {
+    pub fn run(&mut self, input: f64) -> Result<Complex<f64>, NodeError> {
         Ok(self.nco.push(input))
     }
 }
