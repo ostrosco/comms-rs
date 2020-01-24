@@ -64,10 +64,10 @@ fn main() {
     }
     let mut qpsk_mod_node = QpskMod::new();
     let mut zmq_out =
-        ZMQSend::new("ipc://127.0.0.1:57324", zmq::SocketType::PUSH, 0);
+        ZMQSend::new("tcp://127.0.0.1:57324", zmq::SocketType::PUSH, 0);
 
     connect_nodes!(qpsk_mod_node, sender, zmq_out, input);
     start_nodes!(qpsk_mod_node, zmq_out);
 
-    thread::sleep(time::Duration::from_millis(1000));
+    thread::sleep(time::Duration::from_millis(10000));
 }
