@@ -267,6 +267,33 @@ where
     Some(taps)
 }
 
+pub fn qfilt_taps(
+    n_taps: u32,
+    alpha: f64,
+    sam_per_sym: u32,
+    fs: f64,
+) -> Result<Vec<f64>, &'static str> {
+
+    if alpha < 0.0 || alpha > 1.0 {
+        return Err("Invalid rolloff parameter alpha, must be 0.0 <= alpha <= 1.0");
+    };
+
+    let d = ((n_taps as f64) / 2.0) as i32;
+    let ttarr: Vec<f64> = (0..n_taps)
+        .map(|x| (x as i32 - d) as f64 / (fs * sam_per_sym as f64))
+        .collect();
+
+    let mut output = vec![];
+    for tt in ttarr {
+        let numerator = alpha * (PI * alpha * tt).cos();
+        let two_alpha_tt = 2.0 * alpha * tt;
+        let denominator = PI * (1.0 - (two_alpha_tt * two_alpha_tt));
+        output.push(numerator / denominator);
+    }
+
+    Ok(output)
+}
+
 #[cfg(test)]
 mod test {
     use crate::util::math;
