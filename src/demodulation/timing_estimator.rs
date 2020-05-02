@@ -107,3 +107,45 @@ impl TimingEstimator {
         -sum_value.arg() / (2.0 * PI)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::demodulation::timing_estimator::*;
+    use crate::util::math::rrc_taps;
+    use num::Complex;
+    use rand::prelude::*;
+    use rand::distributions::Uniform;
+    use rand::rngs::SmallRng;
+    use std::f64::consts::PI;
+
+    #[test]
+    fn test_timing_estimator() {
+        let truth = 0.0;
+
+        // Generate QPSK signal
+        let mut rng = SmallRng::seed_from_u64(0);
+        let interval = Uniform::new(0, 4);
+        let data: Vec<_> = (0..100).map(|_| rng.sample(interval))
+                           .map(|x| Complex::new(0.0, 2.0 * PI * x as f64 / 4.0 + PI / 4.0).exp()).collect();
+
+        let mut symbols = vec![];
+        for pt in data {
+            symbols.push(pt);
+            symbols.push(Complex::new(0.0, 0.0));
+        }
+
+        let rrctaps = rrc_taps(20, 2.0, 0.25).unwrap();
+        let mut state = vec![Complex::new(0.0, 0.0); 20];
+        let samples = batch_fir(&symbols, &rrctaps, &mut state);
+
+        // Create estimator
+        let n = 2;
+        let d = 5;
+        let alpha = 0.25;
+        let mut estimator = TimingEstimator::new(n, d, alpha).unwrap();
+        let estimate = estimator.push(&samples);
+
+        println!("{}", estimate);
+        assert!((truth - estimate).abs() < std::f64::EPSILON);
+    }
+}
