@@ -267,6 +267,30 @@ where
     Some(taps)
 }
 
+/// Implementation of the Mengali qfilter tap calculator.
+///
+/// This is specifically to support Mengali's feedforward non data aided
+/// maximum likelihood estimator described in chp. 8.4 of his book as q(t).
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps
+/// * `alpha` - Shaping parameter of the function
+/// * `sam_per_sym` - Samples per symbol
+/// * `fs` - Sample rate of the data the taps work with
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::qfilt_taps;
+/// use num::Complex;
+///
+/// let n_taps = 20;
+/// let alpha = 0.25;
+/// let sams_per_sym = 2;
+/// let fs = 1.0;
+/// let taps: Vec<f64> = qfilt_taps(n_taps, alpha, sams_per_sym, fs).unwrap();
+/// ```
 pub fn qfilt_taps(
     n_taps: u32,
     alpha: f64,
@@ -285,10 +309,14 @@ pub fn qfilt_taps(
 
     let mut output = vec![];
     for tt in ttarr {
-        let numerator = alpha * (PI * alpha * tt).cos();
         let two_alpha_tt = 2.0 * alpha * tt;
-        let denominator = PI * (1.0 - (two_alpha_tt * two_alpha_tt));
-        output.push(numerator / denominator);
+        if two_alpha_tt.abs() == 1.0 {
+            output.push(alpha / PI);
+        } else {
+            let numerator = alpha * (PI * alpha * tt).cos();
+            let denominator = PI * (1.0 - (two_alpha_tt * two_alpha_tt));
+            output.push(numerator / denominator);
+        }
     }
 
     Ok(output)
@@ -438,6 +466,37 @@ mod test {
         let test: Vec<_> = math::gaussian_taps(33, 3.18, 0.234).unwrap();
         for i in 0..truth.len() {
             assert!((truth[i] - test[i]).norm() < std::f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn test_qfilt_taps() {
+        let truth = vec![
+            Complex::new(0.010718051382822693, 0.0),
+            Complex::new(0.018097230082535474, 0.0),
+            Complex::new(0.026525823848649224, 0.0),
+            Complex::new(0.03564605925347896, 0.0),
+            Complex::new(0.045015815807855304, 0.0),
+            Complex::new(0.05413863102246848, 0.0),
+            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.06960681131460235, 0.0),
+            Complex::new(0.07502635967975885, 0.0),
+            Complex::new(0.07842133035765372, 0.0),
+            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.07842133035765372, 0.0),
+            Complex::new(0.07502635967975885, 0.0),
+            Complex::new(0.06960681131460235, 0.0),
+            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.05413863102246848, 0.0),
+            Complex::new(0.045015815807855304, 0.0),
+            Complex::new(0.03564605925347896, 0.0),
+            Complex::new(0.026525823848649224, 0.0),
+            Complex::new(0.018097230082535474, 0.0),
+        ];
+
+        let test: Vec<_> = math::qfilt_taps(20, 0.25, 2, 1.0).unwrap();
+        for i in 0..truth.len() {
+            assert!((truth[i] - test[i]).norm() < std::f64::EPSILON);
         }
     }
 }
