@@ -1,17 +1,14 @@
-use std::f64::consts::PI;
-
 extern crate num; // 0.2.0
 
 use num::complex::Complex;
-
-// Reference Chp. 5.7.4 in Mengali
-//
 
 /// Calculates a phase estimate from the input PSK symbol vector.
 ///
 /// Result is in radians, and the estimator assumes the input symbol vector is
 /// the output from a matched filter.  It additionally  assumes the vector has
 /// already gone through accurate timing recovery.
+///
+/// Reference Chp. 5.7.4 in Mengali.
 ///
 /// # Arguments
 ///
@@ -26,15 +23,52 @@ use num::complex::Complex;
 /// let m = 4;
 /// let data: Vec<_> = (0..100).map(|x| Complex::new(0.0, x as f64).exp()).collect();
 ///
-/// let estimate = psk_phase_estimate(&data);
+/// let estimate = psk_phase_estimate(&data, m);
 /// ```
-pub fn psk_phase_estimate(m: u32, symbols: &[Complex<f64>]) -> f64 {
-    symbols.iter().map(|x| x.powi(m)).sum().arg() / (m as f64)
+pub fn psk_phase_estimate(symbols: &[Complex<f64>], m: u32) -> f64 {
+    symbols
+        .iter()
+        .map(|x| x.powi(m as i32))
+        .sum::<Complex<f64>>()
+        .arg()
+        / (m as f64)
+}
+
+/// Calculates a phase estimate from the input QAM symbol vector.
+///
+/// Result is in radians, and the estimator assumes the input symbol vector is
+/// the output from a matched filter.  It additionally  assumes the vector has
+/// already gone through accurate timing recovery.
+///
+/// Reference Chp. 5.7.5 in Mengali.
+///
+/// # Arguments
+///
+/// * `symbols` - Input vector of symbols to calculate the phase estimate from.
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::demodulation::phase_estimator::*;
+/// use num::Complex;
+///
+/// let m = 4;
+/// let data: Vec<_> = (0..100).map(|x| Complex::new(0.0, x as f64).exp()).collect();
+///
+/// let estimate = qam_phase_estimate(&data, m);
+/// ```
+pub fn qam_phase_estimate(symbols: &[Complex<f64>]) -> f64 {
+    symbols
+        .iter()
+        .map(|x| x.powi(4))
+        .sum::<Complex<f64>>()
+        .arg()
+        / 4.0
 }
 
 #[cfg(test)]
 mod test {
-    use crate::demodulation::timing_estimator::*;
+    use crate::demodulation::phase_estimator::*;
     use num::Complex;
     use rand::distributions::Uniform;
     use rand::prelude::*;
@@ -42,41 +76,56 @@ mod test {
     use std::f64::consts::PI;
 
     #[test]
-    fn test_phase_estimator() {
-        let alpha = 0.5;
-        let sam_per_sym = 10;
+    fn test_psk_phase_estimator() {
+        // 8 PSK
+        let m = 8;
+        let truth = 0.123456;
 
-        // Generate QPSK signal
+        // Generate symbols
         let mut rng = SmallRng::seed_from_u64(0);
-        let interval = Uniform::new(0, 4);
-        let data: Vec<_> = (0..1000)
+        let interval = Uniform::new(0, m);
+        let symbols: Vec<_> = (0..1000)
             .map(|_| rng.sample(interval))
             .map(|x| {
-                Complex::new(0.0, 2.0 * PI * x as f64 / 4.0 + PI / 4.0).exp()
+                Complex::new(0.0, 2.0 * PI * x as f64 / (m as f64) + truth)
+                    .exp()
             })
             .collect();
 
-        let mut symbols = vec![];
-        for pt in data {
-            symbols.push(pt);
-            for _ in 1..sam_per_sym {
-                symbols.push(Complex::new(0.0, 0.0));
-            }
-        }
+        // Create estimator
+        let estimate = psk_phase_estimate(&symbols, m);
 
-        let n_taps = sam_per_sym * 10 + 1;
-        let rrctaps = rrc_taps(n_taps, sam_per_sym as f64, alpha).unwrap();
-        let mut state = vec![Complex::new(0.0, 0.0); n_taps as usize];
-        let samples = batch_fir(&symbols, &rrctaps, &mut state);
+        assert!((truth - estimate).abs() < 0.000001);
+    }
+
+    #[test]
+    fn test_qam_phase_estimator() {
+        // TODO: Fix this test!
+
+        // 16 QAM
+        let truth = 0.123456;
+
+        // Generate symbols
+        let mut rng = SmallRng::seed_from_u64(0);
+        let interval = Uniform::new(0, 16);
+        let symbols: Vec<i32> =
+            (0..1000).map(|_| rng.sample(interval)).collect();
+
+        let symbols: Vec<_> = symbols
+            .iter()
+            .map(|x| {
+                Complex::new(
+                    (x % 4) as f64 - 1.5,
+                    ((*x as f64) / 4.0).trunc() - 1.5,
+                )
+            })
+            .map(|x| x * Complex::new(0.0, truth).exp())
+            .collect();
 
         // Create estimator
-        let truth = 2;
-        let n = sam_per_sym;
-        let d = 5;
-        let mut estimator = TimingEstimator::new(n, d, alpha).unwrap();
-        let estimate = estimator.push(&samples[truth..]);
+        let estimate = qam_phase_estimate(&symbols);
         println!("{}", estimate);
 
-        assert!((truth as f64 + estimate).abs() < 0.01);
+        assert!((truth - estimate).abs() < 0.000001);
     }
 }
