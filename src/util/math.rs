@@ -297,9 +297,10 @@ pub fn qfilt_taps(
     sam_per_sym: u32,
     fs: f64,
 ) -> Result<Vec<f64>, &'static str> {
-
     if alpha < 0.0 || alpha > 1.0 {
-        return Err("Invalid rolloff parameter alpha, must be 0.0 <= alpha <= 1.0");
+        return Err(
+            "Invalid rolloff parameter alpha, must be 0.0 <= alpha <= 1.0",
+        );
     };
 
     let d = ((n_taps as f64) / 2.0) as i32;
@@ -311,7 +312,7 @@ pub fn qfilt_taps(
     for tt in ttarr {
         let two_alpha_tt = 2.0 * alpha * tt;
         if two_alpha_tt.abs() == 1.0 {
-            output.push(alpha / PI);
+            output.push((PI * alpha * tt).sin() / (8.0 * tt));
         } else {
             let numerator = alpha * (PI * alpha * tt).cos();
             let denominator = PI * (1.0 - (two_alpha_tt * two_alpha_tt));
@@ -478,7 +479,7 @@ mod test {
             Complex::new(0.03564605925347896, 0.0),
             Complex::new(0.045015815807855304, 0.0),
             Complex::new(0.05413863102246848, 0.0),
-            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.0625, 0.0),
             Complex::new(0.06960681131460235, 0.0),
             Complex::new(0.07502635967975885, 0.0),
             Complex::new(0.07842133035765372, 0.0),
@@ -486,7 +487,7 @@ mod test {
             Complex::new(0.07842133035765372, 0.0),
             Complex::new(0.07502635967975885, 0.0),
             Complex::new(0.06960681131460235, 0.0),
-            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.0625, 0.0),
             Complex::new(0.05413863102246848, 0.0),
             Complex::new(0.045015815807855304, 0.0),
             Complex::new(0.03564605925347896, 0.0),
