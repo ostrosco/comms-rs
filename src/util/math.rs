@@ -1,6 +1,8 @@
 use num::{Complex, Num};
 use std::f64::consts::PI;
 
+use crate::util::MathError;
+
 /// Casts a `Complex<T>` to a `Complex<U>`.
 ///
 /// All of the normal caveats with using the `as` keyword apply here for the
@@ -61,7 +63,7 @@ where
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RC function
+/// * `alpha` - Shaping parameter of the function
 ///
 /// # Example
 ///
@@ -132,7 +134,8 @@ pub fn sinc(x: f64) -> f64 {
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RC function
+/// * `beta` - Shaping parameter of the RC function.  Must be on the interval
+///            [0, 1].
 ///
 /// # Examples
 ///
@@ -149,10 +152,14 @@ pub fn rc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
     beta: f64,
-) -> Option<Vec<Complex<T>>>
+) -> Result<Vec<Complex<T>>, MathError>
 where
     T: Copy + Num + num_traits::NumCast,
 {
+    if beta < 0.0 || beta > 1.0 {
+        return Err(MathError::InvalidRolloffError);
+    };
+
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -173,19 +180,19 @@ where
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
-        let im = T::from(0)?;
+        let im = T::from(0).ok_or(MathError::ConvertError)?;
         if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            let re = T::from(fint())?;
+            let re = T::from(fint()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else {
-            let re = T::from(f(t))?;
+            let re = T::from(f(t)).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         }
     }
 
-    Some(taps)
+    Ok(taps)
 }
 
 /// Root Raised Cosine (RRC) filter tap calculator.
@@ -197,7 +204,8 @@ where
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RRC function
+/// * `beta` - Shaping parameter of the RRC function.  Must be on the interval
+///            [0.0, 1.0].
 ///
 /// # Examples
 ///
@@ -214,10 +222,14 @@ pub fn rrc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
     beta: f64,
-) -> Option<Vec<Complex<T>>>
+) -> Result<Vec<Complex<T>>, MathError>
 where
     T: Copy + Num + num_traits::NumCast,
 {
+    if beta < 0.0 || beta > 1.0 {
+        return Err(MathError::InvalidRolloffError);
+    };
+
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -249,22 +261,22 @@ where
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
-        let im = T::from(0)?;
+        let im = T::from(0).ok_or(MathError::ConvertError)?;
         if t.abs() < std::f64::EPSILON {
-            let re = T::from(fzero())?;
+            let re = T::from(fzero()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            let re = T::from(fint())?;
+            let re = T::from(fint()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else {
-            let re = T::from(f(t))?;
+            let re = T::from(f(t)).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         }
     }
 
-    Some(taps)
+    Ok(taps)
 }
 
 /// Implementation of the Mengali qfilter tap calculator.
@@ -277,7 +289,8 @@ where
 /// * `n_taps` - Number of desired output taps.  Only takes odd numbers.  Even
 ///              numbers will be incremented by one and that shall be used
 ///              intead.
-/// * `alpha` - Shaping parameter of the function
+/// * `alpha` - Shaping parameter of the function. Must be on the interval
+///             [0.0, 1.0].
 /// * `sam_per_sym` - Samples per symbol
 ///
 /// # Examples
@@ -295,11 +308,9 @@ pub fn qfilt_taps(
     n_taps: u32,
     alpha: f64,
     sam_per_sym: u32,
-) -> Result<Vec<f64>, &'static str> {
+) -> Result<Vec<f64>, MathError> {
     if alpha < 0.0 || alpha > 1.0 {
-        return Err(
-            "Invalid rolloff parameter alpha, must be 0.0 <= alpha <= 1.0",
-        );
+        return Err(MathError::InvalidRolloffError);
     };
 
     // We want an odd number of taps
