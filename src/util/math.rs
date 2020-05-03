@@ -1,6 +1,8 @@
 use num::{Complex, Num};
 use std::f64::consts::PI;
 
+use crate::util::MathError;
+
 /// Casts a `Complex<T>` to a `Complex<U>`.
 ///
 /// All of the normal caveats with using the `as` keyword apply here for the
@@ -61,7 +63,7 @@ where
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RC function
+/// * `alpha` - Shaping parameter of the function
 ///
 /// # Example
 ///
@@ -132,7 +134,8 @@ pub fn sinc(x: f64) -> f64 {
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RC function
+/// * `beta` - Shaping parameter of the RC function.  Must be on the interval
+///            [0, 1].
 ///
 /// # Examples
 ///
@@ -149,10 +152,14 @@ pub fn rc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
     beta: f64,
-) -> Option<Vec<Complex<T>>>
+) -> Result<Vec<Complex<T>>, MathError>
 where
     T: Copy + Num + num_traits::NumCast,
 {
+    if beta < 0.0 || beta > 1.0 {
+        return Err(MathError::InvalidRolloffError);
+    };
+
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -173,19 +180,19 @@ where
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
-        let im = T::from(0)?;
+        let im = T::from(0).ok_or(MathError::ConvertError)?;
         if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            let re = T::from(fint())?;
+            let re = T::from(fint()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else {
-            let re = T::from(f(t))?;
+            let re = T::from(f(t)).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         }
     }
 
-    Some(taps)
+    Ok(taps)
 }
 
 /// Root Raised Cosine (RRC) filter tap calculator.
@@ -197,7 +204,8 @@ where
 ///
 /// * `n_taps` - Number of desired output taps
 /// * `sam_per_sym` - Samples per symbol
-/// * `beta` - Shaping parameter of the RRC function
+/// * `beta` - Shaping parameter of the RRC function.  Must be on the interval
+///            [0.0, 1.0].
 ///
 /// # Examples
 ///
@@ -214,10 +222,14 @@ pub fn rrc_taps<T>(
     n_taps: u32,
     sam_per_sym: f64,
     beta: f64,
-) -> Option<Vec<Complex<T>>>
+) -> Result<Vec<Complex<T>>, MathError>
 where
     T: Copy + Num + num_traits::NumCast,
 {
+    if beta < 0.0 || beta > 1.0 {
+        return Err(MathError::InvalidRolloffError);
+    };
+
     let tsym = 1.0_f64;
     let fs = sam_per_sym / tsym;
 
@@ -249,22 +261,84 @@ where
     for i in 0..n_taps {
         let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
 
-        let im = T::from(0)?;
+        let im = T::from(0).ok_or(MathError::ConvertError)?;
         if t.abs() < std::f64::EPSILON {
-            let re = T::from(fzero())?;
+            let re = T::from(fzero()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else if (t - zero_denom).abs() < std::f64::EPSILON
             || (t + zero_denom).abs() < std::f64::EPSILON
         {
-            let re = T::from(fint())?;
+            let re = T::from(fint()).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         } else {
-            let re = T::from(f(t))?;
+            let re = T::from(f(t)).ok_or(MathError::ConvertError)?;
             taps.push(Complex::new(re, im));
         }
     }
 
-    Some(taps)
+    Ok(taps)
+}
+
+/// Implementation of the Mengali qfilter tap calculator.
+///
+/// This is specifically to support Mengali's feedforward non data aided
+/// maximum likelihood estimator described in chp. 8.4 of his book as q(t).
+///
+/// # Arguments
+///
+/// * `n_taps` - Number of desired output taps.  Only takes odd numbers.  Even
+///              numbers will be incremented by one and that shall be used
+///              intead.
+/// * `alpha` - Shaping parameter of the function. Must be on the interval
+///             [0.0, 1.0].
+/// * `sam_per_sym` - Samples per symbol
+///
+/// # Examples
+///
+/// ```
+/// use comms_rs::util::math::qfilt_taps;
+/// use num::Complex;
+///
+/// let n_taps = 21;
+/// let alpha = 0.25;
+/// let sams_per_sym = 2;
+/// let taps: Vec<f64> = qfilt_taps(n_taps, alpha, sams_per_sym).unwrap();
+/// ```
+pub fn qfilt_taps(
+    n_taps: u32,
+    alpha: f64,
+    sam_per_sym: u32,
+) -> Result<Vec<f64>, MathError> {
+    if alpha < 0.0 || alpha > 1.0 {
+        return Err(MathError::InvalidRolloffError);
+    };
+
+    // We want an odd number of taps
+    let mut real_n_taps = n_taps;
+    if n_taps % 2 == 0 {
+        real_n_taps += 1;
+    }
+
+    let d = ((real_n_taps as f64) / 2.0).floor() as i32;
+    let ttarr: Vec<f64> = (0..real_n_taps)
+        .map(|x| (x as i32 - d) as f64 / (sam_per_sym as f64))
+        .collect();
+
+    let mut output = vec![];
+    for tt in ttarr {
+        let two_alpha_tt = 2.0 * alpha * tt;
+        #[allow(clippy::float_cmp)]
+        let use_lhospitals = two_alpha_tt.abs() == 1.0;
+        if use_lhospitals {
+            output.push((PI * alpha * tt).sin() / (8.0 * tt));
+        } else {
+            let numerator = alpha * (PI * alpha * tt).cos();
+            let denominator = PI * (1.0 - (two_alpha_tt * two_alpha_tt));
+            output.push(numerator / denominator);
+        }
+    }
+
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -411,6 +485,37 @@ mod test {
         let test: Vec<_> = math::gaussian_taps(33, 3.18, 0.234).unwrap();
         for i in 0..truth.len() {
             assert!((truth[i] - test[i]).norm() < std::f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn test_qfilt_taps() {
+        let truth = vec![
+            Complex::new(0.010718051382822693, 0.0),
+            Complex::new(0.018097230082535474, 0.0),
+            Complex::new(0.026525823848649224, 0.0),
+            Complex::new(0.03564605925347896, 0.0),
+            Complex::new(0.045015815807855304, 0.0),
+            Complex::new(0.05413863102246848, 0.0),
+            Complex::new(0.0625, 0.0),
+            Complex::new(0.06960681131460235, 0.0),
+            Complex::new(0.07502635967975885, 0.0),
+            Complex::new(0.07842133035765372, 0.0),
+            Complex::new(0.07957747154594767, 0.0),
+            Complex::new(0.07842133035765372, 0.0),
+            Complex::new(0.07502635967975885, 0.0),
+            Complex::new(0.06960681131460235, 0.0),
+            Complex::new(0.0625, 0.0),
+            Complex::new(0.05413863102246848, 0.0),
+            Complex::new(0.045015815807855304, 0.0),
+            Complex::new(0.03564605925347896, 0.0),
+            Complex::new(0.026525823848649224, 0.0),
+            Complex::new(0.018097230082535474, 0.0),
+        ];
+
+        let test: Vec<_> = math::qfilt_taps(21, 0.25, 2).unwrap();
+        for i in 0..truth.len() {
+            assert!((truth[i] - test[i]).norm() < std::f64::EPSILON);
         }
     }
 }
