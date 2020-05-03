@@ -22,11 +22,7 @@ impl fmt::Display for MathError {
     }
 }
 
-impl error::Error for MathError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
-}
+impl error::Error for MathError {}
 
 /// Some basic math functions used elsewhere in the project
 pub mod math;
