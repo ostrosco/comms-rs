@@ -45,10 +45,8 @@ impl TimingEstimator {
         // Generate Mengali's q(t)
         let taps = qfilt_taps(2 * n * d + 1, alpha, n)?;
         let taps = taps.iter().map(|x| Complex::new(*x as f64, 0.0)).collect();
-        let mut delay = vec![0.0; (n * d) as usize];
-        delay.push(1.0);
-        let delay =
-            delay.iter().map(|x| Complex::new(*x as f64, 0.0)).collect();
+        let mut delay = vec![Complex::new(0.0, 0.0); (n * d) as usize];
+        delay.push(Complex::new(1.0, 0.0));
 
         Ok(TimingEstimator {
             qfilt: taps,
