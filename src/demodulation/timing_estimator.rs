@@ -1,5 +1,6 @@
 use crate::filter::fir::batch_fir;
 use crate::util::math::qfilt_taps;
+use crate::util::MathError;
 use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
@@ -41,7 +42,7 @@ impl TimingEstimator {
         n: u32,
         d: u32,
         alpha: f64,
-    ) -> Result<TimingEstimator, &'static str> {
+    ) -> Result<TimingEstimator, MathError> {
         // Generate Mengali's q(t)
         let taps = qfilt_taps(2 * n * d + 1, alpha, n)?;
         let taps = taps.iter().map(|x| Complex::new(*x as f64, 0.0)).collect();
