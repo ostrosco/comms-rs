@@ -274,10 +274,11 @@ where
 ///
 /// # Arguments
 ///
-/// * `n_taps` - Number of desired output taps
+/// * `n_taps` - Number of desired output taps.  Only takes odd numbers.  Even
+///              numbers will be incremented by one and that shall be used
+///              intead.
 /// * `alpha` - Shaping parameter of the function
 /// * `sam_per_sym` - Samples per symbol
-/// * `fs` - Sample rate of the data the taps work with
 ///
 /// # Examples
 ///
@@ -285,17 +286,15 @@ where
 /// use comms_rs::util::math::qfilt_taps;
 /// use num::Complex;
 ///
-/// let n_taps = 20;
+/// let n_taps = 21;
 /// let alpha = 0.25;
 /// let sams_per_sym = 2;
-/// let fs = 1.0;
-/// let taps: Vec<f64> = qfilt_taps(n_taps, alpha, sams_per_sym, fs).unwrap();
+/// let taps: Vec<f64> = qfilt_taps(n_taps, alpha, sams_per_sym).unwrap();
 /// ```
 pub fn qfilt_taps(
     n_taps: u32,
     alpha: f64,
     sam_per_sym: u32,
-    fs: f64,
 ) -> Result<Vec<f64>, &'static str> {
     if alpha < 0.0 || alpha > 1.0 {
         return Err(
@@ -303,15 +302,23 @@ pub fn qfilt_taps(
         );
     };
 
-    let d = ((n_taps as f64) / 2.0) as i32;
-    let ttarr: Vec<f64> = (0..n_taps)
-        .map(|x| (x as i32 - d) as f64 / (fs * sam_per_sym as f64))
+    // We want an odd number of taps
+    let mut real_n_taps = n_taps;
+    if n_taps % 2 == 0 {
+        real_n_taps += 1;
+    }
+
+    let d = ((real_n_taps as f64) / 2.0).floor() as i32;
+    let ttarr: Vec<f64> = (0..real_n_taps)
+        .map(|x| (x as i32 - d) as f64 / (sam_per_sym as f64))
         .collect();
 
     let mut output = vec![];
     for tt in ttarr {
         let two_alpha_tt = 2.0 * alpha * tt;
-        if two_alpha_tt.abs() == 1.0 {
+        #[allow(clippy::float_cmp)]
+        let use_lhospitals = two_alpha_tt.abs() == 1.0;
+        if use_lhospitals {
             output.push((PI * alpha * tt).sin() / (8.0 * tt));
         } else {
             let numerator = alpha * (PI * alpha * tt).cos();
@@ -495,7 +502,7 @@ mod test {
             Complex::new(0.018097230082535474, 0.0),
         ];
 
-        let test: Vec<_> = math::qfilt_taps(20, 0.25, 2, 1.0).unwrap();
+        let test: Vec<_> = math::qfilt_taps(21, 0.25, 2).unwrap();
         for i in 0..truth.len() {
             assert!((truth[i] - test[i]).norm() < std::f64::EPSILON);
         }
