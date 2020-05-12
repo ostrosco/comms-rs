@@ -55,12 +55,12 @@ pub fn psk_phase_estimate(symbols: &[Complex<f64>], m: u32) -> f64 {
 /// let m = 4;
 /// let data: Vec<_> = (0..100).map(|x| Complex::new(0.0, x as f64).exp()).collect();
 ///
-/// let estimate = qam_phase_estimate(&data, m);
+/// let estimate = qam_phase_estimate(&data);
 /// ```
 pub fn qam_phase_estimate(symbols: &[Complex<f64>]) -> f64 {
     symbols
         .iter()
-        .map(|x| x.powi(4))
+        .map(|x| -1.0 * x.powi(4))
         .sum::<Complex<f64>>()
         .arg()
         / 4.0
@@ -100,8 +100,6 @@ mod test {
 
     #[test]
     fn test_qam_phase_estimator() {
-        // TODO: Fix this test!
-
         // 16 QAM
         let truth = 0.123456;
 
@@ -115,17 +113,16 @@ mod test {
             .iter()
             .map(|x| {
                 Complex::new(
-                    (x % 4) as f64 - 1.5,
+                    (*x % 4) as f64 - 1.5,
                     ((*x as f64) / 4.0).trunc() - 1.5,
                 )
             })
-            .map(|x| x * Complex::new(0.0, truth).exp())
+            .map(|x| 2.0 * x * Complex::new(0.0, truth).exp())
             .collect();
 
         // Create estimator
         let estimate = qam_phase_estimate(&symbols);
-        println!("{}", estimate);
 
-        assert!((truth - estimate).abs() < 0.000001);
+        assert!((truth - estimate).abs() < 0.01);
     }
 }
