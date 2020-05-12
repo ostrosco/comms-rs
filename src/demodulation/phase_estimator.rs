@@ -1,5 +1,3 @@
-extern crate num; // 0.2.0
-
 use num::complex::Complex;
 
 /// Calculates a phase estimate from the input PSK symbol vector.
