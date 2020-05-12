@@ -48,7 +48,7 @@ To derive the trait, there are a few requirements that much be met.
 
 Example:
 
-```
+```rust
 #[derive(Node)]
 pub struct ExampleNode {
     input1: NodeReceiver<u32>,
