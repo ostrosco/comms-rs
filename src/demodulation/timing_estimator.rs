@@ -1,4 +1,5 @@
 use crate::filter::fir::batch_fir;
+use crate::prelude::*;
 use crate::util::math::qfilt_taps;
 use crate::util::MathError;
 use std::f64::consts::PI;
@@ -111,6 +112,30 @@ impl TimingEstimator {
     }
 }
 
+/// A node that performs timing estimation.
+#[derive(Node)]
+#[pass_by_ref]
+pub struct TimingEstimatorNode {
+    pub input: NodeReceiver<Vec<Complex<f64>>>,
+    timing_estimator: TimingEstimator,
+    pub sender: NodeSender<f64>,
+}
+
+impl TimingEstimatorNode {
+    pub fn new(n: u32, d: u32, alpha: f64) -> Result<Self, MathError> {
+        let timing_estimator = TimingEstimator::new(n, d, alpha)?;
+        Ok(Self {
+            input: Default::default(),
+            timing_estimator,
+            sender: Default::default(),
+        })
+    }
+
+    pub fn run(&mut self, input: &[Complex<f64>]) -> Result<f64, NodeError> {
+        Ok(self.timing_estimator.push(input))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::demodulation::timing_estimator::*;
@@ -121,9 +146,7 @@ mod test {
     use rand::rngs::SmallRng;
     use std::f64::consts::PI;
 
-    #[test]
-    fn test_timing_estimator() {
-        let alpha = 0.5;
+    fn generate_samples(alpha: f64) -> Vec<Complex<f64>> {
         let sam_per_sym = 10;
 
         // Generate QPSK signal
@@ -148,6 +171,14 @@ mod test {
         let rrctaps = rrc_taps(n_taps, sam_per_sym as f64, alpha).unwrap();
         let mut state = vec![Complex::new(0.0, 0.0); n_taps as usize];
         let samples = batch_fir(&symbols, &rrctaps, &mut state);
+        samples
+    }
+
+    #[test]
+    fn test_timing_estimator() {
+        let alpha = 0.5;
+        let sam_per_sym = 10;
+        let samples = generate_samples(alpha);
 
         // Create estimator
         let truth = 2;
@@ -158,5 +189,63 @@ mod test {
         println!("{}", estimate);
 
         assert!((truth as f64 + estimate).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_timing_estimator_node() {
+        #[derive(Node)]
+        struct SendNode {
+            pub sender: NodeSender<Vec<Complex<f64>>>,
+        }
+
+        impl SendNode {
+            pub fn new() -> Self {
+                Self {
+                    sender: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self) -> Result<Vec<Complex<f64>>, NodeError> {
+                let truth = 2;
+                let alpha = 0.5;
+                let samples = generate_samples(alpha);
+                Ok(samples[truth..].to_vec())
+            }
+        }
+
+        #[derive(Node)]
+        struct CheckNode {
+            pub input: NodeReceiver<f64>,
+        }
+
+        impl CheckNode {
+            pub fn new() -> Self {
+                Self {
+                    input: Default::default(),
+                }
+            }
+
+            pub fn run(&mut self, input: f64) -> Result<(), NodeError> {
+                let truth = 2.0f64;
+                println!("truth: {}, input: {}", truth, input);
+                assert!((truth + input).abs() < 0.01);
+                Ok(())
+            }
+        }
+
+        // Create estimator
+        let alpha = 0.5;
+        let n = 10;
+        let d = 5;
+        let mut send_node = SendNode::new();
+        let mut timing_node = TimingEstimatorNode::new(n, d, alpha).unwrap();
+        let mut check_node = CheckNode::new();
+        connect_nodes!(send_node, sender, timing_node, input);
+        connect_nodes!(timing_node, sender, check_node, input);
+        start_nodes!(send_node, timing_node);
+        let check = thread::spawn(move || {
+            check_node.call().unwrap();
+        });
+        assert!(check.join().is_ok());
     }
 }
