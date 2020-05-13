@@ -81,7 +81,7 @@ mod test {
         #[derive(Node)]
         #[pass_by_ref]
         struct CheckNode {
-            recv: NodeReceiver<Vec<u8>>,
+            input: NodeReceiver<Vec<u8>>,
             num_samples: usize,
         }
 
@@ -89,7 +89,7 @@ mod test {
             pub fn new(num_samples: usize) -> Self {
                 CheckNode {
                     num_samples,
-                    recv: Default::default(),
+                    input: Default::default(),
                 }
             }
 
@@ -100,7 +100,7 @@ mod test {
         }
 
         let mut check_node = CheckNode::new(num_samples);
-        connect_nodes!(sdr_node, sender, check_node, recv);
+        connect_nodes!(sdr_node, output, check_node, input);
         start_nodes!(sdr_node);
         let check = thread::spawn(move || {
             let now = Instant::now();

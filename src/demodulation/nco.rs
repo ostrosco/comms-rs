@@ -85,7 +85,7 @@ impl Nco {
 pub struct NcoNode {
     pub input: NodeReceiver<f64>,
     nco: Nco,
-    pub sender: NodeSender<Complex<f64>>,
+    pub output: NodeSender<Complex<f64>>,
 }
 
 impl NcoNode {
@@ -116,12 +116,12 @@ impl NcoNode {
             Some(ph) => NcoNode {
                 nco: Nco::new(ph, dphase),
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
             None => NcoNode {
                 nco: Nco::new(0.0, dphase),
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
         }
     }

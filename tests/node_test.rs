@@ -9,13 +9,13 @@ use std::time::Duration;
 fn simple_nodes() {
     #[derive(Node)]
     struct SourceNode {
-        pub sender: NodeSender<u32>,
+        pub output: NodeSender<u32>,
     }
 
     impl SourceNode {
         pub fn new() -> Self {
             SourceNode {
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -44,7 +44,7 @@ fn simple_nodes() {
 
     let mut node = SourceNode::new();
     let mut node2 = SinkNode::new();
-    connect_nodes!(node, sender, node2, input);
+    connect_nodes!(node, output, node2, input);
     start_nodes!(node, node2);
     thread::sleep(Duration::from_secs(1));
 }

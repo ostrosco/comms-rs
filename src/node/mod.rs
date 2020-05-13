@@ -13,13 +13,13 @@
 //! // inputs, the receivers must explicitly be named.
 //! #[derive(Node)]
 //! struct Node1 {
-//!     pub sender: NodeSender<u32>,
+//!     pub output: NodeSender<u32>,
 //! }
 //!
 //! impl Node1 {
 //!     pub fn new() -> Self {
 //!         Node1 {
-//!             sender: Default::default(),
+//!             output: Default::default(),
 //!         }
 //!     }
 //!
@@ -52,8 +52,8 @@
 //! let mut node2 = Node2::new();
 //!
 //! // Create a connection between two nodes: node1 sending messages and node2
-//! // receiving on the `recv` receiver in the Node2 structure.
-//! connect_nodes!(node1, sender, node2, input);
+//! // receiving on the `input` receiver in the Node2 structure.
+//! connect_nodes!(node1, output, node2, input);
 //!
 //! // Spawn threads for node1 and node2 and have them executing indefinitely.
 //! start_nodes!(node1, node2);
@@ -105,13 +105,13 @@ pub trait Node: Send {
 /// # fn main() {
 /// # #[derive(Node)]
 /// # struct Node1 {
-/// #     sender: NodeSender<u32>,
+/// #     output: NodeSender<u32>,
 /// # }
 /// #
 /// # impl Node1 {
 /// #   pub fn new() -> Self {
 /// #       Node1 {
-/// #           sender: Default::default(),
+/// #           output: Default::default(),
 /// #       }
 /// #   }
 /// #
@@ -122,13 +122,13 @@ pub trait Node: Send {
 /// #
 /// # #[derive(Node)]
 /// # struct Node2 {
-/// #   recv: NodeReceiver<u32>,
+/// #   input: NodeReceiver<u32>,
 /// # }
 /// #
 /// # impl Node2 {
 /// #   pub fn new() -> Self {
 /// #       Node2 {
-/// #           recv: Default::default(),
+/// #           input: Default::default(),
 /// #       }
 /// #   }
 /// #
@@ -141,8 +141,8 @@ pub trait Node: Send {
 /// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
-/// // message on its receiver named `recv`.
-/// connect_nodes!(node1, sender, node2, recv);
+/// // message on its receiver named `input`.
+/// connect_nodes!(node1, output, node2, input);
 /// # }
 /// ```
 ///
@@ -166,13 +166,13 @@ macro_rules! connect_nodes {
 /// # fn main() {
 /// # #[derive(Node)]
 /// # struct Node1 {
-/// #     sender: NodeSender<u32>,
+/// #     output: NodeSender<u32>,
 /// # }
 /// #
 /// # impl Node1 {
 /// #   pub fn new() -> Self {
 /// #       Node1 {
-/// #           sender: Default::default(),
+/// #           output: Default::default(),
 /// #       }
 /// #   }
 /// #
@@ -183,13 +183,13 @@ macro_rules! connect_nodes {
 /// #
 /// # #[derive(Node)]
 /// # struct Node2 {
-/// #   recv: NodeReceiver<u32>,
+/// #   input: NodeReceiver<u32>,
 /// # }
 /// #
 /// # impl Node2 {
 /// #   pub fn new() -> Self {
 /// #       Node2 {
-/// #           recv: Default::default(),
+/// #           input: Default::default(),
 /// #       }
 /// #   }
 /// #
@@ -202,10 +202,10 @@ macro_rules! connect_nodes {
 /// let mut node2 = Node2::new();
 ///
 /// // node1 will now send its messages to node2. node2 will receive the
-/// // message on its receiver named `recv`. When node1 starts, it will send
+/// // message on its receiver named `input`. When node1 starts, it will send
 /// // a 0 to node2 the first time it's run by start_nodes! and run a normal
 /// // loop afterwards.
-/// connect_nodes_feedback!(node1, sender, node2, recv, 0);
+/// connect_nodes_feedback!(node1, output, node2, input, 0);
 /// # }
 /// ```
 ///
@@ -230,13 +230,13 @@ macro_rules! connect_nodes_feedback {
 /// # fn main() {
 /// # #[derive(Node)]
 /// # struct Node1 {
-/// #     pub sender: NodeSender<u32>,
+/// #     pub output: NodeSender<u32>,
 /// # }
 ///
 /// # impl Node1 {
 /// #     pub fn new() -> Self {
 /// #         Node1 {
-/// #             sender: Default::default(),
+/// #             output: Default::default(),
 /// #         }
 /// #     }
 /// #
@@ -264,7 +264,7 @@ macro_rules! connect_nodes_feedback {
 /// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, sender, node2, input);
+/// # connect_nodes!(node1, output, node2, input);
 ///
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
@@ -297,13 +297,13 @@ macro_rules! start_nodes {
 /// # fn main() {
 /// # #[derive(Node)]
 /// # struct Node1 {
-/// #     pub sender: NodeSender<u32>,
+/// #     pub output: NodeSender<u32>,
 /// # }
 ///
 /// # impl Node1 {
 /// #     pub fn new() -> Self {
 /// #         Node1 {
-/// #             sender: Default::default(),
+/// #             output: Default::default(),
 /// #         }
 /// #     }
 /// #
@@ -331,10 +331,10 @@ macro_rules! start_nodes {
 /// # }
 /// # let mut node1 = Node1::new();
 /// # let mut node2 = Node2::new();
-/// # connect_nodes!(node1, sender, node2, input);
+/// # connect_nodes!(node1, output, node2, input);
 /// // Connect two nodes named node1 and node2. node1 will now send its
 /// // messages to node2. node2 will receive the
-/// // message on its receiver named `recv`.
+/// // message on its receiver named `input`.
 /// start_nodes_threadpool!(node1, node2);
 /// # }
 /// ```
@@ -365,13 +365,13 @@ mod test {
     fn test_simple_nodes() {
         #[derive(Node)]
         struct Node1 {
-            pub sender: NodeSender<u32>,
+            pub output: NodeSender<u32>,
         }
 
         impl Node1 {
             pub fn new() -> Self {
                 Node1 {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -401,7 +401,7 @@ mod test {
         let mut node1 = Node1::new();
         let mut node2 = Node2::new();
 
-        connect_nodes!(node1, sender, node2, input);
+        connect_nodes!(node1, output, node2, input);
         start_nodes!(node1);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -420,13 +420,13 @@ mod test {
     fn test_simple_graph() {
         #[derive(Node)]
         struct Node1 {
-            pub sender: NodeSender<u32>,
+            pub output: NodeSender<u32>,
         }
 
         impl Node1 {
             pub fn new() -> Self {
                 Node1 {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -466,7 +466,7 @@ mod test {
         {
             let mut node1 = node1.lock().unwrap();
             let mut node2 = node2.lock().unwrap();
-            graph.connect_nodes(&mut node1.sender, &mut node2.input, None);
+            graph.connect_nodes(&mut node1.output, &mut node2.input, None);
         }
         assert!(graph.is_connected());
         graph.run_graph();
@@ -489,14 +489,14 @@ mod test {
         #[aggregate]
         struct Node1 {
             agg: Vec<u32>,
-            pub sender: NodeSender<Arc<Vec<u32>>>,
+            pub output: NodeSender<Arc<Vec<u32>>>,
         }
 
         impl Node1 {
             pub fn new() -> Self {
                 Node1 {
                     agg: vec![],
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -516,14 +516,14 @@ mod test {
         #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<u32>>>,
-            pub sender: NodeSender<Arc<Vec<u32>>>,
+            pub output: NodeSender<Arc<Vec<u32>>>,
         }
 
         impl Node2 {
             pub fn new() -> Self {
                 Node2 {
                     input: Default::default(),
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -565,8 +565,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, sender, node2, input);
-        connect_nodes!(node2, sender, node3, input);
+        connect_nodes!(node1, output, node2, input);
+        connect_nodes!(node2, output, node3, input);
         start_nodes!(node1, node2);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -588,13 +588,13 @@ mod test {
     fn test_throughput() {
         #[derive(Node)]
         struct Node1 {
-            pub sender: NodeSender<Arc<Vec<i16>>>,
+            pub output: NodeSender<Arc<Vec<i16>>>,
         }
 
         impl Node1 {
             pub fn new() -> Self {
                 Node1 {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -609,14 +609,14 @@ mod test {
         #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
-            pub sender: NodeSender<Arc<Vec<i16>>>,
+            pub output: NodeSender<Arc<Vec<i16>>>,
         }
 
         impl Node2 {
             pub fn new() -> Self {
                 Node2 {
                     input: Default::default(),
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -665,8 +665,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, sender, node2, input);
-        connect_nodes!(node2, sender, node3, input);
+        connect_nodes!(node1, output, node2, input);
+        connect_nodes!(node2, output, node3, input);
         start_nodes!(node1, node2, node3);
         thread::sleep(Duration::from_secs(1));
     }
@@ -679,13 +679,13 @@ mod test {
     fn test_threadpool_throughput() {
         #[derive(Node)]
         struct Node1 {
-            pub sender: NodeSender<Arc<Vec<i16>>>,
+            pub output: NodeSender<Arc<Vec<i16>>>,
         }
 
         impl Node1 {
             pub fn new() -> Self {
                 Node1 {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -700,14 +700,14 @@ mod test {
         #[pass_by_ref]
         struct Node2 {
             pub input: NodeReceiver<Arc<Vec<i16>>>,
-            pub sender: NodeSender<Arc<Vec<i16>>>,
+            pub output: NodeSender<Arc<Vec<i16>>>,
         }
 
         impl Node2 {
             pub fn new() -> Self {
                 Node2 {
                     input: Default::default(),
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -756,8 +756,8 @@ mod test {
         let mut node2 = Node2::new();
         let mut node3 = Node3::new();
 
-        connect_nodes!(node1, sender, node2, input);
-        connect_nodes!(node2, sender, node3, input);
+        connect_nodes!(node1, output, node2, input);
+        connect_nodes!(node2, output, node3, input);
         start_nodes!(node1, node3);
         start_nodes_threadpool!(node2,);
         thread::sleep(Duration::from_secs(1));
@@ -811,16 +811,16 @@ mod test {
         // the receivers recv_u and recv_f.
         #[derive(Node)]
         struct DoubleInputNode {
-            recv1: NodeReceiver<u32>,
-            recv2: NodeReceiver<f64>,
+            input1: NodeReceiver<u32>,
+            input2: NodeReceiver<f64>,
             output: NodeSender<f32>,
         }
 
         impl DoubleInputNode {
             pub fn new() -> Self {
                 DoubleInputNode {
-                    recv1: Default::default(),
-                    recv2: Default::default(),
+                    input1: Default::default(),
+                    input2: Default::default(),
                     output: Default::default(),
                 }
             }
@@ -832,13 +832,13 @@ mod test {
 
         #[derive(Node)]
         struct CheckNode {
-            recv: NodeReceiver<f32>,
+            input: NodeReceiver<f32>,
         }
 
         impl CheckNode {
             pub fn new() -> Self {
                 CheckNode {
-                    recv: Default::default(),
+                    input: Default::default(),
                 }
             }
 
@@ -856,9 +856,9 @@ mod test {
 
         // Once you have your nodes, you can construct receivers and senders
         // to connect the nodes to one another.
-        connect_nodes!(node1, output, node3, recv1);
-        connect_nodes!(node2, output, node3, recv2);
-        connect_nodes!(node3, output, node4, recv);
+        connect_nodes!(node1, output, node3, input1);
+        connect_nodes!(node2, output, node3, input2);
+        connect_nodes!(node3, output, node4, input);
 
         // Lastly, start up your nodes.
         start_nodes!(node1, node2, node3,);
@@ -902,17 +902,17 @@ mod test {
 
         #[derive(Node)]
         struct CounterNode {
-            recv: NodeReceiver<i32>,
+            input: NodeReceiver<i32>,
             count: i32,
-            sender: NodeSender<i32>,
+            output: NodeSender<i32>,
         }
 
         impl CounterNode {
             pub fn new() -> Self {
                 CounterNode {
                     count: 0,
-                    recv: Default::default(),
-                    sender: Default::default(),
+                    input: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -924,7 +924,7 @@ mod test {
 
         let mut one_node = OneNode::new();
         let mut count_node = CounterNode::new();
-        connect_nodes!(one_node, output, count_node, recv);
+        connect_nodes!(one_node, output, count_node, input);
 
         thread::spawn(move || {
             for _ in 0..10 {
@@ -947,17 +947,17 @@ mod test {
     fn test_feedback() {
         #[derive(Node)]
         struct AddNode {
-            recv: NodeReceiver<i32>,
+            input: NodeReceiver<i32>,
             count: i32,
-            sender: NodeSender<i32>,
+            output: NodeSender<i32>,
         }
 
         impl AddNode {
             pub fn new() -> Self {
                 AddNode {
                     count: 1,
-                    recv: Default::default(),
-                    sender: Default::default(),
+                    input: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -969,7 +969,7 @@ mod test {
 
         #[derive(Node)]
         struct PrintNode {
-            recv: NodeReceiver<i32>,
+            input: NodeReceiver<i32>,
             count: i32,
             output: NodeSender<i32>,
         }
@@ -978,7 +978,7 @@ mod test {
             pub fn new() -> Self {
                 PrintNode {
                     count: 0,
-                    recv: Default::default(),
+                    input: Default::default(),
                     output: Default::default(),
                 }
             }
@@ -991,8 +991,8 @@ mod test {
 
         let mut add_node = AddNode::new();
         let mut print_node = PrintNode::new();
-        connect_nodes!(add_node, sender, print_node, recv);
-        connect_nodes_feedback!(print_node, output, add_node, recv, 0);
+        connect_nodes!(add_node, output, print_node, input);
+        connect_nodes_feedback!(print_node, output, add_node, input, 0);
         start_nodes!(add_node);
         let check = thread::spawn(move || {
             for (print, val) in &print_node.output {

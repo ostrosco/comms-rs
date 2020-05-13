@@ -98,7 +98,7 @@ where
 {
     pub input: NodeReceiver<Complex<T>>,
     mixer: Mixer,
-    pub sender: NodeSender<Complex<T>>,
+    pub output: NodeSender<Complex<T>>,
 }
 
 impl<T> MixerNode<T>
@@ -132,12 +132,12 @@ where
             Some(ph) => MixerNode {
                 mixer: Mixer::new(ph, dphase),
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
             None => MixerNode {
                 mixer: Mixer::new(0.0, dphase),
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
         }
     }
@@ -164,14 +164,14 @@ mod test {
         #[derive(Node)]
         struct SomeSamples {
             samples: Vec<Complex<f64>>,
-            pub sender: NodeSender<Complex<f64>>,
+            pub output: NodeSender<Complex<f64>>,
         }
 
         impl SomeSamples {
             pub fn new(samples: Vec<Complex<f64>>) -> Self {
                 SomeSamples {
                     samples,
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -233,8 +233,8 @@ mod test {
 
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(source, sender, mixer, input);
-        connect_nodes!(mixer, sender, check_node, input);
+        connect_nodes!(source, output, mixer, input);
+        connect_nodes!(mixer, output, check_node, input);
         start_nodes!(source, mixer);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -254,14 +254,14 @@ mod test {
         #[derive(Node)]
         struct SomeSamples {
             samples: Vec<Complex<f64>>,
-            pub sender: NodeSender<Complex<f64>>,
+            pub output: NodeSender<Complex<f64>>,
         }
 
         impl SomeSamples {
             pub fn new(samples: Vec<Complex<f64>>) -> Self {
                 SomeSamples {
                     samples,
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -323,8 +323,8 @@ mod test {
 
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(source, sender, mixer, input);
-        connect_nodes!(mixer, sender, check_node, input);
+        connect_nodes!(source, output, mixer, input);
+        connect_nodes!(mixer, output, check_node, input);
         start_nodes!(source, mixer);
         let check = thread::spawn(move || {
             let now = Instant::now();

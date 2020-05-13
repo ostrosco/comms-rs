@@ -149,10 +149,10 @@ fn main() {
         let mut convert = convert.lock().unwrap();
         let mut iq_out = iq_out.lock().unwrap();
         let mut upsample = upsample.lock().unwrap();
-        graph.connect_nodes(&mut rand_bits.sender, &mut bpsk_node.input, None);
+        graph.connect_nodes(&mut rand_bits.output, &mut bpsk_node.input, None);
         graph.connect_nodes(&mut bpsk_node.output, &mut upsample.input, None);
         graph.connect_nodes(&mut upsample.output, &mut pulse_shape.input, None);
-        graph.connect_nodes(&mut pulse_shape.sender, &mut convert.input, None);
+        graph.connect_nodes(&mut pulse_shape.output, &mut convert.input, None);
         graph.connect_nodes(&mut convert.output, &mut iq_out.input, None);
     }
 

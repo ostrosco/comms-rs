@@ -7,13 +7,13 @@ use std::thread;
 
 #[derive(Node)]
 pub struct Node1 {
-    sender: NodeSender<u32>,
+    output: NodeSender<u32>,
 }
 
 impl Node1 {
     fn new() -> Self {
         Node1 {
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -26,7 +26,7 @@ impl Node1 {
 pub struct Node2 {
     recv_input: NodeReceiver<u32>,
     stuff: u32,
-    sender: NodeSender<u32>,
+    output: NodeSender<u32>,
 }
 
 impl Node2 {
@@ -34,7 +34,7 @@ impl Node2 {
         Node2 {
             stuff,
             recv_input: Default::default(),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -70,8 +70,8 @@ fn test_macro() {
 
     let mut node3 = Node3::new();
 
-    connect_nodes!(node1, sender, node2, recv_input);
-    connect_nodes!(node2, sender, node3, recv_input);
+    connect_nodes!(node1, output, node2, recv_input);
+    connect_nodes!(node2, output, node3, recv_input);
 
     thread::spawn(move || {
         node1.call().unwrap();

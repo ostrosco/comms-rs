@@ -30,7 +30,7 @@ where
 {
     rng: StdRng,
     dist: Uniform<T>,
-    pub sender: NodeSender<T>,
+    pub output: NodeSender<T>,
 }
 
 impl<T> UniformNode<T>
@@ -63,7 +63,7 @@ where
         UniformNode {
             rng,
             dist,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -98,7 +98,7 @@ where
 pub struct NormalNode {
     rng: StdRng,
     dist: Normal,
-    pub sender: NodeSender<f64>,
+    pub output: NodeSender<f64>,
 }
 
 impl NormalNode {
@@ -127,7 +127,7 @@ impl NormalNode {
         NormalNode {
             rng,
             dist,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -198,7 +198,7 @@ mod test {
             }
         }
         let mut check_node = CheckNode::new();
-        connect_nodes!(uniform_node, sender, check_node, recv);
+        connect_nodes!(uniform_node, output, check_node, recv);
         start_nodes!(uniform_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -235,7 +235,7 @@ mod test {
             }
         }
         let mut check_node = CheckNode::new();
-        connect_nodes!(bit_node, sender, check_node, recv);
+        connect_nodes!(bit_node, output, check_node, recv);
         start_nodes!(bit_node);
         let check = thread::spawn(move || {
             let now = Instant::now();

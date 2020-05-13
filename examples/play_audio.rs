@@ -15,14 +15,14 @@ fn main() {
     #[derive(Node)]
     struct SineNode {
         source: Box<dyn Source<Item = f32> + Send>,
-        pub sender: NodeSender<Vec<f32>>,
+        pub output: NodeSender<Vec<f32>>,
     }
 
     impl SineNode {
         pub fn new(source: Box<dyn Source<Item = f32> + Send>) -> Self {
             SineNode {
                 source,
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -35,7 +35,7 @@ fn main() {
 
     let mut sine = SineNode::new(Box::new(source::SineWave::new(440)));
 
-    connect_nodes!(sine, sender, audio, input);
+    connect_nodes!(sine, output, audio, input);
     start_nodes!(sine, audio);
     loop {}
 }

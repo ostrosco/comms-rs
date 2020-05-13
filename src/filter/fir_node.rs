@@ -51,7 +51,7 @@ where
     pub input: NodeReceiver<Complex<T>>,
     taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
-    pub sender: NodeSender<Complex<T>>,
+    pub output: NodeSender<Complex<T>>,
 }
 
 impl<T> FirNode<T>
@@ -94,7 +94,7 @@ where
                 taps,
                 state: st,
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
             None => {
                 let len = taps.len();
@@ -102,7 +102,7 @@ where
                     taps,
                     state: vec![Complex::zero(); len],
                     input: Default::default(),
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
         }
@@ -154,7 +154,7 @@ where
     pub input: NodeReceiver<Vec<Complex<T>>>,
     taps: Vec<Complex<T>>,
     state: Vec<Complex<T>>,
-    pub sender: NodeSender<Vec<Complex<T>>>,
+    pub output: NodeSender<Vec<Complex<T>>>,
 }
 
 impl<T> BatchFirNode<T>
@@ -198,7 +198,7 @@ where
                 taps,
                 state: st,
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             },
             None => {
                 let len = taps.len();
@@ -206,7 +206,7 @@ where
                     taps,
                     state: vec![Complex::zero(); len],
                     input: Default::default(),
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
         }
@@ -238,14 +238,14 @@ mod test {
         #[derive(Node)]
         struct SomeSamples {
             samples: Vec<Complex<i16>>,
-            sender: NodeSender<Complex<i16>>,
+            output: NodeSender<Complex<i16>>,
         }
 
         impl SomeSamples {
             pub fn new(samples: Vec<Complex<i16>>) -> Self {
                 SomeSamples {
                     samples,
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -324,8 +324,8 @@ mod test {
 
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(source, sender, mynode, input);
-        connect_nodes!(mynode, sender, check_node, input);
+        connect_nodes!(source, output, mynode, input);
+        connect_nodes!(mynode, output, check_node, input);
         start_nodes!(source, mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -345,14 +345,14 @@ mod test {
         #[derive(Node)]
         struct SomeSamples {
             samples: Vec<Complex<i16>>,
-            pub sender: NodeSender<Vec<Complex<i16>>>,
+            pub output: NodeSender<Vec<Complex<i16>>>,
         }
 
         impl SomeSamples {
             pub fn new(samples: Vec<Complex<i16>>) -> Self {
                 SomeSamples {
                     samples,
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -435,8 +435,8 @@ mod test {
 
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(source, sender, mynode, input);
-        connect_nodes!(mynode, sender, check_node, input);
+        connect_nodes!(source, output, mynode, input);
+        connect_nodes!(mynode, output, check_node, input);
         start_nodes!(source, mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();

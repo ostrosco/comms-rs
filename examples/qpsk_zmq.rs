@@ -21,12 +21,12 @@ fn main() {
 
     #[derive(Node)]
     struct QpskMod {
-        pub sender: NodeSender<Vec<Complex<f32>>>,
+        pub output: NodeSender<Vec<Complex<f32>>>,
     }
     impl QpskMod {
         pub fn new() -> Self {
             QpskMod {
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -66,7 +66,7 @@ fn main() {
     let mut zmq_out =
         ZMQSend::new("tcp://127.0.0.1:57324", zmq::SocketType::PUSH, 0);
 
-    connect_nodes!(qpsk_mod_node, sender, zmq_out, input);
+    connect_nodes!(qpsk_mod_node, output, zmq_out, input);
     start_nodes!(qpsk_mod_node, zmq_out);
 
     thread::sleep(time::Duration::from_millis(10000));

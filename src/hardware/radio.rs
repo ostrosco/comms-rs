@@ -57,7 +57,7 @@ where
     radio: T,
     input_idx: usize,
     num_samples: usize,
-    pub sender: NodeSender<Vec<U>>,
+    pub output: NodeSender<Vec<U>>,
 }
 
 impl<T, U> RadioRxNode<T, U>
@@ -70,7 +70,7 @@ where
             radio,
             input_idx,
             num_samples,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
