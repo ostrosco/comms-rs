@@ -96,7 +96,7 @@ where
     T: PrimInt + Send,
 {
     prngen: PrnGen<T>,
-    pub sender: NodeSender<u8>,
+    pub output: NodeSender<u8>,
 }
 
 impl<T> PrnsNode<T>
@@ -124,7 +124,7 @@ where
     pub fn new(poly_mask: T, state: T) -> Self {
         PrnsNode {
             prngen: PrnGen::new(poly_mask, state),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -192,7 +192,7 @@ mod test {
         let mut mynode = PrnsNode::new(0xC0 as u8, 0x01);
         #[derive(Node)]
         struct CheckNode {
-            recv: NodeReceiver<u8>,
+            input: NodeReceiver<u8>,
             state: Vec<u8>,
         }
 
@@ -200,7 +200,7 @@ mod test {
             pub fn new() -> Self {
                 CheckNode {
                     state: vec![],
-                    recv: Default::default(),
+                    input: Default::default(),
                 }
             }
 
@@ -228,7 +228,7 @@ mod test {
 
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(mynode, sender, check_node, recv);
+        connect_nodes!(mynode, output, check_node, input);
         start_nodes!(mynode);
         let check = thread::spawn(move || {
             let now = Instant::now();

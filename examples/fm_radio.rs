@@ -66,14 +66,14 @@ fn main() {
     #[pass_by_ref]
     struct ConvertNode {
         pub input: NodeReceiver<Vec<u8>>,
-        pub sender: NodeSender<Vec<Complex<f32>>>,
+        pub output: NodeSender<Vec<Complex<f32>>>,
     }
 
     impl ConvertNode {
         pub fn new() -> Self {
             ConvertNode {
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -100,14 +100,14 @@ fn main() {
     #[pass_by_ref]
     struct Convert2Node {
         pub input: NodeReceiver<Vec<f32>>,
-        pub sender: NodeSender<Vec<Complex<f32>>>,
+        pub output: NodeSender<Vec<Complex<f32>>>,
     }
 
     impl Convert2Node {
         pub fn new() -> Self {
             Convert2Node {
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -125,14 +125,14 @@ fn main() {
     #[pass_by_ref]
     struct Convert3Node {
         pub input: NodeReceiver<Vec<Complex<f32>>>,
-        pub sender: NodeSender<Vec<f32>>,
+        pub output: NodeSender<Vec<f32>>,
     }
 
     impl Convert3Node {
         pub fn new() -> Self {
             Convert3Node {
                 input: Default::default(),
-                sender: Default::default(),
+                output: Default::default(),
             }
         }
 
@@ -207,19 +207,19 @@ fn main() {
     let mut mag: MagnitudeNode = MagnitudeNode::new();
     let mut plot = PlotNode::new(figure_conf, 32768, false);
 
-    connect_nodes!(sdr, sender, convert, input);
-    connect_nodes!(convert, sender, filt1, input);
-    connect_nodes!(convert, sender, fft, input);
-    connect_nodes!(fft, sender, mag, input);
+    connect_nodes!(sdr, output, convert, input);
+    connect_nodes!(convert, output, filt1, input);
+    connect_nodes!(convert, output, fft, input);
+    connect_nodes!(fft, output, mag, input);
     connect_nodes!(mag, output, dec3, input);
-    connect_nodes!(dec3, sender, plot, input);
-    connect_nodes!(filt1, sender, dec1, input);
-    connect_nodes!(dec1, sender, fm, input);
-    connect_nodes!(fm, sender, convert2, input);
-    connect_nodes!(convert2, sender, filt2, input);
-    connect_nodes!(filt2, sender, convert3, input);
-    connect_nodes!(convert3, sender, dec2, input);
-    connect_nodes!(dec2, sender, audio, input);
+    connect_nodes!(dec3, output, plot, input);
+    connect_nodes!(filt1, output, dec1, input);
+    connect_nodes!(dec1, output, fm, input);
+    connect_nodes!(fm, output, convert2, input);
+    connect_nodes!(convert2, output, filt2, input);
+    connect_nodes!(filt2, output, convert3, input);
+    connect_nodes!(convert3, output, dec2, input);
+    connect_nodes!(dec2, output, audio, input);
     start_nodes!(
         sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio,
         dec3, fft, mag, plot,

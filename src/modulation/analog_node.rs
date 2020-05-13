@@ -23,7 +23,7 @@ where
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     fm: analog::FM<T>,
-    pub sender: NodeSender<Vec<T>>,
+    pub output: NodeSender<Vec<T>>,
 }
 
 impl<T> FMDemodNode<T>

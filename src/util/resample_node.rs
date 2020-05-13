@@ -13,7 +13,7 @@ where
 {
     pub input: NodeReceiver<Vec<T>>,
     dec_rate: usize,
-    pub sender: NodeSender<Vec<T>>,
+    pub output: NodeSender<Vec<T>>,
 }
 
 impl<T> DecimateNode<T>
@@ -24,7 +24,7 @@ where
         DecimateNode {
             dec_rate,
             input: Default::default(),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -77,7 +77,7 @@ where
 {
     pub input: NodeReceiver<Vec<T>>,
     ups_rate: usize,
-    pub sender: NodeSender<Vec<T>>,
+    pub output: NodeSender<Vec<T>>,
 }
 
 impl<T> UpsampleNode<T>
@@ -88,7 +88,7 @@ where
         UpsampleNode {
             ups_rate,
             input: Default::default(),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 

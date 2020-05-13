@@ -36,7 +36,7 @@ where
     /// let mut rand = rand_node::NormalNode::new(0.0, 1.0);
     /// let mut send: ZMQSend<f64> = ZMQSend::new("tcp://*:5556",
     ///     zmq::SocketType::PUB, 0);
-    /// connect_nodes!(rand, sender, send, input);
+    /// connect_nodes!(rand, output, send, input);
     /// start_nodes!(rand, send);
     /// # }
     pub fn new(
@@ -78,7 +78,7 @@ where
 {
     socket: zmq::Socket,
     flags: i32,
-    pub sender: NodeSender<T>,
+    pub output: NodeSender<T>,
 }
 
 impl<T> ZMQRecv<T>
@@ -104,7 +104,7 @@ where
     ///     zmq::SocketType::SUB,
     ///     0);
     /// let mut fft: FFTBatchNode<u32> = FFTBatchNode::new(1024, false);
-    /// connect_nodes!(recv, sender, fft, input);
+    /// connect_nodes!(recv, output, fft, input);
     /// start_nodes!(recv, fft);
     /// # }
     pub fn new(
@@ -119,7 +119,7 @@ where
         ZMQRecv {
             socket,
             flags,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -151,12 +151,12 @@ mod test {
     fn test_zmq() {
         #[derive(Node)]
         struct DataGen {
-            pub sender: NodeSender<Vec<u32>>,
+            pub output: NodeSender<Vec<u32>>,
         }
         impl DataGen {
             pub fn new() -> Self {
                 DataGen {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -190,8 +190,8 @@ mod test {
             }
         }
         let mut check_node = CheckNode::new();
-        connect_nodes!(data_node, sender, zmq_send, input);
-        connect_nodes!(zmq_recv, sender, check_node, input);
+        connect_nodes!(data_node, output, zmq_send, input);
+        connect_nodes!(zmq_recv, output, check_node, input);
         start_nodes!(data_node, zmq_send, zmq_recv);
 
         let handle = thread::spawn(move || {

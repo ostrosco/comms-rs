@@ -23,7 +23,7 @@ where
     R: Read + Send,
 {
     reader: R,
-    pub sender: NodeSender<IQSample>,
+    pub output: NodeSender<IQSample>,
 }
 
 impl<R: Read + Send> IQInput<R> {
@@ -42,7 +42,7 @@ impl<R: Read + Send> IQInput<R> {
     pub fn new(reader: R) -> Self {
         IQInput {
             reader,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -81,7 +81,7 @@ where
 {
     reader: R,
     batch_size: usize,
-    pub sender: NodeSender<Vec<IQSample>>,
+    pub output: NodeSender<Vec<IQSample>>,
 }
 
 /// Will retrieve samples as interleaved 16-bit values in host byte-order from
@@ -103,7 +103,7 @@ impl<R: Read + Send> IQBatchInput<R> {
         IQBatchInput {
             reader,
             batch_size,
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 

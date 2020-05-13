@@ -118,7 +118,7 @@ impl TimingEstimator {
 pub struct TimingEstimatorNode {
     pub input: NodeReceiver<Vec<Complex<f64>>>,
     timing_estimator: TimingEstimator,
-    pub sender: NodeSender<f64>,
+    pub output: NodeSender<f64>,
 }
 
 impl TimingEstimatorNode {
@@ -127,7 +127,7 @@ impl TimingEstimatorNode {
         Ok(Self {
             input: Default::default(),
             timing_estimator,
-            sender: Default::default(),
+            output: Default::default(),
         })
     }
 
@@ -195,13 +195,13 @@ mod test {
     fn test_timing_estimator_node() {
         #[derive(Node)]
         struct SendNode {
-            pub sender: NodeSender<Vec<Complex<f64>>>,
+            pub output: NodeSender<Vec<Complex<f64>>>,
         }
 
         impl SendNode {
             pub fn new() -> Self {
                 Self {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -240,8 +240,8 @@ mod test {
         let mut send_node = SendNode::new();
         let mut timing_node = TimingEstimatorNode::new(n, d, alpha).unwrap();
         let mut check_node = CheckNode::new();
-        connect_nodes!(send_node, sender, timing_node, input);
-        connect_nodes!(timing_node, sender, check_node, input);
+        connect_nodes!(send_node, output, timing_node, input);
+        connect_nodes!(timing_node, output, check_node, input);
         start_nodes!(send_node, timing_node);
         let check = thread::spawn(move || {
             check_node.call().unwrap();

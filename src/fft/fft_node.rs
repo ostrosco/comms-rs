@@ -31,7 +31,7 @@ where
 {
     pub input: NodeReceiver<Vec<Complex<T>>>,
     batch_fft: BatchFFT,
-    pub sender: NodeSender<Vec<Complex<T>>>,
+    pub output: NodeSender<Vec<Complex<T>>>,
 }
 
 impl<T> FFTBatchNode<T>
@@ -69,7 +69,7 @@ where
         FFTBatchNode {
             batch_fft,
             input: Default::default(),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -107,7 +107,7 @@ where
 {
     pub input: NodeReceiver<Complex<T>>,
     sample_fft: SampleFFT<T>,
-    pub sender: NodeSender<Vec<Complex<T>>>,
+    pub output: NodeSender<Vec<Complex<T>>>,
 }
 
 impl<T> FFTSampleNode<T>
@@ -146,7 +146,7 @@ where
         FFTSampleNode {
             sample_fft,
             input: Default::default(),
-            sender: Default::default(),
+            output: Default::default(),
         }
     }
 
@@ -180,13 +180,13 @@ mod test {
     fn test_fft_batch() {
         #[derive(Node)]
         struct SendNode {
-            pub sender: NodeSender<Vec<Complex<f32>>>,
+            pub output: NodeSender<Vec<Complex<f32>>>,
         }
 
         impl SendNode {
             pub fn new() -> Self {
                 SendNode {
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -247,8 +247,8 @@ mod test {
         }
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(send_node, sender, fft_node, input);
-        connect_nodes!(fft_node, sender, check_node, input);
+        connect_nodes!(send_node, output, fft_node, input);
+        connect_nodes!(fft_node, output, check_node, input);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
             let now = Instant::now();
@@ -267,14 +267,14 @@ mod test {
         #[derive(Node)]
         struct SendNode {
             state: Vec<Complex<f32>>,
-            pub sender: NodeSender<Complex<f32>>,
+            pub output: NodeSender<Complex<f32>>,
         }
 
         impl SendNode {
             pub fn new(state: Vec<Complex<f32>>) -> Self {
                 SendNode {
                     state,
-                    sender: Default::default(),
+                    output: Default::default(),
                 }
             }
 
@@ -335,8 +335,8 @@ mod test {
         }
         let mut check_node = CheckNode::new();
 
-        connect_nodes!(send_node, sender, fft_node, input);
-        connect_nodes!(fft_node, sender, check_node, input);
+        connect_nodes!(send_node, output, fft_node, input);
+        connect_nodes!(fft_node, output, check_node, input);
         start_nodes!(send_node, fft_node);
         let check = thread::spawn(move || {
             check_node.call().unwrap();
