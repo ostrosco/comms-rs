@@ -53,7 +53,7 @@ impl<T: PrimInt> PrnGen<T> {
     ///
     /// # Examples
     /// ```
-    /// use comms_rs::prn::PrnGen;
+    /// use comms_rs::prns::PrnGen;
     ///
     /// let poly_mask = 0xC0_u8;
     /// let state = 0xFF_u8;
@@ -84,7 +84,7 @@ impl<T: PrimInt> PrnGen<T> {
 /// # Examples
 ///
 /// ```
-/// use comms_rs::prn::PrnsNode;
+/// use comms_rs::prns::PrnsNode;
 ///
 /// let poly_mask = 0xC0_u8;
 /// let state = 0xFF_u8;
@@ -115,7 +115,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use comms_rs::prn::PrnsNode;
+    /// use comms_rs::prns::PrnsNode;
     ///
     /// let poly_mask = 0xC0_u8;
     /// let state = 0xFF_u8;
@@ -136,7 +136,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::prn::*;
+    use crate::prns::*;
     use num::PrimInt;
     use std::collections::HashMap;
     use std::hash::Hash;
