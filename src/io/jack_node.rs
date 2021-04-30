@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use crate::prelude::*;
 use jack::{AudioOut, Client, Control, ProcessScope, AsyncClient, ClosureProcessHandler};
 
 pub struct JackOutputNode {
-    pub input: NodeReceiver<f32>,
+    pub input: Arc<NodeReceiver<Vec<f32>>>,
+    pub sample_rate: usize,
 }
 
 impl JackOutputNode {
@@ -10,6 +12,7 @@ impl JackOutputNode {
 
         JackOutputNode {
             input: Default::default(),
+            sample_rate: 0,
         }
     }
 }
@@ -24,33 +27,45 @@ impl Node for JackOutputNode {
         let mut out_port = client.register_port("jack_node_out", jack::AudioOut::default()).unwrap();
 
         // 3. Callback definition
-        let sample_rate = client.sample_rate();
-
-        let xbeam_channel = self.input.as_ref().unwrap();
+        self.sample_rate = client.sample_rate();
+        println!("Sample Rate: {:?} Hz", self.sample_rate);
+        let xbeam_channel: Arc<_> = self.input.clone();
 
         let process = ClosureProcessHandler::new(
 
             // Callback function signature is basically non-negotiable I think...
-            move |cl: &Client, ps: &ProcessScope| -> Control {
+            move |_cl: &Client, ps: &ProcessScope| -> Control {
 
                 // Get the output buffer
                 let out = out_port.as_mut_slice(ps);
+                let mut out_iter = out.iter_mut();
 
+                // TODO: Do the samples at the input get consumed properly as
+                // we iterate over them here?
                 // Get the crossbeam channel
-                let samples = xbeam_channel.try_iter().take(out.len());
+                let mut cntr = 0;
+                for sample_vec in (*xbeam_channel).as_ref().unwrap() {
+                    for sample in sample_vec {
 
-                // Write output
-                //for (i, o) in samples.zip(out.iter_mut()) {
-                //    *o = i;
-                //}
+                        // Write output
+                        if let Some(o) = out_iter.next() {
+                            *o = sample;
+                        } else {
+                            // Get here if # of samples ready at input > out_len...
+                            // Continue as normal
+                            return Control::Continue
+                        }
+                    }
+                }
 
+                // Get here if out_len > # of samples ready at input...
                 // Continue as normal
                 Control::Continue
             },
         );
 
         // 4. Activate client
-        //self.client = Some(client.activate_async((), process).unwrap());
+        let _active_client = client.activate_async((), process).unwrap();
 
         // 5. Processing...
 
