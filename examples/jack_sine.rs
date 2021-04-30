@@ -12,7 +12,7 @@ fn main() {
     #[derive(Node)]
     struct SineNode {
         source: Box<dyn Source<Item = f32> + Send>,
-        pub output: NodeSender<Vec<f32>>,
+        pub output: NodeSender<f32>,
     }
 
     impl SineNode {
@@ -23,10 +23,13 @@ fn main() {
             }
         }
 
-        pub fn run(&mut self) -> Result<Vec<f32>, NodeError> {
+        pub fn run(&mut self) -> Result<f32, NodeError> {
             let source = &mut self.source;
-            let samp: Vec<f32> = source.take(44100).collect();
-            Ok(samp)
+            if let Some(samp) = source.next() {
+                Ok(samp)
+            } else {
+                Ok(0.0)
+            }
         }
     }
 
