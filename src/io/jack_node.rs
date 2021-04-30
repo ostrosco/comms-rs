@@ -1,31 +1,20 @@
 use crate::prelude::*;
 use jack::{AudioOut, Client, Control, ProcessScope, AsyncClient, ClosureProcessHandler};
 
-pub struct JackOutputNode<F>
-where
-    F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
-{
+pub struct JackOutputNode {
     pub input: NodeReceiver<f32>,
-    client: Option<AsyncClient<(), ClosureProcessHandler<F>>>,
 }
 
-impl<F> JackOutputNode<F>
-where
-    F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
-{
+impl JackOutputNode {
     pub fn new() -> Self {
 
         JackOutputNode {
             input: Default::default(),
-            client: None,
         }
     }
 }
 
-impl<F> Node for JackOutputNode<F>
-where
-    F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
-{
+impl Node for JackOutputNode {
 
     fn start(&mut self) {
         // 1. Open client
@@ -45,16 +34,15 @@ where
             move |cl: &Client, ps: &ProcessScope| -> Control {
 
                 // Get the output buffer
-                let out_port = AudioOut::from(cl.port_by_name("jack_node_out").unwrap());
                 let out = out_port.as_mut_slice(ps);
 
                 // Get the crossbeam channel
                 let samples = xbeam_channel.try_iter().take(out.len());
 
                 // Write output
-                for (i, o) in samples.zip(out.iter_mut()) {
-                    *o = i;
-                }
+                //for (i, o) in samples.zip(out.iter_mut()) {
+                //    *o = i;
+                //}
 
                 // Continue as normal
                 Control::Continue
@@ -62,7 +50,7 @@ where
         );
 
         // 4. Activate client
-        self.client = Some(client.activate_async((), process).unwrap());
+        //self.client = Some(client.activate_async((), process).unwrap());
 
         // 5. Processing...
 
