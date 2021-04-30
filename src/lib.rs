@@ -37,7 +37,7 @@ pub mod hardware;
 pub mod io;
 pub mod mixer;
 pub mod modulation;
-pub mod prn;
+pub mod prns;
 pub mod pulse;
 pub mod util;
 
