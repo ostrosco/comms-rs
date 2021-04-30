@@ -7,7 +7,6 @@ use rodio::source::{self, Source};
 use std::sync::Arc;
 
 fn main() {
-
     let mut jack_output: JackOutputNode = JackOutputNode::new();
 
     #[derive(Node)]

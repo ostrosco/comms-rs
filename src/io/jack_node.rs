@@ -1,7 +1,8 @@
-use std::sync::Arc;
 use crate::prelude::*;
-use jack::{AudioOut, Client, Control, ProcessScope, AsyncClient, ClosureProcessHandler};
+use jack::{Client, ClosureProcessHandler, Control, ProcessScope};
+use std::sync::Arc;
 
+#[derive(Default)]
 pub struct JackOutputNode {
     pub input: Arc<NodeReceiver<Vec<f32>>>,
     pub sample_rate: usize,
@@ -9,7 +10,6 @@ pub struct JackOutputNode {
 
 impl JackOutputNode {
     pub fn new() -> Self {
-
         JackOutputNode {
             input: Default::default(),
             sample_rate: 0,
@@ -18,13 +18,16 @@ impl JackOutputNode {
 }
 
 impl Node for JackOutputNode {
-
     fn start(&mut self) {
         // 1. Open client
-        let (client, _status) = Client::new("jack_node", jack::ClientOptions::NO_START_SERVER).unwrap();
+        let (client, _status) =
+            Client::new("jack_node", jack::ClientOptions::NO_START_SERVER)
+                .unwrap();
 
         // 2. Register port
-        let mut out_port = client.register_port("jack_node_out", jack::AudioOut::default()).unwrap();
+        let mut out_port = client
+            .register_port("jack_node_out", jack::AudioOut::default())
+            .unwrap();
 
         // 3. Callback definition
         self.sample_rate = client.sample_rate();
@@ -32,10 +35,8 @@ impl Node for JackOutputNode {
         let xbeam_channel: Arc<_> = self.input.clone();
 
         let process = ClosureProcessHandler::new(
-
             // Callback function signature is basically non-negotiable I think...
             move |_cl: &Client, ps: &ProcessScope| -> Control {
-
                 // Get the output buffer
                 let out = out_port.as_mut_slice(ps);
                 let mut out_iter = out.iter_mut();
@@ -43,17 +44,15 @@ impl Node for JackOutputNode {
                 // TODO: Do the samples at the input get consumed properly as
                 // we iterate over them here?
                 // Get the crossbeam channel
-                let mut cntr = 0;
                 for sample_vec in (*xbeam_channel).as_ref().unwrap() {
                     for sample in sample_vec {
-
                         // Write output
                         if let Some(o) = out_iter.next() {
                             *o = sample;
                         } else {
                             // Get here if # of samples ready at input > out_len...
                             // Continue as normal
-                            return Control::Continue
+                            return Control::Continue;
                         }
                     }
                 }

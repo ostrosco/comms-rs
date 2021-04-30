@@ -53,6 +53,10 @@ name = "play_audio"
 required-features = ["audio_node"]
 
 [[example]]
+name = "jack_sine"
+required-features = ["jack_node", "audio_node"]
+
+[[example]]
 name = "bpsk_mod"
 
 [[example]]
