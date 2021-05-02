@@ -6,20 +6,23 @@ use std::fs::File;
 pub struct MyHandler {
     out_port: Port<AudioOut>,
     xbeam_channel: Arc<Option<crossbeam::Receiver<f32>>>,
+    cb_tx: crossbeam::Sender<String>,
 }
 
 impl MyHandler {
-    fn new(out_port: Port<AudioOut>, xbeam_channel: Arc<Option<crossbeam::Receiver<f32>>>) -> Self {
+    fn new(out_port: Port<AudioOut>, xbeam_channel: Arc<Option<crossbeam::Receiver<f32>>>, cb_tx: crossbeam::Sender<String>) -> Self {
         MyHandler {
             out_port,
             xbeam_channel,
+            cb_tx,
         }
     }
 }
 
 impl ProcessHandler for MyHandler {
     fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
-        println!("ASDF");
+        let msg = format!("ASDF");
+        self.cb_tx.send(msg).unwrap();
         // Get the output buffer
         let out = self.out_port.as_mut_slice(ps);
         let mut out_iter = out.iter_mut();
@@ -52,6 +55,7 @@ pub struct JackOutputNode {
     pub input: Arc<NodeReceiver<f32>>,
     pub sample_rate: usize,
     pub active_client: Option<AsyncClient<(), MyHandler>>,
+    pub cb_rx: Option<crossbeam::Receiver<String>>,
 }
 
 impl JackOutputNode {
@@ -60,6 +64,7 @@ impl JackOutputNode {
             input: Default::default(),
             sample_rate: 0,
             active_client: None,
+            cb_rx: None,
         }
     }
 }
@@ -84,7 +89,9 @@ impl Node for JackOutputNode
         // Callback function signature is basically non-negotiable I think...
 
         // 4. Activate client
-        let derp = MyHandler::new(out_port, xbeam_channel);
+        let (cb_tx, cb_rx) = crossbeam::unbounded();
+        self.cb_rx = Some(cb_rx);
+        let derp = MyHandler::new(out_port, xbeam_channel, cb_tx);
         self.active_client = Some(client.activate_async((), derp).unwrap());
 
         // 5. Processing...
@@ -99,6 +106,11 @@ impl Node for JackOutputNode
         // JACK drives the sample copying with the callback we register in the
         // JACK server, meaning comms-rs really doesn't do anything in it's run
         // handling
+        if let Some(cb_rx) = &self.cb_rx {
+            if let Ok(msg) = cb_rx.try_recv() {
+                println!("msg: {}", msg);
+            }
+        }
         Ok(())
     }
 
