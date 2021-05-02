@@ -1,29 +1,70 @@
 use crate::prelude::*;
-use jack::{Client, ClosureProcessHandler, Control, ProcessScope};
+use jack::{Client, AsyncClient, AudioOut, ProcessHandler, ClosureProcessHandler, Control, ProcessScope, Port};
 use std::sync::Arc;
-use crossbeam::crossbeam_channel::{unbounded};
 use std::fs::File;
 
-#[derive(Default)]
-pub struct JackOutputNode<P> {
-    pub input: Arc<NodeReceiver<f32>>,
-    pub sample_rate: usize,
-    pub cb_rx: Option<Receiver<String>>,
-    pub active_client: Option<jack::AsyncClient<(), P>>,
+pub struct MyHandler {
+    out_port: Port<AudioOut>,
+    xbeam_channel: Arc<Option<crossbeam::Receiver<f32>>>,
 }
 
-impl<P> JackOutputNode<P> {
+impl MyHandler {
+    fn new(out_port: Port<AudioOut>, xbeam_channel: Arc<Option<crossbeam::Receiver<f32>>>) -> Self {
+        MyHandler {
+            out_port,
+            xbeam_channel,
+        }
+    }
+}
+
+impl ProcessHandler for MyHandler {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
+        println!("ASDF");
+        // Get the output buffer
+        let out = self.out_port.as_mut_slice(ps);
+        let mut out_iter = out.iter_mut();
+
+        // TODO: Do the samples at the input get consumed properly as
+        // we iterate over them here?
+        // Get the crossbeam channel
+        let mut file = File::create("/home/styty/git/comms-rs/i_am_here").unwrap();
+        let xbc = (*self.xbeam_channel).as_ref().unwrap();
+        let msg = format!("xbeam_channel len: {:?}", xbc.len());
+        for sample in xbc {
+            // Write output
+            if let Some(o) = out_iter.next() {
+                *o = sample;
+            } else {
+                // Get here if # of samples ready at input > out_len...
+                // Continue as normal
+                return Control::Continue;
+            }
+        }
+
+        // Get here if out_len > # of samples ready at input...
+        // Continue as normal
+        Control::Continue
+    }
+}
+
+#[derive(Default)]
+pub struct JackOutputNode {
+    pub input: Arc<NodeReceiver<f32>>,
+    pub sample_rate: usize,
+    pub active_client: Option<AsyncClient<(), MyHandler>>,
+}
+
+impl JackOutputNode {
     pub fn new() -> Self {
         JackOutputNode {
             input: Default::default(),
             sample_rate: 0,
-            cb_rx: None,
             active_client: None,
         }
     }
 }
 
-impl<P: Send> Node for JackOutputNode<P>
+impl Node for JackOutputNode
 {
     fn start(&mut self) {
         // 1. Open client
@@ -39,40 +80,12 @@ impl<P: Send> Node for JackOutputNode<P>
         // 3. Callback definition
         self.sample_rate = client.sample_rate();
         let xbeam_channel: Arc<_> = self.input.clone();
-        let (cb_send, cb_rx) = unbounded();
-        self.cb_rx = Some(cb_rx);
 
         // Callback function signature is basically non-negotiable I think...
-        let process_cb = move |_cl: &Client, ps: &ProcessScope| -> Control {
-            // Get the output buffer
-            let out = out_port.as_mut_slice(ps);
-            let mut out_iter = out.iter_mut();
-
-            // TODO: Do the samples at the input get consumed properly as
-            // we iterate over them here?
-            // Get the crossbeam channel
-            let mut file = File::create("/home/styty/git/comms-rs/i_am_here").unwrap();
-            let msg = format!("xbeam_channel len: {:?}", (*xbeam_channel).as_ref().unwrap().len());
-            cb_send.send(String::from("herp")).unwrap();
-            for sample in (*xbeam_channel).as_ref().unwrap() {
-                // Write output
-                if let Some(o) = out_iter.next() {
-                    *o = sample;
-                } else {
-                    // Get here if # of samples ready at input > out_len...
-                    // Continue as normal
-                    return Control::Continue;
-                }
-            }
-
-            // Get here if out_len > # of samples ready at input...
-            // Continue as normal
-            Control::Continue
-        };
 
         // 4. Activate client
-        let process = jack::ClosureProcessHandler::new(process_cb);
-        self.active_client = Some(client.activate_async((), process).unwrap());
+        let derp = MyHandler::new(out_port, xbeam_channel);
+        self.active_client = Some(client.activate_async((), derp).unwrap());
 
         // 5. Processing...
 
@@ -86,11 +99,6 @@ impl<P: Send> Node for JackOutputNode<P>
         // JACK drives the sample copying with the callback we register in the
         // JACK server, meaning comms-rs really doesn't do anything in it's run
         // handling
-        if let Some(cb_rx) = &self.cb_rx {
-            if let Ok(msg) = cb_rx.try_recv() {
-                println!("msg from cb: {:?}", msg);
-            }
-        }
         Ok(())
     }
 
