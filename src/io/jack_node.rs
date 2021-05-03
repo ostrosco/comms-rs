@@ -1,9 +1,8 @@
 use crate::prelude::*;
 use jack::{
-    AsyncClient, AudioOut, Client, ClosureProcessHandler, Control, Port,
-    ProcessHandler, ProcessScope,
+    AsyncClient, AudioIn, AudioOut, Client, Control, Port, ProcessHandler,
+    ProcessScope,
 };
-use std::sync::Arc;
 
 pub struct MyHandler {
     out_port: Port<AudioOut>,
@@ -82,8 +81,6 @@ impl JackOutputNode {
         let frame_t = 1.0 / sample_rate as f32;
         let (jack_tx, jack_rx) = crossbeam::bounded::<f32>(4096);
 
-        // Callback function signature is basically non-negotiable I think...
-
         // 4. Activate client
         let (cb_tx, cb_rx) = crossbeam::unbounded();
         let active_client = client
@@ -117,77 +114,114 @@ impl Default for JackOutputNode {
     }
 }
 
-#[derive(Default)]
-pub struct JackInputNode {
-    pub output: Arc<NodeSender<f32>>,
-    pub sample_rate: usize,
+pub struct MyInputHandler {
+    in_port: Port<AudioIn>,
+    tx: crossbeam::Sender<f32>,
+    cb_tx: crossbeam::Sender<String>,
+    time: f32,
+    frame_t: f32,
 }
 
-impl JackInputNode {
-    pub fn new() -> Self {
-        JackInputNode {
-            output: Default::default(),
-            sample_rate: 0,
+impl MyInputHandler {
+    fn new(
+        in_port: Port<AudioIn>,
+        tx: crossbeam::Sender<f32>,
+        cb_tx: crossbeam::Sender<String>,
+        frame_t: f32,
+    ) -> Self {
+        MyInputHandler {
+            in_port,
+            tx,
+            cb_tx,
+            frame_t,
+            time: 0.0,
         }
     }
 }
 
-impl Node for JackInputNode {
-    fn start(&mut self) {
+impl ProcessHandler for MyInputHandler {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
+        if self.time >= 1.0 {
+            let msg = "FDSA".to_string();
+            self.cb_tx.try_send(msg).unwrap();
+            self.time = 0.0;
+        }
+
+        // Get the input buffer
+        let input = self.in_port.as_slice(ps);
+
+        // Read input
+        for v in input.iter() {
+            if let Ok(()) = self.tx.send(*v) {
+                self.time += self.frame_t;
+            }
+        }
+
+        // Get here if out_len > # of samples ready at input...
+        // Continue as normal
+        Control::Continue
+    }
+}
+
+#[pass_by_ref]
+#[derive(Node)]
+pub struct JackInputNode {
+    pub output: NodeSender<f32>,
+    pub sample_rate: usize,
+    pub active_client: AsyncClient<(), MyInputHandler>,
+    pub cb_rx: crossbeam::Receiver<String>,
+    pub jack_rx: crossbeam::Receiver<f32>,
+}
+
+impl JackInputNode {
+    pub fn new() -> Self {
         // 1. Open client
-        let (client, _status) = Client::new(
-            "jack_input_node",
-            jack::ClientOptions::NO_START_SERVER,
-        )
-        .unwrap();
+        let (client, _status) =
+            Client::new("comms_rs", jack::ClientOptions::NO_START_SERVER)
+                .unwrap();
 
         // 2. Register port
         let in_port = client
-            .register_port("jack_node_in", jack::AudioIn::default())
+            .register_port("comms_rs_in", jack::AudioIn::default())
             .unwrap();
 
         // 3. Callback definition
-        self.sample_rate = client.sample_rate();
-        let xbeam_channel: Arc<_> = self.output.clone();
-
-        let process = ClosureProcessHandler::new(
-            // Callback function signature is basically non-negotiable I think...
-            move |_cl: &Client, ps: &ProcessScope| -> Control {
-                // Get the output buffer
-                let input = in_port.as_slice(ps);
-
-                // Get the crossbeam channel
-                for sample in input {
-                    for (channel, _feedback) in &*xbeam_channel {
-                        // Write input
-                        channel.send(*sample).unwrap();
-                    }
-                }
-
-                // Get here if out_len > # of samples ready at input...
-                // Continue as normal
-                Control::Continue
-            },
-        );
+        let sample_rate = client.sample_rate();
+        let frame_t = 1.0 / sample_rate as f32;
+        let (jack_tx, jack_rx) = crossbeam::bounded::<f32>(4096);
 
         // 4. Activate client
-        let _active_client = client.activate_async((), process).unwrap();
+        let (cb_tx, cb_rx) = crossbeam::unbounded();
+        let active_client = client
+            .activate_async(
+                (),
+                MyInputHandler::new(in_port, jack_tx, cb_tx, frame_t),
+            )
+            .unwrap();
 
-        // 5. Processing...
-
-        // 6. Optional client deactivate
-        //active_client.deactivate().uwrap();
-        //
+        JackInputNode {
+            output: Default::default(),
+            sample_rate,
+            active_client,
+            cb_rx,
+            jack_rx,
+        }
     }
 
-    fn call(&mut self) -> Result<(), NodeError> {
+    fn run(&mut self) -> Result<f32, NodeError> {
         // JACK drives the sample copying with the callback we register in the
         // JACK server, meaning comms-rs really doesn't do anything in it's run
         // handling
-        Ok(())
+        if let Ok(sample) = self.jack_rx.try_recv() {
+            Ok(sample)
+        } else {
+            Ok(0.0)
+        }
     }
+}
 
-    fn is_connected(&self) -> bool {
-        (*self.output).get(0).is_some()
+impl Default for JackInputNode {
+    fn default() -> Self {
+        Self::new()
     }
 }
