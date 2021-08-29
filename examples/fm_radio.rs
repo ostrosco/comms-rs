@@ -2,16 +2,13 @@
 extern crate comms_rs;
 extern crate num;
 
-use comms_rs::fft::fft_node::FFTBatchNode;
 use comms_rs::filter::fir_node::BatchFirNode;
 use comms_rs::hardware::{self, radio};
 use comms_rs::io::audio;
 use comms_rs::modulation::analog_node;
 use comms_rs::prelude::*;
-use comms_rs::util::plot_node::PlotNode;
 use comms_rs::util::resample_node::DecimateNode;
 use num::Complex;
-use rtplot::{FigureConfig, PlotType};
 use std::thread;
 
 fn main() {
@@ -144,54 +141,6 @@ fn main() {
         }
     }
 
-    let figure_conf = FigureConfig {
-        xlim: None,
-        ylim: Some([0.0, 40.0]),
-        xlabel: Some("Frequency"),
-        ylabel: Some("FFT Values"),
-        color: [0, 0, 255],
-        plot_type: PlotType::Line,
-    };
-
-    #[derive(Node)]
-    #[pass_by_ref]
-    struct MagnitudeNode {
-        pub input: NodeReceiver<Vec<Complex<f32>>>,
-        pub output: NodeSender<Vec<f32>>,
-    }
-
-    impl MagnitudeNode {
-        pub fn new() -> Self {
-            Self {
-                input: Default::default(),
-                output: Default::default(),
-            }
-        }
-
-        pub fn run(
-            &mut self,
-            input: &[Complex<f32>],
-        ) -> Result<Vec<f32>, NodeError> {
-            let tau = 0.1;
-            let mut linear_trace = 0.0;
-            let mut norm: Vec<f32> = input
-                .iter()
-                .map(|x| {
-                    linear_trace = (1.0 - tau) * linear_trace + tau * x.norm();
-                    10.0 * linear_trace.log10()
-                })
-                .collect();
-
-            // We're switching the left and right sides of the FFT plot to
-            // center around zero.
-            let len = norm.len() / 2;
-            let (left, right) = norm.split_at_mut(len);
-            let mut right = right.to_vec();
-            right.append(&mut left.to_vec());
-            Ok(right)
-        }
-    }
-
     let mut sdr = radio::RadioRxNode::new(rtlsdr, 0, 262144);
     let mut convert = ConvertNode::new();
     let mut dec1: DecimateNode<Complex<f32>> = DecimateNode::new(5);
@@ -203,16 +152,9 @@ fn main() {
     let mut dec2: DecimateNode<f32> = DecimateNode::new(5);
     let mut dec3: DecimateNode<f32> = DecimateNode::new(4);
     let mut audio: audio::AudioNode<f32> = audio::AudioNode::new(1, 44100, 0.1);
-    let mut fft: FFTBatchNode<f32> = FFTBatchNode::new(131072, false);
-    let mut mag: MagnitudeNode = MagnitudeNode::new();
-    let mut plot = PlotNode::new(figure_conf, 32768, false);
 
     connect_nodes!(sdr, output, convert, input);
     connect_nodes!(convert, output, filt1, input);
-    connect_nodes!(convert, output, fft, input);
-    connect_nodes!(fft, output, mag, input);
-    connect_nodes!(mag, output, dec3, input);
-    connect_nodes!(dec3, output, plot, input);
     connect_nodes!(filt1, output, dec1, input);
     connect_nodes!(dec1, output, fm, input);
     connect_nodes!(fm, output, convert2, input);
@@ -222,7 +164,7 @@ fn main() {
     connect_nodes!(dec2, output, audio, input);
     start_nodes!(
         sdr, convert, filt1, dec1, fm, convert2, filt2, dec2, convert3, audio,
-        dec3, fft, mag, plot,
+        dec3,
     );
     loop {}
 }
