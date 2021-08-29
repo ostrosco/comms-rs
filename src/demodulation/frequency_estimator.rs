@@ -13,7 +13,6 @@ use num::complex::Complex;
 ///
 /// * `samples` - Input vector of samples to calculate the carrier frequency
 ///               offset estimate from.
-/// * `m` - Input sample vector oversampling factor.
 ///
 /// # Examples
 ///
@@ -21,22 +20,33 @@ use num::complex::Complex;
 /// use comms_rs::demodulation::frequency_estimator::*;
 /// use num::Complex;
 ///
-/// let m = 4;
 /// let data: Vec<_> = (0..100).map(|x| Complex::new(0.0, x as f64).exp()).collect();
 ///
-/// let estimate = frequency_offset_estimate(&data, m);
+/// let estimate = frequency_offset_estimate(&data);
 /// ```
-pub fn frequency_offset_estimate(samples: &[Complex<f64>], m: u32) -> f64 {
+pub fn frequency_offset_estimate(samples: &[Complex<f64>]) -> f64 {
     let latest: Vec<_> = samples.iter().skip(1).collect();
-    let delayed: Vec<_> = samples.iter().take(latest.len()).map(|x| x.conj()).collect();
+    let delayed: Vec<_> = samples
+        .iter()
+        .take(latest.len())
+        .map(|x| x.conj())
+        .collect();
 
-    let accum = latest.iter().zip(delayed.iter()).map(|x, y| x * y).sum();
+    let mult: Vec<_> = latest
+        .iter()
+        .zip(delayed.iter())
+        .map(|(x, y)| *x * y)
+        .collect();
+    let accum: Complex<f64> = mult.iter().sum();
     accum.arg()
 }
 
 #[cfg(test)]
 mod test {
     use crate::demodulation::frequency_estimator::*;
+    use crate::filter::fir;
+    use crate::num::Zero;
+    use crate::util::math::*;
     use num::Complex;
     use rand::distributions::Uniform;
     use rand::prelude::*;
@@ -45,30 +55,42 @@ mod test {
 
     #[test]
     fn test_frequency_estimator() {
-
-        // 8 PSK
-        let m = 8;
-        let truth = 0.123456789;
+        // 4 PSK
+        let m = 4;
 
         // Generate symbols
         let mut rng = SmallRng::seed_from_u64(0);
         let interval = Uniform::new(0, m);
 
-        let symbols: Vec<_> = (0..1000)
+        let symbols: Vec<_> = (0..4096)
             .map(|_| rng.sample(interval))
-            .enumerate()
-            .map(|i, x| {
-                Complex::new(0.0, 2.0 * PI * x as f64 / (m as f64) + i * truth)
-                    .exp()
-            })
+            .map(|x| Complex::new(0.0, 2.0 * PI * x as f64 / (m as f64)).exp())
             .collect();
 
-        // TODO: Oversample these symbols!
-        let oversampling_factor = 4;
+        // Oversample these symbols!
+        let sam_per_sym = 4;
+        let mut upsample = vec![Complex::zero(); symbols.len() * sam_per_sym];
+        let mut ix = 0;
+        for samp in symbols {
+            upsample[ix] = samp;
+            ix += sam_per_sym;
+        }
+        let taps: Vec<Complex<f64>> =
+            rrc_taps(16, sam_per_sym as f64, 0.75).unwrap();
+        let mut state: Vec<Complex<f64>> = vec![Complex::zero(); 16];
+        let data = fir::batch_fir(&upsample, &taps, &mut state);
+
+        // Add in frequency shift
+        let truth = 0.123456789;
+        let data: Vec<_> = data
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x * (Complex::new(0.0, truth * (i as f64))).exp())
+            .collect();
 
         // Create estimator
-        let estimate = frequency_offset_estimate(&symbols, oversampling_factor);
+        let estimate = frequency_offset_estimate(&data);
 
-        assert!((truth - estimate).abs() < 0.000001);
+        assert!((truth - estimate).abs() < 0.01);
     }
 }
