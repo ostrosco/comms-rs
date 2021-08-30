@@ -25,7 +25,7 @@ struct ParsedFields<'a> {
 /// transformations on the input data structure's types depending on the name
 /// of the fields in the structure.
 ///
-/// The implementation of the Node trait depends on whether #[aggregate] is
+/// The implementation of the Node trait depends on whether `#[aggregate]` is
 /// specified on the structure or not. If it is, the Node will only send out
 /// data when it gets a Some(T) from the run() function, otherwise it will
 /// continue to the next iteration.
@@ -33,7 +33,7 @@ struct ParsedFields<'a> {
 /// This macro currently assumes that the structure in question implements a
 /// function called `run()` which is exercised in the `call()` function from
 /// the Node trait. The return type of the run() depends on whether the
-/// #[aggregate] flag is specified on the input structure. If #[aggregate] is
+/// `#[aggregate]` flag is specified on the input structure. If `#[aggregate]` is
 /// present on the structure, the return type must be an Option. Otherwise, it
 /// can be anything.
 ///
@@ -49,7 +49,7 @@ struct ParsedFields<'a> {
 ///     output: NodeSender<T>,
 /// }
 /// ```
-///  
+///
 pub fn node_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
