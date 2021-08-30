@@ -341,6 +341,7 @@ pub fn qfilt_taps(
     Ok(output)
 }
 
+#[allow(clippy::excessive_precision)]
 #[cfg(test)]
 mod test {
     use crate::util::math;
