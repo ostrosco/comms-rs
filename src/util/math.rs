@@ -156,7 +156,7 @@ pub fn rc_taps<T>(
 where
     T: Copy + Num + num_traits::NumCast,
 {
-    if beta < 0.0 || beta > 1.0 {
+    if !(0.0..=1.0).contains(&beta) {
         return Err(MathError::InvalidRolloffError);
     };
 
@@ -226,7 +226,7 @@ pub fn rrc_taps<T>(
 where
     T: Copy + Num + num_traits::NumCast,
 {
-    if beta < 0.0 || beta > 1.0 {
+    if !(0.0..=1.0).contains(&beta) {
         return Err(MathError::InvalidRolloffError);
     };
 
@@ -309,7 +309,7 @@ pub fn qfilt_taps(
     alpha: f64,
     sam_per_sym: u32,
 ) -> Result<Vec<f64>, MathError> {
-    if alpha < 0.0 || alpha > 1.0 {
+    if !(0.0..=1.0).contains(&alpha) {
         return Err(MathError::InvalidRolloffError);
     };
 

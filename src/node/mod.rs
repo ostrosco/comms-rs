@@ -531,7 +531,7 @@ mod test {
                 &mut self,
                 input: &Arc<Vec<u32>>,
             ) -> Result<Arc<Vec<u32>>, NodeError> {
-                let mut y = Arc::clone(&input);
+                let mut y = Arc::clone(input);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z += 1;
                 }
@@ -624,7 +624,7 @@ mod test {
                 &mut self,
                 x: &Arc<Vec<i16>>,
             ) -> Result<Arc<Vec<i16>>, NodeError> {
-                let mut y = Arc::clone(&x);
+                let mut y = Arc::clone(x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
@@ -715,7 +715,7 @@ mod test {
                 &mut self,
                 x: &Arc<Vec<i16>>,
             ) -> Result<Arc<Vec<i16>>, NodeError> {
-                let mut y = Arc::clone(&x);
+                let mut y = Arc::clone(x);
                 for z in Arc::make_mut(&mut y).iter_mut() {
                     *z = z.saturating_add(1);
                 }
