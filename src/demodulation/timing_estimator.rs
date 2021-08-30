@@ -170,7 +170,7 @@ mod test {
         let n_taps = sam_per_sym * 10 + 1;
         let rrctaps = rrc_taps(n_taps, sam_per_sym as f64, alpha).unwrap();
         let mut state = vec![Complex::new(0.0, 0.0); n_taps as usize];
-        
+
         batch_fir(&symbols, &rrctaps, &mut state)
     }
 
