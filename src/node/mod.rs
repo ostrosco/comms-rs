@@ -352,6 +352,7 @@ macro_rules! start_nodes_threadpool {
 #[cfg(test)]
 mod test {
     use rand::{thread_rng, Rng};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant};
@@ -438,11 +439,11 @@ mod test {
         #[derive(Node)]
         struct Node2 {
             pub input: NodeReceiver<u32>,
-            pub check: Arc<Mutex<bool>>,
+            pub check: Arc<AtomicBool>,
         }
 
         impl Node2 {
-            pub fn new(check: Arc<Mutex<bool>>) -> Self {
+            pub fn new(check: Arc<AtomicBool>) -> Self {
                 Node2 {
                     input: Default::default(),
                     check,
@@ -450,13 +451,12 @@ mod test {
             }
 
             pub fn run(&mut self, x: u32) -> Result<(), NodeError> {
-                let mut check = self.check.lock().unwrap();
-                *check = x == 1;
+                self.check.store(x == 1, Ordering::SeqCst);
                 Ok(())
             }
         }
 
-        let check = Arc::new(Mutex::new(false));
+        let check = Arc::new(AtomicBool::new(false));
         let node1 = Arc::new(Mutex::new(Node1::new()));
         let node2 = Arc::new(Mutex::new(Node2::new(check.clone())));
 
@@ -472,8 +472,7 @@ mod test {
         graph.run_graph();
         thread::sleep(Duration::from_secs(1));
         {
-            let check = check.lock().unwrap();
-            assert!(*check);
+            assert!(check.load(Ordering::SeqCst));
         }
     }
 
