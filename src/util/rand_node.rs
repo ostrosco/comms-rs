@@ -193,7 +193,7 @@ mod test {
             }
 
             pub fn run(&mut self, x: f64) -> Result<(), NodeError> {
-                assert!(x >= 1.0 && x <= 2.0);
+                assert!((1.0..=2.0).contains(&x));
                 Ok(())
             }
         }

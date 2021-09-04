@@ -85,8 +85,7 @@ where
         &mut self,
         input: &Complex<T>,
     ) -> Result<Vec<Complex<T>>, NodeError> {
-        let mut output = Vec::new();
-        output.push(fir(input, &self.taps, &mut self.state));
+        let mut output = vec![fir(input, &self.taps, &mut self.state)];
         for _ in 0..&self.sam_per_sym - 1 {
             output.push(fir(&Complex::zero(), &self.taps, &mut self.state));
         }
