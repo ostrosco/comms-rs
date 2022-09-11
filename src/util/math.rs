@@ -1,4 +1,4 @@
-use num::{Complex, Num};
+use num::{Complex, Num, NumCast};
 use std::f64::consts::PI;
 
 use crate::util::MathError;
@@ -19,8 +19,8 @@ use crate::util::MathError;
 /// ```
 pub fn cast_complex<T, U>(input: &Complex<T>) -> Option<Complex<U>>
 where
-    T: Copy + Num + num_traits::NumCast,
-    U: Copy + Num + num_traits::NumCast,
+    T: Copy + Num + NumCast,
+    U: Copy + Num + NumCast,
 {
     let re = U::from(input.re)?;
     let im = U::from(input.im)?;
@@ -47,7 +47,7 @@ where
 /// ```
 pub fn rect_taps<T>(n_taps: usize) -> Option<Vec<Complex<T>>>
 where
-    T: Copy + Num + num_traits::NumCast,
+    T: Copy + Num + NumCast,
 {
     let re = T::from(1)?;
     let im = T::from(0)?;
@@ -82,17 +82,17 @@ pub fn gaussian_taps<T>(
     alpha: f64,
 ) -> Option<Vec<Complex<T>>>
 where
-    T: Copy + Num + num_traits::NumCast,
+    T: Copy + Num + NumCast,
 {
-    let tsym = 1.0_f64;
-    let fs = sam_per_sym / tsym;
+    let tsym: f64 = 1.0;
+    let fs: f64 = sam_per_sym / tsym;
 
     let f =
         |t: f64| -> f64 { (alpha / PI).sqrt() * (-alpha * t.powi(2)).exp() };
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
+        let t = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
         let value = T::from(f(t))?;
         let im = T::from(0)?;
         taps.push(Complex::new(value, im));
@@ -154,14 +154,14 @@ pub fn rc_taps<T>(
     beta: f64,
 ) -> Result<Vec<Complex<T>>, MathError>
 where
-    T: Copy + Num + num_traits::NumCast,
+    T: Copy + Num + NumCast,
 {
     if beta < 0.0 || beta > 1.0 {
         return Err(MathError::InvalidRolloffError);
     };
 
-    let tsym = 1.0_f64;
-    let fs = sam_per_sym / tsym;
+    let tsym: f64 = 1.0;
+    let fs: f64 = sam_per_sym / tsym;
 
     let fint = || -> f64 { (PI / (4.0 * tsym)) * sinc(1.0 / (2.0 * beta)) };
 
@@ -178,7 +178,7 @@ where
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
+        let t = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
 
         let im = T::from(0).ok_or(MathError::ConvertError)?;
         if (t - zero_denom).abs() < std::f64::EPSILON
@@ -224,14 +224,14 @@ pub fn rrc_taps<T>(
     beta: f64,
 ) -> Result<Vec<Complex<T>>, MathError>
 where
-    T: Copy + Num + num_traits::NumCast,
+    T: Copy + Num + NumCast,
 {
     if beta < 0.0 || beta > 1.0 {
         return Err(MathError::InvalidRolloffError);
     };
 
-    let tsym = 1.0_f64;
-    let fs = sam_per_sym / tsym;
+    let tsym: f64 = 1.0;
+    let fs: f64 = sam_per_sym / tsym;
 
     let fzero = || -> f64 { (1.0 / tsym) * (1.0 + beta * (4.0 / PI - 1.0)) };
 
@@ -251,7 +251,7 @@ where
             / (PI * (t / tsym) * (1.0 - (4.0 * beta * (t / tsym)).powi(2)))
     };
 
-    let zero_denom = if beta != 0.0 {
+    let zero_denom: f64 = if beta != 0.0 {
         tsym / (4.0 * beta)
     } else {
         0.0
@@ -259,7 +259,7 @@ where
 
     let mut taps = Vec::new();
     for i in 0..n_taps {
-        let t = (f64::from(i) - f64::from(n_taps - 1) / 2.0) / fs;
+        let t: f64 = (i as f64 - (n_taps - 1) as f64 / 2.0) / fs;
 
         let im = T::from(0).ok_or(MathError::ConvertError)?;
         if t.abs() < std::f64::EPSILON {

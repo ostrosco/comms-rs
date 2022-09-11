@@ -1,6 +1,6 @@
 //! Provide tools to do digital modulation
 
-use num::complex::Complex;
+use num::Complex;
 
 /// Modulates a bit to a complex int16 impulse via BPSK
 pub fn bpsk_bit_mod(bit: u8) -> Option<Complex<i16>> {

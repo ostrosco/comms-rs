@@ -6,7 +6,7 @@ use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
 
-use num::complex::Complex;
+use num::Complex;
 
 // Reference Chp. 8.4 in Mengali
 //

@@ -6,7 +6,7 @@ use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
 
-use num::complex::Complex;
+use num::Complex;
 
 /// Struct to implement a complex NCO.
 ///
@@ -73,7 +73,7 @@ impl Nco {
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
         }
-        Complex::exp(&Complex::new(0.0, self.phase))
+        Complex::exp(Complex::new(0.0, self.phase))
     }
 }
 

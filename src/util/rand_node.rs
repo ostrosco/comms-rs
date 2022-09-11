@@ -134,7 +134,7 @@ impl NormalNode {
     /// Runs the `NormalNode`.  Produces either a new `f64` sample drawn from
     /// the stored random number generator or produces a `NodeError`.
     pub fn run(&mut self) -> Result<f64, NodeError> {
-        Ok(self.rng.sample(&self.dist))
+        Ok(self.rng.sample(self.dist))
     }
 }
 

@@ -13,8 +13,6 @@ edition = "2018"
 [dependencies]
 assert_approx_eq = "1.0"
 byteorder = "1"
-num-complex = "0.2"
-num-traits = "0.2"
 crossbeam = "0.7"
 hashbrown = "0.1"
 rand = "0.5"
@@ -29,7 +27,7 @@ zmq = {version = "0.8", optional = true}
 node_derive = {path = "node_derive"}
 
 [dependencies.num]
-version = "0.2"
+version = "0.4"
 features = ["serde"]
 
 [profile.release]

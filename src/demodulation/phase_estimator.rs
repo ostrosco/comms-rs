@@ -1,4 +1,4 @@
-use num::complex::Complex;
+use num::Complex;
 
 /// Calculates a phase estimate from the input PSK symbol vector.
 ///

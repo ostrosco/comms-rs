@@ -7,8 +7,7 @@
 //! Assume initial state of 0's. Takes in `Complex<T>` samples, outputs
 //! `Complex<T>`.  Constructor takes `Vec<Complex<T>>` for filter taps.
 
-use num::complex::Complex;
-use num_traits::Num;
+use num::{Complex, Num};
 
 /// Implementation of run for the FirNode.
 ///
@@ -44,7 +43,7 @@ use num_traits::Num;
 pub fn fir<T>(
     input: &Complex<T>,
     taps: &[Complex<T>],
-    state: &mut Vec<Complex<T>>,
+    state: &mut [Complex<T>],
 ) -> Complex<T>
 where
     T: Num + Copy,
@@ -88,7 +87,7 @@ where
 pub fn batch_fir<T>(
     input: &[Complex<T>],
     taps: &[Complex<T>],
-    state: &mut Vec<Complex<T>>,
+    state: &mut [Complex<T>],
 ) -> Vec<Complex<T>>
 where
     T: Num + Copy,
