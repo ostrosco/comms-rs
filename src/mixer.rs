@@ -6,9 +6,7 @@ use std::f64::consts::PI;
 
 extern crate num; // 0.2.0
 
-use num::complex::Complex;
-use num::Num;
-use num_traits::NumCast;
+use num::{Complex, Num, NumCast};
 
 use crate::util::math;
 
@@ -77,7 +75,7 @@ impl Mixer {
         T: NumCast + Copy + Num,
     {
         let inp: Complex<f64> = math::cast_complex(input).unwrap();
-        let res = inp * Complex::exp(&Complex::new(0.0, self.phase));
+        let res = inp * Complex::exp(Complex::new(0.0, self.phase));
         self.phase += self.dphase;
         if self.phase > 2.0 * PI {
             self.phase -= 2.0 * PI;
@@ -153,8 +151,7 @@ where
 mod test {
     use crate::mixer::*;
     use crossbeam::channel;
-    use num::complex::Complex;
-    use num::Zero;
+    use num::{Complex, Zero};
     use std::thread;
     use std::time::Instant;
 

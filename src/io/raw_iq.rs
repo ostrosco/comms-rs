@@ -31,7 +31,7 @@ impl<R: Read + Send> IQInput<R> {
     ///
     /// # Example
     ///
-    /// ```no-run
+    /// ```no_run
     /// use std::fs::File;
     /// use std::io::BufReader;
     /// use comms_rs::io::raw_iq::IQInput;
@@ -92,7 +92,7 @@ impl<R: Read + Send> IQBatchInput<R> {
     ///
     /// # Example
     ///
-    /// ```no-run
+    /// ```no_run
     /// use std::fs::File;
     /// use comms_rs::io::raw_iq::IQBatchInput;
     ///
@@ -154,7 +154,7 @@ impl<W: Write + Send> IQOutput<W> {
     ///
     /// # Example
     ///
-    /// ```no-run
+    /// ```no_run
     /// use std::fs::File;
     /// use std::io::BufWriter;
     /// use comms_rs::io::raw_iq::IQOutput;
@@ -195,7 +195,7 @@ impl<W: Write + Send> IQBatchOutput<W> {
     ///
     /// # Example
     ///
-    /// ```no-run
+    /// ```no_run
     /// use std::fs::File;
     /// use comms_rs::io::raw_iq::IQBatchOutput;
     ///

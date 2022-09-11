@@ -8,9 +8,7 @@
 use crate::prelude::*;
 
 use crate::filter::fir::*;
-use num::complex::Complex;
-use num::Zero;
-use num_traits::Num;
+use num::{Complex, Num, Zero};
 
 /// A node that implements a generic FIR filter which operates on a sample at a
 /// time.

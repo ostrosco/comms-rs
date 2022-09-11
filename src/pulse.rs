@@ -2,9 +2,7 @@
 use crate::filter::fir::*;
 use crate::prelude::*;
 
-use num::complex::Complex;
-use num::Zero;
-use num_traits::Num;
+use num::{Complex, Num, Zero};
 
 /// A node that implements a pulse shaping filter of a specified sort.
 ///

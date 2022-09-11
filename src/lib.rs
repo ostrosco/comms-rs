@@ -21,7 +21,6 @@ extern crate byteorder;
 extern crate crossbeam;
 extern crate node_derive;
 extern crate num;
-extern crate num_traits;
 extern crate rand;
 extern crate rayon;
 extern crate rustfft;

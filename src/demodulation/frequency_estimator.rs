@@ -1,4 +1,4 @@
-use num::complex::Complex;
+use num::Complex;
 
 /// Calculates a carrier offset estimate from the input sample vector.
 ///
