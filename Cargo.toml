@@ -8,13 +8,13 @@ repository = "https://github.com/ostrosco/comms-rs"
 readme = "README.md"
 keywords = ["dsp", "rf"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 assert_approx_eq = "1.0"
 byteorder = "1"
-crossbeam = "0.7"
-hashbrown = "0.1"
+crossbeam = "0.8"
+hashbrown = "0.15"
 rand = "0.5"
 rayon = "1"
 rodio = {version = "0.8", optional = true}
