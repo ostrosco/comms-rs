@@ -162,7 +162,7 @@ mod test {
                     assert_eq!(self.statemap.len(), 255);
                     return None;
                 } else {
-                    self.statemap.insert(self.state, 1 as u8);
+                    self.statemap.insert(self.state, 1_u8);
                 }
 
                 let fb_bit =
@@ -176,7 +176,7 @@ mod test {
         }
 
         let mut prngen = TestPrnsGenerator {
-            poly_mask: 0xB8 as u8,
+            poly_mask: 0xB8_u8,
             state: 0x01,
             statemap: HashMap::new(),
         };
@@ -189,7 +189,7 @@ mod test {
     #[test]
     // A test to verify the PrnsNode matches the PRBS7 output.
     fn test_prns_node() {
-        let mut mynode = PrnsNode::new(0xC0 as u8, 0x01);
+        let mut mynode = PrnsNode::new(0xC0_u8, 0x01);
         #[derive(Node)]
         struct CheckNode {
             input: NodeReceiver<u8>,
